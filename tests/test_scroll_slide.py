@@ -24,9 +24,9 @@ assert 'Math.abs(scrollPixels-previousScroll)>0.0001f' in v
 assert 'NewsCardPainter.prepareScroll(current.story)' in v
 assert 'NewsCardPainter.renderScrolling(' in v
 assert 'return clamp((rowPosition(rows,spokenCharacters)-focusRows)*rowStep,0,maxOffset);' in geom
-assert 'v5.26 자동 이미지·진행률' in ui
+assert 'v5.27 자동 이미지·진행률' in ui
 assert 'com.newsvoice.tts.autovideo.v525' in gradle
-assert "def releaseVersion = '5.26'" in gradle
+assert "def releaseVersion = '5.27'" in gradle
 assert 'versionName releaseVersion' in gradle
 assert 'FPS=30;' in v
 assert 'SCROLL_DELAY_US=700_000L;' in v
