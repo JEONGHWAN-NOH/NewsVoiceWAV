@@ -1,16 +1,17 @@
 from pathlib import Path
 p=Path("app/src/main/java/com/newsvoice/tts/NewsCardPainter.java").read_text(encoding="utf-8")
-assert "NewsPageSplitter.split(story.spokenText()" in p
-assert "text->tryFitNarration(text)!=null" in p
-assert 'story.title+"\\n"+chunks.get(i):chunks.get(i)' in p
-assert "story.page(text,newsNumber,newsTotal,i+1,chunks.size())" in p
-assert "tryFitNarration(prose(story))" in p
-assert '"본문 "+story.pageNumber+" / "+story.pageCount' in p
-assert "drawArticleArt(" not in p
-assert "new ReadingFit(92,658,size,step,lines)" in p
-assert "wrapComplete(body,font,891f)" in p
-assert "drawWatermark(c,story);" in p
-assert "drawProseLine(c,row,layout.x,y,body);" in p
-assert "renderBroadcastCover(context,meta,count)" in p
-assert "NewsBroadcastSegments.completedNews(story)" in p
-print("PASS: story card fits one page or automatically continues without clipping")
+assert 'result.add(story.page(story.narration,newsNumber,newsTotal,1,1));' in p
+assert 'story.kind==NewsStory.NEWS?++counted:' in p
+assert 'story.spokenText()' in p
+assert 'private static final float SCROLL_FONT=82f;' in p
+assert 'private static final float SCROLL_STEP=115f;' in p
+assert 'NewsScrollMath.offset(rowLengths,position,' in p
+assert 'List<String> rows=wrapComplete(script,p(Color.WHITE,SCROLL_FONT,true),880f);' in p
+assert 'total!=NewsSentenceTimeline.visibleLength(script)' in p
+assert 'c.clipRect(75f,611f,1002f,SCROLL_BOTTOM);' in p
+assert 'NewsBroadcastSegments.completedNews(story)' in p
+assert 'renderBroadcastCover(context,meta,count)' in p
+assert 'drawProseLine(c,text,92f,y,body);' in p
+assert 'new ReadingFit(92,658,size,step,lines)' in p # legacy renderer retained
+assert 'String scrollLabel="큰 글씨 · 자동 스크롤";' in p
+print("PASS: full-length article uses one large-print scrolling slide without truncation")
