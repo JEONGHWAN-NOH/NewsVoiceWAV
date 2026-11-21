@@ -36,5 +36,5 @@ assert "def releaseVersion = '5.24'" in gradle
 assert "applicationId 'com.newsvoice.tts.autovideo.v524'" in gradle
 assert "versionCode 30" in gradle
 assert "NewsVoiceWAV-v5.24-debug.apk" in actions
-assert "NewsVoiceWAV-v5.24-Centered700ms-debug-apk" in actions
+assert "NewsVoiceWAV-v5.24-CenteredVoice700ms-debug-apk" in actions
 print("PASS: v5.24 font 56px, 84px leading, voice-first 700ms lag and retained existing features")
