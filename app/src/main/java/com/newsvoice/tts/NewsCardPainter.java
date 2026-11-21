@@ -353,9 +353,9 @@ public final class NewsCardPainter {
             economy?"경제·산업":"필리핀 주요 뉴스";
         c.drawText(category,89,557,p(yellow,43,true));
         if(story.pageCount>1){
-            String label="본문 "+story.pageNumber+" / "+story.pageCount;
+            String pageLabel="본문 "+story.pageNumber+" / "+story.pageCount;
             Paint pageFont=p(white,31,true);
-            c.drawText(label,990-pageFont.measureText(label),555,pageFont);
+            c.drawText(pageLabel,990-pageFont.measureText(pageLabel),555,pageFont);
         }
         line(c,Color.rgb(69,143,220),87,586,990,586,2);
         drawWatermark(c,story);
