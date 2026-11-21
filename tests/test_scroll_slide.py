@@ -5,8 +5,8 @@ v=(root/"NewsVideoComposer.java").read_text(encoding="utf-8")
 geom=(root/"NewsScrollMath.java").read_text(encoding="utf-8")
 ui=(root/"MainActivity.java").read_text(encoding="utf-8")
 gradle=Path("app/build.gradle").read_text(encoding="utf-8")
-assert 'private static final float SCROLL_FONT=82f;' in p
-assert 'private static final float SCROLL_STEP=115f;' in p
+assert 'private static final float SCROLL_FONT=76f;' in p
+assert 'private static final float SCROLL_STEP=104f;' in p
 assert 'result.add(story.page(story.narration,newsNumber,newsTotal,1,1));' in p
 assert 'if(total!=NewsSentenceTimeline.visibleLength(script))' in p
 assert 'if(boundaries[boundaries.length-1]!=total)' in p
@@ -17,15 +17,16 @@ assert 'public float offset(int sentence,float fraction,boolean narrationFinishe
 assert 'NewsScrollMath.offset(rowLengths,position,' in p
 assert 'SCROLL_FOCUS_ROWS=3.2f;' in p
 assert 'sentenceProgress(long presentationUs,int active)' in v
-assert 'NewsScrollMath.continuousOffset(us,current.audioStartUs,' in v
-assert 'lastCueUs,scrollPlan.maxOffset)' in v
+assert 'NewsScrollMath.audioCurve(' in v
+assert 'scrollPlan.sentenceStarts,scrollPlan.totalCharacters,' in v
+assert 'scrollCurve.position(us)' in v
 assert 'Math.abs(scrollPixels-previousScroll)>0.0001f' in v
 assert 'NewsCardPainter.prepareScroll(current.story)' in v
 assert 'NewsCardPainter.renderScrolling(' in v
 assert 'return clamp((rowPosition(rows,spokenCharacters)-focusRows)*rowStep,0,maxOffset);' in geom
-assert 'v5.19 끊김 없는 연속 스크롤' in ui
-assert 'com.newsvoice.tts.autovideo.v519' in gradle
-assert "def releaseVersion = '5.19'" in gradle
+assert 'v5.20 음성 동기화 스크롤' in ui
+assert 'com.newsvoice.tts.autovideo.v520' in gradle
+assert "def releaseVersion = '5.20'" in gradle
 assert 'versionName releaseVersion' in gradle
 assert 'FPS=30;' in v
 assert 'float scrollPixels=scrollPlan==null?0f:' in v
