@@ -37,6 +37,6 @@ assert 'NewsCoverExporter.coverFile(' in worker
 assert 'NewsCoverExporter.coverFile(' in manual
 assert "def releaseVersion = '5.31'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert 'versionCode 36' in gradle
+assert 'versionCode 37' in gradle
 assert 'NewsVoiceWAV-v5.31-release-unsigned' in workflow
 print("PASS: 56px body, 84px leading, measured WAV alignment with 700ms scroll lag and complete final card")
