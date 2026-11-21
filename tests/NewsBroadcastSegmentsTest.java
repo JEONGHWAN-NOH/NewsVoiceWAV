@@ -40,6 +40,15 @@ public final class NewsBroadcastSegmentsTest {
             NewsBroadcastSegments.build("제목만 있는 뉴스", "");
             throw new AssertionError("headline-only article must be rejected");
         }catch(IllegalArgumentException expected){}
+        // Explicit script prompts override defaults; never append a second copy.
+        String supplied="시작 인사\\n특별한 인사입니다.\\n===\\n"+text+
+            "\\n===\\n앵커 한마디\\n확인된 사실을 전하겠습니다.\\n===\\n마감 인사\\n이상으로 마치겠습니다.";
+        List<NewsStory> explicit=NewsBroadcastSegments.build(supplied,"별도 앵커 설명입니다.");
+        assertTrue(explicit.size()==5,"no duplicate intro anchor or closing");
+        String complete=NewsBroadcastSegments.audioScript(explicit);
+        assertTrue(!complete.contains("별도 앵커 설명입니다."),"no redundant configured anchor");
+        assertTrue(!complete.contains("뉴스·경제 종합 브리핑입니다."),"no duplicate default opening");
+        assertTrue(complete.contains("특별한 인사입니다."),"explicit opening preserved");
         System.out.println("NewsBroadcastSegments PASS");
     }
 }
