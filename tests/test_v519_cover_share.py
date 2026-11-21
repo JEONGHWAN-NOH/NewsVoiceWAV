@@ -32,7 +32,7 @@ assert 'image/jpeg' in downloads
 assert 'wav|mp4|jpg' in downloads
 for source in (manual,worker):
     assert 'NewsCoverExporter.coverFile(' in source
-    assert '_cover.jpg' in source
+    assert 'names.jpg()' in source  # dated public output keeps the real JPEG poster
     assert 'last_cover_uri' in source
 assert 'shareLast(true)' in ui
 assert 'shareLast(false)' in ui
