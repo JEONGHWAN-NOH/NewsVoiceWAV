@@ -61,7 +61,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private boolean engineUiReady = false;
     private int selectedPreset = 0;
     private EditText serverEdit, tokenEdit;
-    private CheckBox automaticCheck;
+    private CheckBox automaticCheck, videoCheck;
     private long taskToken = 0;
     private int lastQueuedIndex = -1;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -160,7 +160,19 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button preview=btn("미리 듣기",0xffe3eff2,DARK);controls.addView(preview,new LinearLayout.LayoutParams(0,-1,1));
         Button stop=btn("정지",0xffe3eff2,DARK);LinearLayout.LayoutParams stopP=new LinearLayout.LayoutParams(0,-1,1);stopP.leftMargin=dp(this,6);controls.addView(stop,stopP);
         Button play=btn("읽기 시작",0xff63ddbd,0xff0b2936);LinearLayout.LayoutParams playP=new LinearLayout.LayoutParams(0,-1,1);playP.leftMargin=dp(this,6);controls.addView(play,playP);
-        Button save=btn("긴 원고 WAV 자동 생성 및 다운로드 저장",MINT,Color.WHITE);body.addView(save,lp(-1,55,12));
+        videoCheck=new CheckBox(this);
+        videoCheck.setText("뉴스 카드 MP4까지 자동 제작 (WAV + MP4)");
+        videoCheck.setTextColor(DARK);
+        videoCheck.setChecked(AppPrefs.videoEnabled(this));
+        body.addView(videoCheck,lp(-1,-2,12));
+        TextView formatHelp=text("기사를 여러 장으로 만들려면 각 기사 사이에 === 한 줄을 입력하세요. 뉴스 한 건당 카드 한 장, 약 0.3초 선행 전환합니다. MP4는 1080×1920으로 저장됩니다.",12,false);
+        formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
+        Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
+        body.addView(save,lp(-1,55,12));
+        videoCheck.setOnCheckedChangeListener((button,isChecked)->{
+            AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
+            save.setText(isChecked?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장");
+        });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
         preview.setOnClickListener(v->speakNow("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.",true));
@@ -364,7 +376,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     private void buildAutomationControls(LinearLayout body){
         body.addView(text("04  자동 뉴스 수신 · WAV 변환",17,true),lp(-1,-2,28));
-        TextView note=text("서버 연결 전에는 수동 WAV만 사용하세요. 자동 수신은 HTTPS와 서버 인증키가 필요합니다. 15분 단위 확인은 정각을 보장하지 않습니다.",13,false);
+        TextView note=text("서버 연결 전에는 직접 대본을 입력해 WAV + MP4를 제작하세요. 자동 뉴스 수신에는 별도의 HTTPS 대본 서버와 인증키가 필요합니다. 15분 단위 확인은 정각을 보장하지 않습니다.",13,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,7));
         android.content.SharedPreferences p=AppPrefs.get(this);
         serverEdit=new EditText(this);serverEdit.setSingleLine(true);serverEdit.setTextSize(14);
@@ -389,7 +401,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드에서는 WAV 파일을 갤럭시 다운로드 폴더에 저장하고 HTTPS 서버로 전송합니다. 원고와 음성을 전송하므로 신뢰할 수 있는 본인 서버만 등록하세요.",12,false);
+        TextView caution=text("자동 모드에서는 원고를 수신하고 뉴스 카드 MP4와 WAV를 갤럭시 다운로드/NewsVoiceWAV에 저장합니다. WAV만 등록 서버로 전송되며, MP4는 휴대폰에 저장됩니다. 기존 승인 오프닝 음원은 별도 연결 전까지 영상 도입부 6초가 무음입니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){

@@ -1,0 +1,267 @@
+package com.newsvoice.tts;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.media.MediaCodec;
+import android.media.MediaCodecInfo;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
+import android.media.MediaMuxer;
+import android.view.Surface;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Offline MP4 renderer: news-card Canvas -> EGL -> hardware H.264 encoder;
+ * 16-bit PCM WAV -> AAC encoder; MediaExtractor/MediaMuxer join to playable MP4.
+ * No internet or unlicensed third-party codecs required.
+ * A 6s opening is reserved; it is SILENT until the approved intro soundtrack is supplied.
+ * Each card starts 0.30s before the corresponding narrated article.
+ */
+public final class NewsVideoComposer {
+    private NewsVideoComposer() { }
+    public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=12;
+    private static final long US_PER_S=1_000_000L;
+    private static final int PCM_CHUNK=16384;
+
+    public interface Progress { void message(String message) throws IOException; }
+    private static final class Span {
+        final NewsStory story;
+        final long startUs,endUs;
+        Span(NewsStory story,long startUs,long endUs){this.story=story;this.startUs=startUs;this.endUs=endUs;}
+    }
+    private static final class Timeline {
+        final File pcm;
+        final int sampleRate,channels;
+        final long endUs;
+        final List<Span> spans;
+        Timeline(File pcm,int sr,int channels,long endUs,List<Span> spans){this.pcm=pcm;this.sampleRate=sr;this.channels=channels;this.endUs=endUs;this.spans=spans;}
+    }
+    private static int shortLE(byte[] a,int off){return (a[off]&255)|((a[off+1]&255)<<8);}
+    private static int intLE(byte[] a,int off){return (a[off]&255)|((a[off+1]&255)<<8)|((a[off+2]&255)<<16)|((a[off+3]&255)<<24);}
+    private static long toUs(long samples,int sampleRate){return samples*US_PER_S/sampleRate;}
+    private static void writeSilence(OutputStream out,long bytes)throws IOException {
+        byte[] zeros=new byte[8192];while(bytes>0){int n=(int)Math.min(bytes,zeros.length);out.write(zeros,0,n);bytes-=n;}
+    }
+    private static void appendWave(OutputStream out,WavTools.Piece piece)throws IOException {
+        try(RandomAccessFile f=new RandomAccessFile(piece.file,"r")){
+            f.seek(piece.dataOffset);byte[] chunk=new byte[32768];long remaining=piece.dataLength;
+            while(remaining>0){int n=f.read(chunk,0,(int)Math.min(chunk.length,remaining));if(n<0)throw new EOFException();out.write(chunk,0,n);remaining-=n;}
+        }
+    }
+    private static Timeline makeTimeline(List<NewsStory> stories,List<File> waves,File pcm) throws IOException {
+        if(stories.size()!=waves.size()||stories.isEmpty())throw new IOException("Article/WAV count mismatch");
+        List<WavTools.Piece> pieces=new ArrayList<>();byte[] expected=null;
+        for(File wav:waves){
+            WavTools.Piece part=WavTools.inspect(wav);
+            if(expected!=null&&!Arrays.equals(expected,part.format))throw new IOException("뉴스 WAV 형식이 서로 다릅니다.");
+            expected=part.format;pieces.add(part);
+        }
+        if(shortLE(expected,0)!=1||shortLE(expected,14)!=16)throw new IOException("MP4 변환은 PCM 16-bit WAV를 지원합니다.");
+        int channels=shortLE(expected,2), rate=intLE(expected,4);
+        if(channels<1||channels>2||rate<8000||rate>48000)throw new IOException("지원하지 않는 음성 WAV 채널 또는 샘플 속도입니다.");
+        int frameBytes=channels*2;long frameCount=0;
+        List<Span> spans=new ArrayList<>();
+        try(OutputStream out=new BufferedOutputStream(new FileOutputStream(pcm))){
+            long introFrames=6L*rate;
+            writeSilence(out,introFrames*frameBytes);frameCount+=introFrames;
+            for(int i=0;i<pieces.size();i++){
+                long start=toUs(frameCount,rate);
+                long gapFrames=rate*3L/10; // Cards appear ~0.3s before narration.
+                writeSilence(out,gapFrames*frameBytes);frameCount+=gapFrames;
+                WavTools.Piece part=pieces.get(i);
+                if(part.dataLength%frameBytes!=0)throw new IOException("WAV 데이터의 샘플 경계가 맞지 않습니다.");
+                appendWave(out,part);
+                frameCount+=part.dataLength/frameBytes;
+                spans.add(new Span(stories.get(i),start,toUs(frameCount,rate)));
+            }
+            long tailFrames=rate/3;writeSilence(out,tailFrames*frameBytes);frameCount+=tailFrames;
+        }
+        return new Timeline(pcm,rate,channels,toUs(frameCount,rate),spans);
+    }
+    public static File create(Context context,List<NewsStory> stories,List<File> waves,File output,Progress progress)throws Exception {
+        File folder=new File(context.getCacheDir(),"video_work_"+System.nanoTime());
+        if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
+        File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
+        try {
+            Timeline timeline=makeTimeline(stories,waves,raw);
+            if(timeline.endUs>12L*60*US_PER_S)throw new IOException("한 영상은 12분 이내 원고를 사용하세요.");
+            progress.message("WAV 음성을 AAC로 변환 중");
+            encodeAudio(raw,aac,timeline.sampleRate,timeline.channels);
+            progress.message("뉴스 카드 영상 렌더링 중");
+            encodeVideo(video,timeline,stories.size(),progress);
+            progress.message("MP4 음성·영상 결합 중");
+            join(video,aac,output);
+            if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
+            progress.message("MP4 생성 완료");
+            return output;
+        } finally {
+            File[] files=folder.listFiles();if(files!=null)for(File f:files)f.delete();folder.delete();
+        }
+    }
+    private static void encodeAudio(File pcm,File out,int rate,int channels)throws Exception {
+        MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC);
+        MediaMuxer mux=null;FileInputStream in=null;boolean muxStarted=false;
+        try {
+            MediaFormat format=MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC,rate,channels);
+            format.setInteger(MediaFormat.KEY_AAC_PROFILE,MediaCodecInfo.CodecProfileLevel.AACObjectLC);
+            format.setInteger(MediaFormat.KEY_BIT_RATE,channels==1?96000:128000);
+            format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE,PCM_CHUNK);
+            codec.configure(format,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
+            codec.start();in=new FileInputStream(pcm);
+            mux=new MediaMuxer(out.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
+            byte[] buf=new byte[PCM_CHUNK];int frameBytes=channels*2;long sentFrames=0;
+            boolean inputDone=false,outputDone=false;int track=-1,idles=0;
+            while(!outputDone) {
+                if(!inputDone) {
+                    int index=codec.dequeueInputBuffer(10000);
+                    if(index>=0) {
+                        ByteBuffer dst=codec.getInputBuffer(index);if(dst==null)throw new IOException("AAC input buffer missing");dst.clear();
+                        int max=Math.min(dst.remaining(),buf.length);max-=max%frameBytes;
+                        if(max<=0)throw new IOException("AAC input buffer too small");
+                        int got=0;while(got<max){int n=in.read(buf,got,max-got);if(n<0)break;got+=n;}
+                        if(got>0 && got%frameBytes!=0)throw new IOException("AAC PCM input misaligned");
+                        if(got==0){codec.queueInputBuffer(index,0,0,toUs(sentFrames,rate),MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputDone=true;}
+                        else {dst.put(buf,0,got);codec.queueInputBuffer(index,0,got,toUs(sentFrames,rate),0);sentFrames+=got/frameBytes;}
+                    }
+                }
+                int i=codec.dequeueOutputBuffer(info,10000);
+                if(i==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    if(muxStarted)throw new IOException("AAC format changed twice");
+                    track=mux.addTrack(codec.getOutputFormat());mux.start();muxStarted=true;
+                } else if(i>=0) {
+                    ByteBuffer encoded=codec.getOutputBuffer(i);
+                    if(encoded==null)throw new IOException("AAC output buffer missing");
+                    if(info.size>0 && (info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0){
+                        if(!muxStarted)throw new IOException("AAC muxer not started");
+                        encoded.position(info.offset);encoded.limit(info.offset+info.size);
+                        mux.writeSampleData(track,encoded,info);
+                    }
+                    outputDone=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;
+                    codec.releaseOutputBuffer(i,false);idles=0;
+                }else if(i==MediaCodec.INFO_TRY_AGAIN_LATER && ++idles>150)throw new IOException("AAC encoder stalled");
+            }
+        }finally{
+            if(in!=null)in.close();
+            try{codec.stop();}catch(Exception ignored){}codec.release();
+            if(mux!=null){if(muxStarted)mux.stop();mux.release();}
+        }
+    }
+    private static void encodeVideo(File output,Timeline t,int articleCount,Progress progress)throws Exception {
+        MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
+        MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
+        boolean started=false,muxStarted=false;
+        try {
+            MediaFormat fmt=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,VIDEO_WIDTH,VIDEO_HEIGHT);
+            fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+            fmt.setInteger(MediaFormat.KEY_BIT_RATE,3000000);
+            fmt.setInteger(MediaFormat.KEY_FRAME_RATE,FPS);
+            fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,2);
+            codec.configure(fmt,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
+            inputSurface=codec.createInputSurface();codec.start();started=true;
+            mux=new MediaMuxer(output.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            renderer=new EglFrameRenderer(inputSurface,VIDEO_WIDTH,VIDEO_HEIGHT);
+            inputSurface=null; // Renderer owns and releases the surface.
+            int track=-1;
+            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
+            int frames=(int)((t.endUs*FPS+US_PER_S-1)/US_PER_S);
+            int previousCard=-10;long cardStart=0,cardEnd=0;
+            for(int f=0;f<frames;f++) {
+                long us=f*US_PER_S/FPS;
+                int which;
+                if(us<4L*US_PER_S)which=-2;
+                else if(us<6L*US_PER_S)which=-1;
+                else {
+                    which=0;
+                    for(int i=0;i<t.spans.size();i++)if(us>=t.spans.get(i).startUs)which=i;
+                }
+                if(which!=previousCard) {
+                    if(which==-2) {cardStart=0;cardEnd=4L*US_PER_S;}
+                    else if(which==-1){cardStart=4L*US_PER_S;cardEnd=6L*US_PER_S;}
+                    else {
+                        cardStart=t.spans.get(which).startUs;
+                        cardEnd=which+1<t.spans.size()?t.spans.get(which+1).startUs:t.endUs;
+                    }
+                    NewsStory story=which>=0?t.spans.get(which).story:null;
+                    Bitmap card=NewsCardPainter.render(story,Math.max(0,which),articleCount,which<0?which+2:2,"필리핀 현지 시간 기준");
+                    renderer.upload(card);card.recycle();previousCard=which;
+                }
+                float motion=cardEnd<=cardStart?1f:(float)(us-cardStart)/(cardEnd-cardStart);
+                float zoom=1.0f+0.025f*Math.max(0f,Math.min(1f,motion));
+                renderer.draw(us*1000L,zoom);
+                int newTrack=drainVideo(codec,mux,track,info,false);
+                if(newTrack>=0){track=newTrack;muxStarted=true;}
+                if(f%Math.max(1,FPS*8)==0)progress.message("뉴스 화면 렌더링 " +(100L*f/Math.max(1,frames))+"%");
+            }
+            codec.signalEndOfInputStream();
+            boolean eos=false;int stalls=0;
+            while(!eos){
+                int index=codec.dequeueOutputBuffer(info,15000);
+                if(index==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){
+                    if(muxStarted)throw new IOException("Video format changed twice");
+                    track=mux.addTrack(codec.getOutputFormat());mux.start();muxStarted=true;
+                }else if(index>=0){
+                    writeVideoBuffer(codec,mux,track,info,index);eos=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;stalls=0;
+                }else if(index==MediaCodec.INFO_TRY_AGAIN_LATER&&++stalls>150)throw new IOException("H264 video encoder stalled");
+            }
+        } finally {
+            if(renderer!=null)renderer.close();
+            if(inputSurface!=null)inputSurface.release();
+            if(started){try{codec.stop();}catch(Exception ignored){}}
+            codec.release();
+            if(mux!=null){if(muxStarted)mux.stop();mux.release();}
+        }
+    }
+    private static int drainVideo(MediaCodec codec,MediaMuxer mux,int track,MediaCodec.BufferInfo info,boolean eos) throws IOException {
+        while(true) {
+            int index=codec.dequeueOutputBuffer(info,eos?15000:0);
+            if(index==MediaCodec.INFO_TRY_AGAIN_LATER)return track;
+            if(index==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){
+                if(track>=0)throw new IOException("H264 format changed twice");
+                track=mux.addTrack(codec.getOutputFormat());mux.start();
+            }else if(index>=0)writeVideoBuffer(codec,mux,track,info,index);
+        }
+    }
+    private static void writeVideoBuffer(MediaCodec codec,MediaMuxer mux,int track,MediaCodec.BufferInfo info,int index)throws IOException {
+        ByteBuffer output=codec.getOutputBuffer(index);
+        if(output==null)throw new IOException("H264 encoder output missing");
+        if((info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)!=0)info.size=0;
+        if(info.size>0){
+            if(track<0)throw new IOException("H264 track not yet ready");
+            output.position(info.offset);output.limit(info.offset+info.size);
+            mux.writeSampleData(track,output,info);
+        }
+        codec.releaseOutputBuffer(index,false);
+    }
+    private static void join(File video,File audio,File dest)throws Exception {
+        MediaExtractor v=new MediaExtractor(), a=new MediaExtractor();MediaMuxer mux=null;boolean started=false;
+        try {
+            v.setDataSource(video.getAbsolutePath());a.setDataSource(audio.getAbsolutePath());
+            if(v.getTrackCount()<1||a.getTrackCount()<1)throw new IOException("인코딩된 MP4 트랙을 찾을 수 없습니다.");
+            v.selectTrack(0);a.selectTrack(0);
+            mux=new MediaMuxer(dest.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            int vid=mux.addTrack(v.getTrackFormat(0)),aud=mux.addTrack(a.getTrackFormat(0));
+            mux.start();started=true;
+            copyTrack(v,mux,vid,4*1024*1024);
+            copyTrack(a,mux,aud,256*1024);
+        }finally{
+            v.release();a.release();
+            if(mux!=null){if(started)mux.stop();mux.release();}
+        }
+    }
+    private static void copyTrack(MediaExtractor extractor,MediaMuxer mux,int index,int maxBuffer)throws IOException {
+        ByteBuffer buffer=ByteBuffer.allocateDirect(maxBuffer);
+        MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
+        while(true){
+            buffer.clear();int n=extractor.readSampleData(buffer,0);
+            if(n<0)break;
+            info.set(0,n,extractor.getSampleTime(),extractor.getSampleFlags());
+            buffer.position(0);buffer.limit(n);mux.writeSampleData(index,buffer,info);
+            if(!extractor.advance())break;
+        }
+    }
+}

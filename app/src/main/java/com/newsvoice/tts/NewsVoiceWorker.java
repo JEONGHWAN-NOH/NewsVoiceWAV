@@ -36,6 +36,31 @@ public final class NewsVoiceWorker extends Worker {
     public static final String INPUT_LOCAL_FILE="local_file";
     public static final String UNIQUE_SYNC="newsvoice_server_sync";
     private static final int TEXT_LIMIT=60000;
+    private static final class VideoResult {
+        final File wav,mp4;
+        VideoResult(File wav,File mp4){this.wav=wav;this.mp4=mp4;}
+    }
+    private VideoResult makeVideo(String script,String jobId) throws Exception {
+        List<NewsStory> stories=NewsStory.parse(script);
+        List<File> waveFiles=new ArrayList<>();
+        try {
+            for(int i=0;i<stories.size();i++) {
+                if(isStopped())throw new IOException("사용자가 작업을 중지했습니다.");
+                AppPrefs.status(context,"기사별 WAV 합성: "+(i+1)+"/"+stories.size());
+                waveFiles.add(synthesize(stories.get(i).narration,jobId+"_card"+(i+1)));
+            }
+            File audio=new File(context.getCacheDir(),"newsvoice_"+jobId+"_combined.wav");
+            WavTools.concatenate(waveFiles,audio);
+            File video=new File(context.getCacheDir(),"newsvoice_"+jobId+".mp4");
+            NewsVideoComposer.create(context,stories,waveFiles,video,message->{
+                if(isStopped())throw new IOException("사용자가 영상 제작을 중지했습니다.");
+                AppPrefs.status(context,message);
+            });
+            return new VideoResult(audio,video);
+        }finally{
+            for(File temp:waveFiles)temp.delete();
+        }
+    }
     private final Context context;
     public NewsVoiceWorker(@NonNull Context context,@NonNull WorkerParameters params) {
         super(context,params);this.context=context.getApplicationContext();
@@ -50,9 +75,19 @@ public final class NewsVoiceWorker extends Worker {
                 input=new File(new File(context.getFilesDir(),"inbox"),localFile);
                 String text=readString(input);
                 if(text.isEmpty())throw new IOException("Empty local script");
-                File wav=synthesize(text,"manual_"+System.currentTimeMillis());
-                File saved=saveDownloads(wav,"newsvoice_"+System.currentTimeMillis()+".wav");
-                AppPrefs.status(context,"수동 원고 WAV 생성 완료: "+saved.getName());
+                String stamp=String.valueOf(System.currentTimeMillis());
+                if(AppPrefs.videoEnabled(context)){
+                    VideoResult made=makeVideo(text,"manual_"+stamp);
+                    saveDownloads(made.wav,"newsvoice_"+stamp+".wav");
+                    File out=saveDownloads(made.mp4,"newsvoice_"+stamp+".mp4");
+                    AppPrefs.status(context,"수동 원고 WAV + MP4 생성 완료: "+out.getName());
+                    made.wav.delete();made.mp4.delete();
+                }else{
+                    File wav=synthesize(text,"manual_"+stamp);
+                    File saved=saveDownloads(wav,"newsvoice_"+stamp+".wav");
+                    AppPrefs.status(context,"수동 원고 WAV 생성 완료: "+saved.getName());
+                    wav.delete();
+                }
                 return Result.success();
             }
             if(!prefs.getBoolean("auto",false))return Result.success();
@@ -62,10 +97,20 @@ public final class NewsVoiceWorker extends Worker {
             Job job=fetch(base,token);
             if(job==null){AppPrefs.status(context,"새 뉴스 원고 없음");return Result.success();}
             AppPrefs.status(context,"자동 음성 생성: "+job.id);
-            File wav=synthesize(job.text,job.id);
-            saveDownloads(wav,"newsvoice_"+job.id+".wav");
-            upload(base,token,job.id,wav);
-            AppPrefs.status(context,"WAV 자동 생성·전송 완료: "+job.id);
+            if(AppPrefs.videoEnabled(context)){
+                VideoResult made=makeVideo(job.text,job.id);
+                saveDownloads(made.wav,"newsvoice_"+job.id+".wav");
+                saveDownloads(made.mp4,"newsvoice_"+job.id+".mp4");
+                upload(base,token,job.id,made.wav);
+                made.wav.delete();made.mp4.delete();
+                AppPrefs.status(context,"WAV + MP4 생성 및 WAV 전송 완료: "+job.id);
+            }else{
+                File wav=synthesize(job.text,job.id);
+                saveDownloads(wav,"newsvoice_"+job.id+".wav");
+                upload(base,token,job.id,wav);
+                wav.delete();
+                AppPrefs.status(context,"WAV 자동 생성·전송 완료: "+job.id);
+            }
             return Result.success();
         } catch (Exception e) {
             AppPrefs.status(context,"작업 실패: "+e.getClass().getSimpleName()+" - "+String.valueOf(e.getMessage()));
@@ -180,7 +225,7 @@ public final class NewsVoiceWorker extends Worker {
         }finally{tts.stop();tts.shutdown();}
     }
     private File saveDownloads(File from,String filename) throws Exception {
-        File dir=new File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC),"NewsVoiceWAV");
+        File dir=new File(context.getExternalFilesDir(filename.endsWith(".mp4")?Environment.DIRECTORY_MOVIES:Environment.DIRECTORY_MUSIC),"NewsVoiceWAV");
         if(!dir.exists()&&!dir.mkdirs())throw new IOException("Cannot create music folder");
         File keep=new File(dir,filename);
         try(InputStream in=new FileInputStream(from);OutputStream out=new FileOutputStream(keep)){
@@ -189,7 +234,7 @@ public final class NewsVoiceWorker extends Worker {
         if(Build.VERSION.SDK_INT>=29) {
             ContentValues v=new ContentValues();
             v.put(MediaStore.Downloads.DISPLAY_NAME,filename);
-            v.put(MediaStore.Downloads.MIME_TYPE,"audio/wav");
+            v.put(MediaStore.Downloads.MIME_TYPE,filename.toLowerCase(Locale.ROOT).endsWith(".mp4")?"video/mp4":"audio/wav");
             v.put(MediaStore.Downloads.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/NewsVoiceWAV");
             v.put(MediaStore.Downloads.IS_PENDING,1);
             Uri u=context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);

@@ -15,6 +15,7 @@ public final class AppPrefs {
     }
     public static String enginePackage(Context c) {return get(c).getString("engine", "");}
     public static int presetIndex(Context c) {return get(c).getInt("preset", 0);}
+    public static boolean videoEnabled(Context c) {return get(c).getBoolean("video", true);}
     public static String voiceName(Context c) {return get(c).getString("voice", "");}
     public static float speed(Context c) {return get(c).getFloat("speed", 0.95f);}
     public static float pitch(Context c) {return get(c).getFloat("pitch", 1.00f);}
