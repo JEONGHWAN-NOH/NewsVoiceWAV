@@ -125,14 +125,23 @@ public final class ManualRenderService extends Service {
             });
             report("MP4 다운로드 폴더에 기록하는 중");
             Uri saved=DownloadsPublisher.publish(context,mp4,"newsvoice_"+stamp+".mp4");
+            File cover=NewsCoverExporter.coverFile(mp4);
+            Uri savedCover=DownloadsPublisher.publish(context,cover,
+                "newsvoice_"+stamp+"_cover.jpg");
             AppPrefs.get(context).edit().putString("last_mp4_uri",saved.toString())
-                .putString("last_mp4_name","newsvoice_"+stamp+".mp4").apply();
-            report("저장 완료: 다운로드/NewsVoiceWAV/newsvoice_"+stamp+".mp4");
+                .putString("last_mp4_name","newsvoice_"+stamp+".mp4")
+                .putString("last_cover_uri",savedCover.toString())
+                .putString("last_cover_name","newsvoice_"+stamp+"_cover.jpg").apply();
+            cover.delete();
+            report("저장 완료: 뉴스 MP4 및 카카오톡용 표지 JPG");
             success=true;
         }finally{
             for(File f:parts)f.delete();
             if(wav!=null)wav.delete();
-            if(mp4!=null)mp4.delete();
+            if(mp4!=null){
+                NewsCoverExporter.coverFile(mp4).delete();
+                mp4.delete();
+            }
             if(success)input.delete();
         }
     }
