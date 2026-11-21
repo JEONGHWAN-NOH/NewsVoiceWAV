@@ -67,7 +67,7 @@ public final class NewsVoiceWorker extends Worker {
             this.wav=wav;this.mp4=mp4;this.credits=credits;
         }
     }
-    private static File makeImageCredits(List<NewsStory> pages,
+    static File makeImageCredits(List<NewsStory> pages,
                                          List<NewsImageFetcher.Photo> photos,
                                          File folder,String jobId)throws IOException{
         StringBuilder b=new StringBuilder("뉴스보이스 WAV · 영상 이미지 출처 및 저작권 표시\n"
