@@ -327,23 +327,44 @@ public final class NewsCardPainter {
             Color.rgb(9,37,87),Color.rgb(2,11,31),Shader.TileMode.CLAMP));
         c.drawRect(0,0,WIDTH,HEIGHT,background);
         rounded(c,yellow,0,0,WIDTH,14,0);
-        c.drawText("PHILIPPINES  |  NEWS BRIEF",51,93,p(white,34,true));
+        String english=meta.clock.startsWith("오전")?
+            "PHILIPPINES  |  MORNING NEWS":
+            meta.clock.startsWith("오후")?
+            "PHILIPPINES  |  AFTERNOON NEWS":
+            "PHILIPPINES  |  NEWS BRIEF";
+        c.drawText(english,51,93,p(white,33,true));
         c.drawText("오늘의 주요 뉴스",50,178,p(yellow,69,true));
         rounded(c,yellow,51,196,1031,204,3);
         rounded(c,blue,43,233,1037,453,30);
         stroke(c,43,233,1037,453,Color.rgb(41,157,241),4,30);
-        rounded(c,yellow,64,256,77,431,5);
+        // Approved design: yellow news-category tab on the left, headline on right.
+        rounded(c,yellow,62,280,309,395,22);
+        String title=story.title;
+        boolean economy=title.contains("경제")||title.contains("예산")||
+            title.contains("공공사업")||title.contains("투자")||
+            title.contains("유가")||title.contains("휘발유")||
+            title.contains("경유")||title.contains("산업")||
+            title.contains("수출")||title.contains("기업");
+        String label=story.kind==NewsStory.OPENING?"시작 인사":
+            story.kind==NewsStory.ANCHOR?"앵커 한마디":
+            story.kind==NewsStory.CLOSING?"마감 인사":
+            (economy?"경제 뉴스 ":"주요 뉴스 ")+story.articleNumber;
+        Paint labelPaint=p(Color.rgb(6,23,47),30,true);
+        while(labelPaint.getTextSize()>23&&labelPaint.measureText(label)>226)
+            labelPaint.setTextSize(labelPaint.getTextSize()-1);
+        c.drawText(label,77,350,labelPaint);
+        line(c,Color.rgb(131,190,245),325,268,325,414,3);
         Paint headline=null;List<String> headlines=null;
-        for(int size=61;size>=32;size--){
+        for(int size=58;size>=30;size--){
             headline=p(white,size,true);
-            headlines=wrapComplete(story.title,headline,909);
-            if(headlines.size()<=3 && headlines.size()*size*1.21f<=174)break;
+            headlines=wrapComplete(title,headline,673f);
+            if(headlines.size()<=3 && headlines.size()*size*1.22f<=177)break;
         }
         if(headlines==null||headlines.size()>3)
-            throw new IllegalArgumentException("제목이 한 화면을 초과합니다: "+story.title);
-        float lineHeight=headline.getTextSize()*1.21f;
-        float titleY=313+(2-headlines.size())*lineHeight/2f;
-        for(String t:headlines){c.drawText(t,101,titleY,headline);titleY+=lineHeight;}
+            throw new IllegalArgumentException("제목이 한 화면을 초과합니다: "+title);
+        float lineHeight=headline.getTextSize()*1.22f;
+        float titleY=325+(2-headlines.size())*lineHeight/2f;
+        for(String t:headlines){c.drawText(t,348,titleY,headline);titleY+=lineHeight;}
         rounded(c,Color.rgb(8,43,94),44,469,1036,1598,29);
         stroke(c,44,469,1036,1598,Color.rgb(40,153,237),4,29);
         drawArticleArt(c,story,layout.wide);
