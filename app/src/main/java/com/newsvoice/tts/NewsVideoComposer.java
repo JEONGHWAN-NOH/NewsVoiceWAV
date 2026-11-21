@@ -272,7 +272,11 @@ public final class NewsVideoComposer {
                 if(us<6L*US_PER_S)which=-2;
                 else {
                     which=0;
-                    for(int i=0;i<t.spans.size();i++)if(us>=t.spans.get(i).startUs)which=i;
+                    // The previous article remains on screen for its final 100ms
+                    // after its narration ends, while the next article uses
+                    // the remaining 200ms silent pre-roll before its voice starts.
+                    for(int i=0;i<t.spans.size();i++)
+                        if(us>=t.spans.get(i).startUs+(i==0?0L:SCROLL_DELAY_US))which=i;
                 }
                 Span current=which>=0?t.spans.get(which):null;
                 int activeSentence=current!=null?current.activeSentence(us):-1;
