@@ -156,13 +156,13 @@ public final class NewsVoiceWorker extends Worker {
                         saveDownloads(made.credits,"newsvoice_"+stamp+"_image_credits.txt");
                         made.credits.delete();
                     }
-                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → NewsVoiceWAV → MP4 및 표지 JPG");
+                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → 1. 필리핀뉴스 → MP4 및 표지 JPG");
                     made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
                 }else{
                     List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
                     File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                     saveDownloads(wav,"newsvoice_"+stamp+".wav");
-                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → NewsVoiceWAV → newsvoice_"+stamp+".wav");
+                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → 1. 필리핀뉴스 → newsvoice_"+stamp+".wav");
                     wav.delete();
                 }
                 return Result.success();
