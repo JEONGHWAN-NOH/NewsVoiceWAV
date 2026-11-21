@@ -1,5 +1,4 @@
 from pathlib import Path
-
 root=Path("app/src/main/java/com/newsvoice/tts")
 manual=(root/"ManualRenderService.java").read_text(encoding="utf-8")
 worker=(root/"NewsVoiceWorker.java").read_text(encoding="utf-8")
@@ -17,13 +16,14 @@ assert 'totalFrames!=part.dataLength/frameBytes' in composer
 assert 'activeSentence(long presentationUs)' in composer
 assert 'presentationUs<audioStartUs' in composer
 assert 'activeSentence!=previousSentence' in composer
-assert 'meta,activeSentence)' in composer
+assert 'sentenceProgress(us,activeSentence)' in composer
+assert 'scrollPixels!=previousScroll' in composer
+assert 'NewsCardPainter.renderScrolling(' in composer
 assert 'NewsSentenceTimeline.visibleRange(' in painter
 assert 'story.spokenText()),activeSentence' in painter
-assert 'highlight.setAlpha(215)' in painter
-assert 'c.drawLine(left,y+layout.size*0.24f,right' in painter
-assert 'renderFullArticle(story,index,count,meta,activeSentence)' in painter
-assert 'if(!Character.isWhitespace(text.charAt(i)))' in sentences
+assert 'highlight.setAlpha(225)' in painter
+assert 'c.drawLine(left,y+SCROLL_FONT*0.23f,right,' in painter
+assert 'renderFullArticle(story,index,count,meta,activeSentence,plan,scrollPixels)' in painter
 assert 'visibleRange(List<String> sentences,int activeIndex)' in sentences
-assert 'NewsVoiceWAV-v5.16-Sentence-Highlight-debug-apk' in Path(".github/workflows/build-apk.yml").read_text()
-print("PASS: sentence-specific measured audio cues update the highlighted full-width card")
+assert 'NewsVoiceWAV-v5.17-Large-Text-Auto-Scroll-debug-apk' in Path(".github/workflows/build-apk.yml").read_text()
+print("PASS: sentence-specific measured WAV cues control highlight and scrolling")
