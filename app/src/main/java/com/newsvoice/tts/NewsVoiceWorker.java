@@ -69,16 +69,20 @@ public final class NewsVoiceWorker extends Worker {
         List<NewsStory> sections=NewsBroadcastSegments.build(script,AppPrefs.anchorComment(context));
         List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
         List<File> waveFiles=new ArrayList<>();
+        List<long[]> cues=new ArrayList<>();
         try {
             for(int i=0;i<pages.size();i++) {
                 if(isStopped())throw new IOException(stopDetail());
                 AppPrefs.status(context,"화면별 음성 합성: "+(i+1)+"/"+pages.size());
-                waveFiles.add(synthesize(pages.get(i).spokenText(),jobId+"_page"+(i+1)));
+                SpeechCueBuilder.Result made=SpeechCueBuilder.make(context,
+                    pages.get(i).spokenText(),jobId+"_page"+(i+1),this::synthesize);
+                waveFiles.add(made.wav);
+                cues.add(made.sentenceEndUs);
             }
             File audio=new File(context.getCacheDir(),"newsvoice_"+jobId+"_combined.wav");
             WavTools.concatenate(waveFiles,audio);
             File video=new File(context.getCacheDir(),"newsvoice_"+jobId+".mp4");
-            NewsVideoComposer.create(context,pages,waveFiles,video,message->{
+            NewsVideoComposer.create(context,pages,waveFiles,cues,video,message->{
                 if(isStopped())throw new IOException(stopDetail());
                 AppPrefs.status(context,message);
             });
