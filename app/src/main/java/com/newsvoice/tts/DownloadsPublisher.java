@@ -18,12 +18,13 @@ public final class DownloadsPublisher {
     private DownloadsPublisher() {}
     public static Uri publish(Context context,File source,String filename) throws IOException {
         if(!source.isFile()||source.length()<44)throw new IOException("생성된 파일이 없거나 크기가 잘못되었습니다.");
-        if(!filename.matches("newsvoice_[a-zA-Z0-9_-]{1,110}\\.(?:wav|mp4)"))
+        if(!filename.matches("newsvoice_[a-zA-Z0-9_-]{1,110}\\.(?:wav|mp4|jpg)"))
             throw new IOException("저장할 파일 이름이 올바르지 않습니다.");
         boolean video=filename.endsWith(".mp4");
+        boolean image=filename.endsWith(".jpg");
         ContentValues values=new ContentValues();
         values.put(MediaStore.Downloads.DISPLAY_NAME,filename);
-        values.put(MediaStore.Downloads.MIME_TYPE,video?"video/mp4":"audio/wav");
+        values.put(MediaStore.Downloads.MIME_TYPE,video?"video/mp4":image?"image/jpeg":"audio/wav");
         values.put(MediaStore.Downloads.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/NewsVoiceWAV");
         values.put(MediaStore.Downloads.IS_PENDING,1);
         ContentResolver resolver=context.getContentResolver();
