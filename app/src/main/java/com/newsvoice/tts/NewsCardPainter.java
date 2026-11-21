@@ -235,9 +235,9 @@ public final class NewsCardPainter {
         throw new IllegalArgumentException("자동 분할 후에도 배치할 수 없습니다: "+story.title);
     }
 
-    private static final float SCROLL_FONT=60f;
-    private static final float SCROLL_STEP=88f;
-    private static final float SCROLL_TOP=710f;
+    private static final float SCROLL_FONT=56f;
+    private static final float SCROLL_STEP=84f;
+    private static final float SCROLL_TOP=1110f; // current spoken line baseline sits near the screen center
     private static final float SCROLL_BOTTOM=1568f;
     private static final float SCROLL_FOCUS_ROWS=3.2f;
 
@@ -253,6 +253,12 @@ public final class NewsCardPainter {
             this.story=story;this.lines=lines;this.rowLengths=lengths;
             this.rowStarts=starts;this.sentenceStarts=sentenceStarts;
             this.totalCharacters=characters;this.maxOffset=maxOffset;
+        }
+        /** One immutable row-centered speed curve per spoken article. */
+        public NewsScrollMath.AudioCurve centeredAudioCurve(
+            long voiceStartUs,long[] sentenceEndsUs){
+            return NewsScrollMath.centeredAudioCurve(voiceStartUs,
+                sentenceEndsUs,sentenceStarts,rowLengths,SCROLL_STEP,maxOffset);
         }
         public float offset(int sentence,float fraction,boolean narrationFinished){
             if(sentence<0){
@@ -292,7 +298,7 @@ public final class NewsCardPainter {
             boundaries[i+1]=boundaries[i]+NewsSentenceTimeline.visibleLength(sentences.get(i));
         if(boundaries[boundaries.length-1]!=total)
             throw new IllegalStateException("본문과 음성 문장 구간이 일치하지 않습니다.");
-        float maxOffset=Math.max(0f,SCROLL_TOP+(rows.size()-1)*SCROLL_STEP-1517f);
+        float maxOffset=Math.max(0f,(rows.size()-1)*SCROLL_STEP); // center first and last spoken rows
         return new ScrollPlan(story,rows,lengths,starts,boundaries,total,maxOffset);
     }
 
