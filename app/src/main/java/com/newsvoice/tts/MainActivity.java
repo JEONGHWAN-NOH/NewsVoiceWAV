@@ -253,7 +253,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("v5.26 자동 이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 6초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 그림 자료의 출처는 다운로드되는 image_credits.txt를 참고하세요.",12,false);
+        TextView formatHelp=text("v5.27 날짜별 자동 저장·이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 6초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 음성·영상·표지·자료출처 파일은 필리핀 현지 날짜별 하위 폴더에 같은 회차명과 제작시각으로 저장됩니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
@@ -485,7 +485,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -609,7 +609,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스에서 확인하세요.");
+                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -727,7 +727,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){
