@@ -23,7 +23,7 @@ import java.util.List;
  */
 public final class NewsVideoComposer {
     private NewsVideoComposer() { }
-    public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=24;
+    public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=30;
     private static final long US_PER_S=1_000_000L;
     private static final int PCM_CHUNK=16384;
 
@@ -181,7 +181,11 @@ public final class NewsVideoComposer {
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
-            progress.message("MP4 생성 완료");
+            // Save a JPEG with the same cover pixels and date as the video's first frame.
+            NewsCoverExporter.save(context,coverMeta,
+                stories.get(0).articleCount>0?stories.get(0).articleCount:stories.size(),
+                output);
+            progress.message("MP4와 카카오톡용 표지 JPG 생성 완료");
             return output;
         } finally {
             File[] files=folder.listFiles();if(files!=null)for(File f:files)f.delete();folder.delete();
@@ -246,7 +250,7 @@ public final class NewsVideoComposer {
             fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
             fmt.setInteger(MediaFormat.KEY_BIT_RATE,3000000);
             fmt.setInteger(MediaFormat.KEY_FRAME_RATE,FPS);
-            fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,2);
+            fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,1);
             codec.configure(fmt,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
             inputSurface=codec.createInputSurface();codec.start();started=true;
             mux=new MediaMuxer(output.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
@@ -262,8 +266,8 @@ public final class NewsVideoComposer {
             for(int f=0;f<frames;f++) {
                 long us=f*US_PER_S/FPS;
                 int which;
-                if(us<4L*US_PER_S)which=-2;
-                else if(us<6L*US_PER_S)which=-1;
+                // Full six-second fixed opening cover, including all of the music.
+                if(us<6L*US_PER_S)which=-2;
                 else {
                     which=0;
                     for(int i=0;i<t.spans.size();i++)if(us>=t.spans.get(i).startUs)which=i;
@@ -271,8 +275,7 @@ public final class NewsVideoComposer {
                 Span current=which>=0?t.spans.get(which):null;
                 int activeSentence=current!=null?current.activeSentence(us):-1;
                 if(which!=previousCard){
-                    if(which==-2) {cardStart=0;cardEnd=4L*US_PER_S;}
-                    else if(which==-1){cardStart=4L*US_PER_S;cardEnd=6L*US_PER_S;}
+                    if(which==-2) {cardStart=0;cardEnd=6L*US_PER_S;}
                     else {
                         cardStart=current.startUs;
                         cardEnd=which+1<t.spans.size()?t.spans.get(which+1).startUs:t.endUs;
@@ -280,13 +283,15 @@ public final class NewsVideoComposer {
                     // Prepare text wrapping only once per news article.
                     scrollPlan=current!=null?NewsCardPainter.prepareScroll(current.story):null;
                 }
-                float spokenFraction=current!=null?
-                    current.sentenceProgress(us,activeSentence):0f;
+                // Continuous motion across all words, punctuation and silent gaps.
+                // Measured PCM WAV begins/ends bound the movement; no cue-step jumps.
+                long lastCueUs=current!=null&&current.sentenceEndUs.length>0?
+                    current.sentenceEndUs[current.sentenceEndUs.length-1]:0L;
                 float scrollPixels=scrollPlan==null?0f:
-                    scrollPlan.offset(activeSentence,spokenFraction,
-                        current.narrationFinished(us));
+                    NewsScrollMath.continuousOffset(us,current.audioStartUs,
+                        lastCueUs,scrollPlan.maxOffset);
                 if(which!=previousCard || Float.isNaN(previousScroll) ||
-                   Math.abs(scrollPixels-previousScroll)>=0.05f){
+                   Math.abs(scrollPixels-previousScroll)>0.0001f){
                     Bitmap card=current!=null?
                         NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
                             articleCount,meta,activeSentence,scrollPlan,scrollPixels,reusableSlide):
@@ -298,8 +303,7 @@ public final class NewsVideoComposer {
                 }
                 float motion=cardEnd<=cardStart?1f:(float)(us-cardStart)/(cardEnd-cardStart);
                 // Keep news text stable and sharp during smooth upward scroll.
-                float zoom=which>=0?1.0f:
-                    1.0f+0.025f*Math.max(0f,Math.min(1f,motion));
+                float zoom=1.0f; // Stable cover/thumbnail and legible scrolling text.
                 renderer.draw(us*1000L,zoom);
                 int newTrack=drainVideo(codec,mux,track,info,false);
                 if(newTrack>=0){track=newTrack;muxStarted=true;}
