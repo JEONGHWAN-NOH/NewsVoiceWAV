@@ -1,5 +1,5 @@
 plugins { id 'com.android.application' }
-def releaseVersion = '5.30'
+def releaseVersion = '5.31'
 
 android {
     namespace 'com.newsvoice.tts'
@@ -8,7 +8,7 @@ android {
         applicationId 'com.newsvoice.tts.stable'
         minSdk 29
         targetSdk 35
-        versionCode 36
+        versionCode 37
         versionName releaseVersion
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
     }
