@@ -53,6 +53,13 @@ jobs:
         run: python3 tests/test_news_body_only_audio.py
       - name: Check built-in A opening and custom replacement
         run: python3 tests/test_opening_a_builtin.py
+      - name: Test lossless sentence cues and Korean punctuation
+        run: |
+          mkdir -p /tmp/news-sentence-classes
+          javac -encoding UTF-8 -d /tmp/news-sentence-classes app/src/main/java/com/newsvoice/tts/NewsSentenceTimeline.java tests/NewsSentenceTimelineTest.java
+          java -cp /tmp/news-sentence-classes NewsSentenceTimelineTest
+      - name: Verify exact WAV cue synchronization and sentence highlighting
+        run: python3 tests/test_sentence_highlight.py
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
         run: |
@@ -68,6 +75,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.15-Stable-A-Opening-debug-apk
+          name: NewsVoiceWAV-v5.16-Sentence-Highlight-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
