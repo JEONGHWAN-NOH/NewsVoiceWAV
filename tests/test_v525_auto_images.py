@@ -20,4 +20,4 @@ assert 'https://commons.wikimedia.org/w/api.php' in fetcher
 assert 'allowedLicense' in fetcher
 assert '자료 이미지 · Wikimedia Commons' in card
 assert '0.7초(700ms)' in ui
-print("PASS: v5.25 script-only narration, reference images, credits and full-video progress")
+print("PASS: v5.26 script-only narration, reference images, credits and full-video progress")
