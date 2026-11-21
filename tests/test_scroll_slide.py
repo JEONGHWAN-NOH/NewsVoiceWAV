@@ -23,7 +23,10 @@ assert 'scrollPixels!=previousScroll' in v
 assert 'NewsCardPainter.prepareScroll(current.story)' in v
 assert 'NewsCardPainter.renderScrolling(' in v
 assert 'return clamp((rowPosition(rows,spokenCharacters)-focusRows)*rowStep,0,maxOffset);' in geom
-assert 'v5.17 큰 글씨 자동 스크롤' in ui
-assert 'com.newsvoice.tts.autovideo.v517' in gradle
-assert "versionName '5.17-large-text-auto-scroll'" in gradle
+assert '큰 글씨 자연스러운 자동 스크롤' in ui
+assert 'com.newsvoice.tts.autovideo.v518' in gradle
+assert "def releaseVersion = '5.18'" in gradle
+assert 'versionName releaseVersion' in gradle
+assert 'FPS=24;' in v
+assert 'float scrollPixels=scrollPlan==null?0f:' in v
 print("PASS: scroll slides preserve full narration, maintain large text and move with actual WAV sentence clock")
