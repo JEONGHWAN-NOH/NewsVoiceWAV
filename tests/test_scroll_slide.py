@@ -19,7 +19,7 @@ assert 'SCROLL_FOCUS_ROWS=3.2f;' in p
 assert 'sentenceProgress(long presentationUs,int active)' in v
 assert 'current.sentenceProgress(us,activeSentence)' in v
 assert 'current.narrationFinished(us)' in v
-assert 'scrollPixels!=previousScroll' in v
+assert 'Math.abs(scrollPixels-previousScroll)>=0.05f' in v
 assert 'NewsCardPainter.prepareScroll(current.story)' in v
 assert 'NewsCardPainter.renderScrolling(' in v
 assert 'return clamp((rowPosition(rows,spokenCharacters)-focusRows)*rowStep,0,maxOffset);' in geom
