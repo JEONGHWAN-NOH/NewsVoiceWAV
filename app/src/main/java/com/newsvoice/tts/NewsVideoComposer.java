@@ -262,6 +262,7 @@ public final class NewsVideoComposer {
             reusableSlide=Bitmap.createBitmap(VIDEO_WIDTH,VIDEO_HEIGHT,Bitmap.Config.ARGB_8888);
             int previousCard=-10;float previousScroll=Float.NaN;
             NewsCardPainter.ScrollPlan scrollPlan=null;
+            NewsScrollMath.AudioCurve scrollCurve=null;
             long cardStart=0,cardEnd=0;
             for(int f=0;f<frames;f++) {
                 long us=f*US_PER_S/FPS;
@@ -280,16 +281,16 @@ public final class NewsVideoComposer {
                         cardStart=current.startUs;
                         cardEnd=which+1<t.spans.size()?t.spans.get(which+1).startUs:t.endUs;
                     }
-                    // Prepare text wrapping only once per news article.
+                    // Prepare text layout and voice-aligned smoothing once per article.
                     scrollPlan=current!=null?NewsCardPainter.prepareScroll(current.story):null;
+                    scrollCurve=current!=null?NewsScrollMath.audioCurve(
+                        current.audioStartUs,current.sentenceEndUs,
+                        scrollPlan.sentenceStarts,scrollPlan.totalCharacters,
+                        scrollPlan.maxOffset):null;
                 }
-                // Continuous motion across all words, punctuation and silent gaps.
-                // Measured PCM WAV begins/ends bound the movement; no cue-step jumps.
-                long lastCueUs=current!=null&&current.sentenceEndUs.length>0?
-                    current.sentenceEndUs[current.sentenceEndUs.length-1]:0L;
-                float scrollPixels=scrollPlan==null?0f:
-                    NewsScrollMath.continuousOffset(us,current.audioStartUs,
-                        lastCueUs,scrollPlan.maxOffset);
+                // Each sentence endpoint matches actual WAV length and prose position.
+                // C1-continuous interpolation prevents stops or speed jumps at punctuation.
+                float scrollPixels=scrollCurve==null?0f:scrollCurve.position(us);
                 if(which!=previousCard || Float.isNaN(previousScroll) ||
                    Math.abs(scrollPixels-previousScroll)>0.0001f){
                     Bitmap card=current!=null?
