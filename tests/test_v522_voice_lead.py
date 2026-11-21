@@ -20,7 +20,7 @@ assert "current.audioStartUs,current.sentenceEndUs" in composer, "preserve measu
 assert "i==0?0L:SCROLL_DELAY_US" in composer, "preserve last sentence on screen"
 assert "public float delayedPosition(long playbackUs,long delayUs)" in curve
 assert "return position(queryUs);" in curve
-assert "64px·줄 간격 92px" in ui
+assert "60px·줄 간격 88px" in ui
 assert "0.7초(700ms)" in ui
 assert "FPS=30;" in composer
 assert "Paint highlight=" not in paint
