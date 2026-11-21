@@ -121,6 +121,17 @@ public final class NewsCardPainter {
             pages.add(article.page(chunks.get(i),articleNo,articleCount,i+1,chunks.size()));
         return pages;
     }
+    public static List<NewsStory> paginateBroadcast(List<NewsStory> sections){
+        int total=NewsBroadcastSegments.newsCount(sections),counted=0;
+        if(total<1)throw new IllegalArgumentException("전할 뉴스가 없습니다.");
+        List<NewsStory> pages=new ArrayList<>();
+        for(NewsStory segment:sections){
+            int newsIndex=segment.kind==NewsStory.NEWS?++counted:
+                segment.kind==NewsStory.OPENING?0:total;
+            pages.addAll(paginate(segment,newsIndex,total));
+        }
+        return pages;
+    }
     private static int pastelColor(NewsStory s){
         String q=s.title+" "+s.narration;
         if(q.contains("외교")||q.contains("해양")||q.contains("서필리핀해")||q.contains("중국"))return Color.rgb(230,244,251);
@@ -148,10 +159,14 @@ public final class NewsCardPainter {
         c.drawText("필리핀 뉴스 | NEWSVOICE WAV",116,157,p(ink,39,true));
         String date=meta.date;
         c.drawText(date,118,208,p(blue,27,false));
-        int articleNumber=story.articleNumber>0?story.articleNumber:index+1;
-        int articleCount=story.articleCount>0?story.articleCount:count;
-        rounded(c,Color.rgb(226,243,240),100,262,440,321,19);
-        c.drawText("뉴스 "+articleNumber+" / "+articleCount,124,304,p(teal,34,true));
+        int articleNumber=story.articleNumber;
+        int articleCount=Math.max(1,story.articleCount>0?story.articleCount:count);
+        String header=story.kind==NewsStory.OPENING?"시작 인사":
+            story.kind==NewsStory.ANCHOR?"앵커 한마디":
+            story.kind==NewsStory.CLOSING?"마감 인사":
+            "뉴스 "+articleNumber+" / "+articleCount;
+        rounded(c,Color.rgb(226,243,240),100,262,540,321,19);
+        c.drawText(header,124,304,p(teal,34,true));
         rounded(c,Color.rgb(239,235,249),631,262,977,321,19);
         c.drawText("화면 "+story.pageNumber+" / "+story.pageCount,652,304,p(ink,32,true));
         List<String> titleRows=null;Paint titlePaint=null;
@@ -169,7 +184,10 @@ public final class NewsCardPainter {
         Paint panelOutline=p(Color.rgb(209,224,228),0,false);
         panelOutline.setStyle(Paint.Style.STROKE);panelOutline.setStrokeWidth(2);
         c.drawRoundRect(new RectF(86,705,995,1638),30,30,panelOutline);
-        c.drawText("아나운서 낭독 대본",128,774,p(teal,37,true));
+        c.drawText(story.kind==NewsStory.OPENING?"시작 인사":
+            story.kind==NewsStory.ANCHOR?"앵커 한마디":
+            story.kind==NewsStory.CLOSING?"마감 인사":"아나운서 낭독 대본",
+            128,774,p(teal,37,true));
         line(c,Color.rgb(218,231,232),124,810,948,810,3);
         // Topic-specific watermark is extremely pale and never compromises readability.
         c.save(); c.clipRect(98,824,980,1614);
@@ -190,12 +208,20 @@ public final class NewsCardPainter {
             c.drawText(story.pageNumber<story.pageCount?"다음 화면에서 이어집니다.":"이번 기사의 낭독이 끝났습니다.",
                 130,1597,p(teal,26,true));
         }
-        line(c,Color.rgb(198,216,223),102,1712,982,1712,2);
-        c.drawText("NEWSVOICE WAV  |  FULL SCRIPT",105,1780,p(ink,28,true));
-        c.drawText(String.format(java.util.Locale.KOREA,"%d / %d",
-             story.pageNumber,story.pageCount),855,1780,p(teal,28,true));
-        rounded(c,Color.rgb(214,232,234),105,1826,977,1840,7);
-        rounded(c,teal,105,1826,105+Math.round(872f*story.pageNumber/Math.max(1,story.pageCount)),1840,7);
+        // Show globally completed NEWS ITEMS, not the number of split slide pages.
+        int completed=NewsBroadcastSegments.completedNews(story);
+        int remaining=NewsBroadcastSegments.remainingNews(story);
+        String label=story.kind==NewsStory.OPENING?
+            "뉴스 시작 전 · 남은 뉴스 "+remaining+"건":
+            story.kind==NewsStory.NEWS?
+            "뉴스 "+articleNumber+"/"+articleCount+" · 이후 남은 뉴스 "+remaining+"건":
+            "본 뉴스 완료 · 남은 뉴스 0건";
+        line(c,Color.rgb(198,216,223),102,1700,982,1700,2);
+        c.drawText(label,105,1776,p(ink,34,true));
+        c.drawText(Math.round(100f*completed/articleCount)+"%",880,1822,p(teal,28,true));
+        rounded(c,Color.rgb(214,232,234),105,1846,977,1866,9);
+        if(completed>0)rounded(c,teal,105,1846,
+            105+Math.round(872f*completed/articleCount),1866,9);
         return bmp;
     }
 

@@ -72,6 +72,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private int selectedPreset = 0;
     private EditText serverEdit, tokenEdit;
     private CheckBox automaticCheck, videoCheck;
+    private EditText anchorEdit;
     private long taskToken = 0;
     private int lastQueuedIndex = -1;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -187,6 +188,18 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         editor.setHint("여기에 한국어 뉴스 원고를 붙여 넣으세요.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         body.addView(editor,lp(-1,-2,10));
+        body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
+        anchorEdit=new EditText(this);
+        anchorEdit.setHint("비워 두면 정중한 기본 멘트가 자동 삽입됩니다. 필요하면 오늘 뉴스에 맞는 앵커 멘트를 작성하세요.");
+        anchorEdit.setText(AppPrefs.anchorComment(this));
+        anchorEdit.setTextSize(14);anchorEdit.setTextColor(DARK);
+        anchorEdit.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        anchorEdit.setMinLines(2);anchorEdit.setMaxLines(5);
+        anchorEdit.setBackgroundResource(R.drawable.bg_editor);
+        anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
+        body.addView(anchorEdit,lp(-1,-2,8));
+        TextView note=text("자동 순서: 시작 인사 → 본 뉴스 → 앵커 한마디 → 마감 인사. 카드 하단에는 남은 뉴스 건수와 전체 진행률을 표시합니다.",12,false);
+        note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
         TextView reviewHint=text("쉼표·마침표·일부 명백한 종결어미만 자동 보정합니다. 뜻이 불분명한 반말·하대 표현은 검토 후 수정하셔야 합니다.",12,false);
@@ -221,7 +234,14 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
         preview.setOnClickListener(v->speakNow("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.",true));
-        play.setOnClickListener(v->{String check=reviewEditorScript();if(check!=null)speakNow(check,false);});
+        play.setOnClickListener(v->{
+            String checked=reviewEditorScript();
+            if(checked==null)return;
+            try{
+                List<NewsStory> sections=NewsBroadcastSegments.build(checked,anchorEdit.getText().toString());
+                speakNow(NewsBroadcastSegments.audioScript(sections),false);
+            }catch(IllegalArgumentException e){updateStatus("방송 멘트 검수: "+e.getMessage());}
+        });
         stop.setOnClickListener(v->{taskToken++;if(tts!=null)tts.stop();updateStatus("낭독 정지됨");});
         save.setOnClickListener(v->queueManualSave());
         buildAutomationControls(body);
@@ -544,6 +564,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         String text=reviewEditorScript();
         if(text==null)return;
         try {
+            String comment=anchorEdit.getText().toString().trim();
+            NewsBroadcastSegments.build(text,comment);
+            AppPrefs.get(this).edit().putString("anchor_comment",comment).apply();
             persistVoiceSettings();
             File inbox=new File(getFilesDir(),"inbox");
             if(!inbox.exists()&&!inbox.mkdirs())throw new IOException("원고 저장 폴더 오류");

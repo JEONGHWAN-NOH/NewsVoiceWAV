@@ -90,6 +90,7 @@ public final class ManualRenderService extends Service {
         if(!check.approved())throw new IOException("방송체 사전 검수 실패: "+check.summary());
         text=check.reviewed;
         if(text.isEmpty()||text.length()>60000)throw new IOException("원고 길이를 확인해 주세요.");
+        List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
         String stamp=String.valueOf(System.currentTimeMillis());
         List<File> parts=new ArrayList<>();
         File wav=null,mp4=null;
@@ -97,15 +98,12 @@ public final class ManualRenderService extends Service {
         try{
             if(!AppPrefs.videoEnabled(context)){
                 report("WAV 음성 생성 중");
-                wav=synthesize(text,"manual_"+stamp);
+                wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                 DownloadsPublisher.publish(context,wav,"newsvoice_"+stamp+".wav");
                 report("저장 완료: 다운로드/NewsVoiceWAV/newsvoice_"+stamp+".wav");
                 success=true;return;
             }
-            List<NewsStory> original=NewsStory.parse(text);
-            List<NewsStory> pages=new ArrayList<>();
-            for(int i=0;i<original.size();i++)
-                pages.addAll(NewsCardPainter.paginate(original.get(i),i+1,original.size()));
+            List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
             for(int i=0;i<pages.size();i++){
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 처리 스레드가 시스템에서 중단됐습니다.");

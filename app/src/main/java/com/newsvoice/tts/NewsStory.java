@@ -12,17 +12,24 @@ public final class NewsStory {
     public final String narration;
     public final String preview;
     public final int articleNumber, articleCount, pageNumber, pageCount;
+    public static final int NEWS=0, OPENING=1, ANCHOR=2, CLOSING=3;
+    public final int kind;
 
     private NewsStory(String title, String narration, String preview,
-                      int articleNumber, int articleCount, int pageNumber, int pageCount) {
+                      int articleNumber, int articleCount, int pageNumber, int pageCount,int kind) {
         this.title=title;this.narration=narration;this.preview=preview;
         this.articleNumber=articleNumber;this.articleCount=articleCount;
-        this.pageNumber=pageNumber;this.pageCount=pageCount;
+        this.pageNumber=pageNumber;this.pageCount=pageCount;this.kind=kind;
     }
 
     public NewsStory page(String fullPageText,int articleNo,int totalArticles,int number,int totalPages){
         return new NewsStory(title,fullPageText,fullPageText,
-             articleNo,totalArticles,number,totalPages);
+             articleNo,totalArticles,number,totalPages,kind);
+    }
+    public static NewsStory segment(int kind,String title,String narration,int newsCount){
+        if(kind==NEWS||narration==null||narration.trim().isEmpty())
+            throw new IllegalArgumentException("방송 멘트 형식이 올바르지 않습니다.");
+        return new NewsStory(title,narration.trim(),narration.trim(),0,newsCount,1,1,kind);
     }
 
     public static List<NewsStory> parse(String script) {
@@ -36,7 +43,7 @@ public final class NewsStory {
             // A single-line article is both the news title and narration.
             if(heading.length() > 95) heading = heading.substring(0,92)+"…";
             String preview = lines.length>1 ? lines[1].trim() : text;
-            result.add(new NewsStory(heading,text,preview,0,0,1,1));
+            result.add(new NewsStory(heading,text,preview,0,0,1,1,NEWS));
         }
         if(result.isEmpty())throw new IllegalArgumentException("뉴스 원고가 없습니다.");
         if(result.size()>30)throw new IllegalArgumentException("한 영상은 기사 30개 이하입니다.");

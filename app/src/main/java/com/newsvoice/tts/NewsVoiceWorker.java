@@ -66,12 +66,8 @@ public final class NewsVoiceWorker extends Worker {
         VideoResult(File wav,File mp4){this.wav=wav;this.mp4=mp4;}
     }
     private VideoResult makeVideo(String script,String jobId) throws Exception {
-        List<NewsStory> articles=NewsStory.parse(script);
-        List<NewsStory> pages=new ArrayList<>();
-        for(int i=0;i<articles.size();i++){
-            List<NewsStory> articlePages=NewsCardPainter.paginate(articles.get(i),i+1,articles.size());
-            pages.addAll(articlePages);
-        }
+        List<NewsStory> sections=NewsBroadcastSegments.build(script,AppPrefs.anchorComment(context));
+        List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
         List<File> waveFiles=new ArrayList<>();
         try {
             for(int i=0;i<pages.size();i++) {
@@ -117,7 +113,8 @@ public final class NewsVoiceWorker extends Worker {
                     AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → NewsVoiceWAV → newsvoice_"+stamp+".mp4");
                     made.wav.delete();made.mp4.delete();
                 }else{
-                    File wav=synthesize(text,"manual_"+stamp);
+                    List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
+                    File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                     saveDownloads(wav,"newsvoice_"+stamp+".wav");
                     AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → NewsVoiceWAV → newsvoice_"+stamp+".wav");
                     wav.delete();
@@ -142,7 +139,8 @@ public final class NewsVoiceWorker extends Worker {
                 made.wav.delete();made.mp4.delete();
                 AppPrefs.status(context,"WAV + MP4 생성 및 WAV 전송 완료: "+job.id);
             }else{
-                File wav=synthesize(broadcast,job.id);
+                List<NewsStory> sections=NewsBroadcastSegments.build(broadcast,AppPrefs.anchorComment(context));
+                File wav=synthesize(NewsBroadcastSegments.audioScript(sections),job.id);
                 saveDownloads(wav,"newsvoice_"+job.id+".wav");
                 upload(base,token,job.id,wav);
                 wav.delete();
