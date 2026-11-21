@@ -103,7 +103,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         ScrollView sc = new ScrollView(this);sc.setFillViewport(true);sc.setBackgroundColor(0xfff7fbff);
         LinearLayout body = new LinearLayout(this);body.setPadding(dp(this,20),dp(this,27),dp(this,20),dp(this,30));body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);
-        TextView brand=text("●  뉴스보이스",19,true);brand.setTextColor(MINT);body.addView(brand);
+        TextView brand=text("●  "+getString(R.string.app_display_name),19,true);brand.setTextColor(MINT);body.addView(brand);
         TextView headline=text("한국어 뉴스 음성 자동 생성",24,true);body.addView(headline,lp(-1,-2,14));
         TextView sub=text("원고를 입력하고 한국어 음성을 선택해 낭독하세요.",13,false);sub.setTextColor(0xff61778e);body.addView(sub,lp(-1,-2,5));
         body.addView(text("01  TTS 엔진과 한국어 목소리 · 미리 듣기",17,true),lp(-1,-2,25));
@@ -209,14 +209,14 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         reviewButton.setOnClickListener(v->reviewEditorScript());
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
         sample.setOnClickListener(v->editor.setText("경제 뉴스 1\n필리핀 정부는 오늘 산업 투자와 고용 관련 계획을 발표했습니다. 구체적인 집행 일정은 추가 발표를 통해 확인해야 합니다.\n===\n사회 뉴스 2\n교육부는 학교 지원 현황을 점검하고 있다고 밝혔습니다. 후속 일정은 공식 발표를 통해 확인하겠습니다."));
-        body.addView(text("03  오프닝 음악 A 타입 · 자동 적용",17,true),lp(-1,-2,23));
-        TextView openingHelp=text("6초짜리 자체 제작 A 타입 음악이 기본 등록됩니다. 기존에 승인한 정확한 원본 A안 WAV를 별도로 갖고 있다면 아래 버튼으로 교체할 수 있습니다.",12,false);
+        body.addView(text("03  활기찬 오프닝 음악 · MP4 자동 적용",17,true),lp(-1,-2,23));
+        TextView openingHelp=text("새롭게 제작한 밝고 활기찬 6초 오프닝 음악이 기본 설치되며 MP4를 제작할 때마다 자동으로 재생됩니다. 직접 준비한 다른 오프닝 WAV가 있으면 아래 버튼으로 교체할 수 있습니다.",12,false);
         openingHelp.setTextColor(0xff61778e);body.addView(openingHelp,lp(-1,-2,7));
         String openingMessage;
         try{
             OpeningMusicA.ensureInstalled(this);
             openingMessage=AppPrefs.get(this).getBoolean("opening_a_builtin",false)?
-                "내장 A 타입 음악 등록 완료 · MP4에 자동 적용":
+                "활기찬 6초 오프닝 등록 완료 · MP4마다 자동 적용":
                 "사용자 원본 A안 등록 완료 · MP4에 자동 적용";
         }catch(IOException error){
             openingMessage="음악 준비 오류 · "+error.getMessage();
@@ -244,7 +244,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("v5.17 큰 글씨 자동 스크롤: 한 기사 전체를 82px 고정 글씨로 보여주고, 음성에 맞춰 읽는 문장이 위로 이동합니다. 청록색 문장 강조와 노란 밑줄을 유지하며, 제목·진행바는 고정합니다. 본문을 축약하거나 작게 줄이지 않고 1080×1920 MP4로 저장합니다.",12,false);
+        TextView formatHelp=text("큰 글씨 자연스러운 자동 스크롤: 한 기사 전체를 82px 고정 글씨로 보여주며 24fps로 위로 부드럽게 이동합니다. 읽는 문장의 색상 강조·밑줄·이전 문장 흐림 효과는 없습니다. 제목·진행바는 고정하고 본문은 줄이거나 생략하지 않습니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
