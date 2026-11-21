@@ -113,6 +113,12 @@ jobs:
           gradle --no-daemon :app:assembleDebug :app:assembleRelease
           test -s app/build/outputs/apk/debug/NewsVoiceWAV-v5.31-debug.apk
           test -s app/build/outputs/apk/release/NewsVoiceWAV-v5.31-release.apk
+      - name: Upload installable debug APK (testing only; not an upgrade)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NewsVoiceWAV-v5.31-debug-testing-only
+          path: app/build/outputs/apk/debug/NewsVoiceWAV-v5.31-debug.apk
+          if-no-files-found: error
       - name: Upload unsigned release candidate (not for installation)
         uses: actions/upload-artifact@v4
         with:
