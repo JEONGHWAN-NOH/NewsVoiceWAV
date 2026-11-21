@@ -3,8 +3,8 @@ p=Path("app/src/main/java/com/newsvoice/tts/NewsCardPainter.java").read_text(enc
 assert 'result.add(story.page(story.narration,newsNumber,newsTotal,1,1));' in p
 assert 'segment.kind==NewsStory.NEWS?++counted:' in p
 assert 'story.spokenText()' in p
-assert 'private static final float SCROLL_FONT=72f;' in p
-assert 'private static final float SCROLL_STEP=100f;' in p
+assert 'private static final float SCROLL_FONT=64f;' in p
+assert 'private static final float SCROLL_STEP=92f;' in p
 assert 'NewsScrollMath.offset(rowLengths,position,' in p
 assert 'List<String> rows=wrapComplete(script,p(Color.WHITE,SCROLL_FONT,true),880f);' in p
 assert 'total!=NewsSentenceTimeline.visibleLength(script)' in p
