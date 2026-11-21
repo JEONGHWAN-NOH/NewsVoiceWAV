@@ -16,6 +16,23 @@ public final class NewsScrollMathTest{
     check(NewsScrollMath.rowPosition(new int[]{4,5},2f)==0.5f,"within-line progress");
     check(NewsScrollMath.rowPosition(new int[]{4,5},4f)==1f,"next-line continuity");
     check(NewsScrollMath.offset(new int[]{4,5},4f,120f,3f,0f)==0f,"short news never moves");
+    // Article audio lasts 8 seconds. The text must move at a uniform speed,
+    // including sentence gaps and sections with silent audio.
+    float scroll=480f;
+    float previous=-1;
+    for(int second=0;second<=8;second++){
+      float y=NewsScrollMath.continuousOffset(6_000_000L+second*1_000_000L,
+          6_000_000L,14_000_000L,scroll);
+      check(y>=previous,"continuous monotonic scroll");
+      check(Math.abs(y-second*60f)<0.001f,"constant scrolling speed");
+      previous=y;
+    }
+    check(NewsScrollMath.continuousOffset(5_000_000L,6_000_000L,
+        14_000_000L,scroll)==0f,"pre-roll does not move");
+    check(NewsScrollMath.continuousOffset(17_000_000L,6_000_000L,
+        14_000_000L,scroll)==scroll,"scroll ends at text bottom");
+    check(NewsScrollMath.continuousOffset(10_000_000L,6_000_000L,
+        14_000_000L,0f)==0f,"short text stays stationary");
     System.out.println("NewsScrollMathTest PASS");
   }
 }
