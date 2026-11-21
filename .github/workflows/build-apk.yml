@@ -1,7 +1,7 @@
 name: Build NewsVoice WAV Automatic APK
 on:
   push:
-    branches: [main, feature/auto-script-thumbnails-progress]
+    branches: [main, feature/auto-script-thumbnails-progress, feature/download-1-philippines-news-v526]
   workflow_dispatch:
 permissions:
   contents: read
