@@ -154,7 +154,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                     updateStatus(utteranceId.startsWith("save_") ? "WAV 음성을 생성하는 중..." : "뉴스를 낭독하고 있습니다.");
                 }
                 @Override public void onDone(String utteranceId) {
-                    if(utteranceId.startsWith("save_")) finishFile(utteranceId);
+                    if(utteranceId.startsWith("save_")) updateStatus("WAV 구간 생성 완료");
                     else if(utteranceId.equals("play_"+taskToken+"_"+lastQueuedIndex)) updateStatus("낭독 완료");
                 }
                 @Override public void onError(String utteranceId) {
