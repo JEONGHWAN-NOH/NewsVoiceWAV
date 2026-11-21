@@ -43,7 +43,7 @@ assert 'shareLast(true)' in ui and 'shareLast(false)' in ui
 assert 'NewsCoverExporter.save(context,coverMeta,' in video
 for source in (manual,worker):
     assert 'NewsCoverExporter.coverFile(' in source
-    assert '_cover.jpg' in source
+    assert 'names.jpg()' in source  # same dated JPEG filename in both render paths
 assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
 assert 'NewsVoiceWAV-v5.27-CenteredVoice700ms-debug-apk' in pipeline
 print("PASS: 56px/84px and voice-first 700ms delayed scroll with existing cover sharing and music")
