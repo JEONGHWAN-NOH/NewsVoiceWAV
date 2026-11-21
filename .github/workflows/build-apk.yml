@@ -47,6 +47,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.6-Foreground-Video-debug-apk
+          name: NewsVoiceWAV-v5.7-Samsung-TTS-Test-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

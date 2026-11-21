@@ -56,7 +56,13 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private TextView status, jobStatus, speedValue, pitchValue;
     private SharedPreferences.OnSharedPreferenceChangeListener jobListener;
     private SeekBar speedBar, pitchBar;
+    private static final String SAMSUNG_PACKAGE="com.samsung.SMT";
     private final List<Voice> koreanVoices = new ArrayList<>();
+    private TextToSpeech samsungTestTts;
+    private TextView samsungTestStatus;
+    private Button samsungPreviewButton, samsungWavButton, samsungApplyButton;
+    private boolean samsungWavVerified=false;
+    private static final String SAMSUNG_SAMPLE="안녕하십니까. 뉴스보이스 삼성 음성 연결 시험입니다. 이 목소리가 갤럭시 글자 읽어주기의 삼성 목소리와 같은지 들어보세요.";
     private final List<TextToSpeech.EngineInfo> installedEngines = new ArrayList<>();
     private static final String[] PRESET_NAMES = {"표준형 뉴스 앵커", "차분형 뉴스 앵커", "명료형 뉴스 앵커", "부드러운형 뉴스 앵커", "직접 조절"};
     private static final float[] PRESET_RATES = {0.95f, 0.90f, 1.00f, 0.90f};
@@ -102,6 +108,31 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         enginesHelp.setTextColor(0xff61778e);body.addView(enginesHelp,lp(-1,-2,6));
         enginesSpinner = new Spinner(this); enginesSpinner.setBackground(rounded(0xffe7f1f6,dp(this,12)));
         body.addView(enginesSpinner,lp(-1,52,9));
+        body.addView(text("삼성 TTS 연동 진단 (v5.7)",16,true),lp(-1,-2,15));
+        TextView samsungHint=text("갤럭시 설정에서 재생되어도 다른 앱에 삼성 TTS가 공개되지 않을 수 있습니다. 진단 후 시험 재생과 WAV 저장으로 확인하세요.",12,false);
+        samsungHint.setTextColor(0xff61778e);body.addView(samsungHint,lp(-1,-2,6));
+        samsungTestStatus=text("삼성 엔진 상태: 진단하지 않음",13,true);
+        samsungTestStatus.setTextColor(MINT);body.addView(samsungTestStatus,lp(-1,-2,8));
+        Button samsungScan=btn("삼성 TTS 접근 진단",0xffe3eff2,DARK);
+        body.addView(samsungScan,lp(-1,49,8));
+        samsungScan.setOnClickListener(v->diagnoseSamsung());
+        samsungPreviewButton=btn("삼성 TTS 시험 재생",0xffe3eff2,DARK);
+        samsungPreviewButton.setEnabled(false);
+        body.addView(samsungPreviewButton,lp(-1,49,7));
+        samsungPreviewButton.setOnClickListener(v->previewSamsungOnly());
+        samsungWavButton=btn("삼성 TTS WAV 시험 저장",0xffe3eff2,DARK);
+        samsungWavButton.setEnabled(false);
+        body.addView(samsungWavButton,lp(-1,49,7));
+        samsungWavButton.setOnClickListener(v->saveSamsungWavTest());
+        samsungApplyButton=btn("삼성 엔진을 뉴스 제작에 사용 요청",0xffe3eff2,DARK);
+        samsungApplyButton.setEnabled(false);
+        body.addView(samsungApplyButton,lp(-1,49,8));
+        samsungApplyButton.setOnClickListener(v->{
+            if(!samsungWavVerified)return;
+            AppPrefs.get(this).edit().putString("engine",SAMSUNG_PACKAGE).remove("voice").apply();
+            restartWithEngine(SAMSUNG_PACKAGE);
+            samsungTestStatus.setText("삼성 엔진을 요청하도록 저장했습니다. 실제 선택 여부는 음색과 WAV 재생으로 확인하세요.");
+        });
         voicesSpinner = new Spinner(this); voicesSpinner.setBackground(rounded(0xffe7f1f6,dp(this,12)));
         body.addView(voicesSpinner,lp(-1,52,10));
         body.addView(text("아나운서 낭독 스타일",14,true),lp(-1,-2,14));
@@ -307,6 +338,110 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             updateStatus("TTS 초기화 오류: " + e.getClass().getSimpleName());
         }
     }
+    private void diagnoseSamsung(){
+        samsungWavVerified=false;
+        samsungPreviewButton.setEnabled(false);samsungWavButton.setEnabled(false);
+        samsungApplyButton.setEnabled(false);
+        if(samsungTestTts!=null){samsungTestTts.stop();samsungTestTts.shutdown();samsungTestTts=null;}
+        boolean installed=false,exposed=false;
+        try{getPackageManager().getPackageInfo(SAMSUNG_PACKAGE,0);installed=true;}
+        catch(android.content.pm.PackageManager.NameNotFoundException ignored){}
+        if(tts!=null){
+            try{
+                for(TextToSpeech.EngineInfo e:tts.getEngines())
+                    if(SAMSUNG_PACKAGE.equals(e.name)){exposed=true;break;}
+            }catch(RuntimeException ignored){}
+        }
+        if(!installed){
+            samsungTestStatus.setText("삼성 TTS 패키지를 외부 앱에서 확인하지 못했습니다. 삼성 설정에서는 재생될 수 있습니다.");
+            return;
+        }
+        if(!exposed){
+            samsungTestStatus.setText("삼성 TTS 설치 확인. 그러나 외부 앱의 TTS 엔진 목록에 표시되지 않습니다. One UI 접근 제한 가능성: 삼성 음성만 재생하는 기능은 사용할 수 없습니다.");
+            return;
+        }
+        samsungTestStatus.setText("삼성 엔진 목록 발견. 한국어 연결을 시험합니다...");
+        try{
+            samsungTestTts=new TextToSpeech(this,code->main.post(()->{
+                if(samsungTestTts==null||isFinishing()||isDestroyed())return;
+                if(code!=TextToSpeech.SUCCESS){
+                    samsungTestStatus.setText("삼성 엔진 초기화 실패: 외부 앱 접근이 제한됐을 수 있습니다.");
+                    return;
+                }
+                int language=samsungTestTts.setLanguage(Locale.KOREAN);
+                if(language==TextToSpeech.LANG_MISSING_DATA||language==TextToSpeech.LANG_NOT_SUPPORTED){
+                    samsungTestStatus.setText("삼성 엔진 요청은 성공했으나 한국어 TTS를 사용할 수 없습니다.");
+                    return;
+                }
+                Voice selected=null;
+                try{
+                    if(samsungTestTts.getVoices()!=null)
+                        for(Voice v:samsungTestTts.getVoices())
+                            if(v!=null&&v.getLocale()!=null&&"ko".equals(v.getLocale().getLanguage())){
+                                selected=v;break;
+                            }
+                    if(selected!=null)samsungTestTts.setVoice(selected);
+                }catch(RuntimeException ignored){}
+                String voiceName=selected==null?"기본 한국어":selected.getName();
+                samsungTestStatus.setText("삼성 패키지를 지정한 TTS 초기화 성공 (목소리: "+voiceName+"). 실제 삼성 엔진 사용 여부는 음색을 비교해야 합니다.");
+                samsungPreviewButton.setEnabled(true);
+                samsungWavButton.setEnabled(true);
+            }),SAMSUNG_PACKAGE);
+        }catch(RuntimeException ex){
+            samsungTestStatus.setText("삼성 TTS 접근 오류: "+ex.getClass().getSimpleName());
+        }
+    }
+    private void previewSamsungOnly(){
+        if(samsungTestTts==null)return;
+        int result=samsungTestTts.speak(SAMSUNG_SAMPLE,TextToSpeech.QUEUE_FLUSH,new Bundle(),"samsung_preview");
+        if(result!=TextToSpeech.SUCCESS){
+            samsungTestStatus.setText("삼성 패키지 요청 음성 재생이 거절됐습니다.");
+        }else{
+            samsungTestStatus.setText("시험 낭독 요청 완료. 갤럭시 설정에서 들은 목소리와 동일한지 직접 비교해 주세요. 다른 엔진으로 대체됐을 가능성은 배제할 수 없습니다.");
+        }
+    }
+    private void saveSamsungWavTest(){
+        if(samsungTestTts==null)return;
+        String stamp=String.valueOf(System.currentTimeMillis());
+        File output=new File(getCacheDir(),"samsung_test_"+stamp+".wav");
+        samsungWavButton.setEnabled(false);samsungApplyButton.setEnabled(false);samsungWavVerified=false;
+        samsungTestStatus.setText("삼성 TTS 패키지를 지정한 WAV 합성 시험 중...");
+        samsungTestTts.setOnUtteranceProgressListener(new UtteranceProgressListener(){
+            @Override public void onStart(String id){}
+            @Override public void onDone(String id){
+                if(!"samsung_file".equals(id))return;
+                new Thread(()->{
+                    try{
+                        WavTools.inspect(output);
+                        DownloadsPublisher.publish(MainActivity.this,output,"newsvoice_samsung_test_"+stamp+".wav");
+                        main.post(()->{
+                            samsungWavVerified=true;
+                            samsungWavButton.setEnabled(true);
+                            samsungApplyButton.setEnabled(true);
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/NewsVoiceWAV/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                        });
+                    }catch(Exception e){
+                        main.post(()->{
+                            samsungWavButton.setEnabled(true);
+                            samsungTestStatus.setText("WAV 시험 실패: "+e.getClass().getSimpleName()+" - "+e.getMessage());
+                        });
+                    }finally{output.delete();}
+                }).start();
+            }
+            @Override public void onError(String id){
+                main.post(()->{
+                    samsungWavButton.setEnabled(true);
+                    samsungTestStatus.setText("삼성 패키지 요청으로 WAV 합성에 실패했습니다.");
+                });
+            }
+            @Override public void onError(String id,int errorCode){onError(id);}
+        });
+        int accepted=samsungTestTts.synthesizeToFile(SAMSUNG_SAMPLE,new Bundle(),output,"samsung_file");
+        if(accepted!=TextToSpeech.SUCCESS){
+            samsungWavButton.setEnabled(true);
+            samsungTestStatus.setText("삼성 패키지를 지정한 WAV 생성 명령이 거절됐습니다.");
+        }
+    }
     private void restartWithEngine(String packageName){
         try{
             ready=false;
@@ -314,6 +449,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             updateStatus("TTS 엔진을 전환하는 중: "+packageName);
             if(tts!=null){tts.stop();tts.shutdown();}
             currentEngine=packageName;
+            engineUiReady=false;
             AppPrefs.get(this).edit().putString("engine",packageName).remove("voice").apply();
             koreanVoices.clear();
             voicesSpinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,
@@ -470,6 +606,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         if(jobListener!=null)AppPrefs.get(this).unregisterOnSharedPreferenceChangeListener(jobListener);
         if(tts!=null){
             try { tts.stop(); tts.shutdown(); } catch(RuntimeException ignored) {}
+        }
+        if(samsungTestTts!=null){
+            try{samsungTestTts.stop();samsungTestTts.shutdown();}catch(RuntimeException ignored){}
         }
         super.onDestroy();
     }
