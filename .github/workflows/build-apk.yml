@@ -60,6 +60,13 @@ jobs:
           java -cp /tmp/news-sentence-classes NewsSentenceTimelineTest
       - name: Verify exact WAV cue synchronization and sentence highlighting
         run: python3 tests/test_sentence_highlight.py
+      - name: Test audio-position scroll geometry and monotonic upward movement
+        run: |
+          mkdir -p /tmp/news-scroll-classes
+          javac -encoding UTF-8 -d /tmp/news-scroll-classes app/src/main/java/com/newsvoice/tts/NewsScrollMath.java tests/NewsScrollMathTest.java
+          java -cp /tmp/news-scroll-classes NewsScrollMathTest
+      - name: Verify larger readable text and continuous voice-synced scroll
+        run: python3 tests/test_scroll_slide.py
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
         run: |
@@ -75,6 +82,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.16-Sentence-Highlight-debug-apk
+          name: NewsVoiceWAV-v5.17-Large-Text-Auto-Scroll-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
