@@ -1,9 +1,8 @@
 package com.newsvoice.tts;
 
 /**
- * Pure scrolling geometry: follows spoken character progress through wrapped
- * visual rows. Keeps the active text near the middle of a bounded viewport
- * without reducing the font or throwing away source characters.
+ * Pure scrolling geometry. v5.19 favors continuous clock-based upward motion
+ * over sentence-by-sentence movement that stops at punctuation/whitespace.
  */
 public final class NewsScrollMath {
     private NewsScrollMath(){ }
@@ -27,5 +26,16 @@ public final class NewsScrollMath {
                                float rowStep,float focusRows,float maxOffset){
         if(rowStep<=0||maxOffset<0)throw new IllegalArgumentException("스크롤 크기가 잘못됐습니다.");
         return clamp((rowPosition(rows,spokenCharacters)-focusRows)*rowStep,0,maxOffset);
+    }
+    /** Move at one continuous speed throughout actual narrated WAV duration. */
+    public static float continuousOffset(long nowUs,long narrationStartUs,
+                                         long narrationEndUs,float maxOffset){
+        if(maxOffset<0||narrationEndUs<=narrationStartUs)
+            throw new IllegalArgumentException("음성 시간 또는 스크롤 거리가 올바르지 않습니다.");
+        if(nowUs<=narrationStartUs)return 0f;
+        if(nowUs>=narrationEndUs)return maxOffset;
+        double ratio=(double)(nowUs-narrationStartUs)/
+            (double)(narrationEndUs-narrationStartUs);
+        return (float)(ratio*maxOffset);
     }
 }
