@@ -244,7 +244,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("본문이 들어가면 기사당 카드 한 장, 길면 같은 네이비 디자인의 다음 카드로 자동 이어집니다. 전체 원고를 누락 없이 화면과 음성에 맞춰 1080×1920 MP4로 저장합니다.",12,false);
+        TextView formatHelp=text("낭독 중인 문장에 청록색 하이라이트와 노란 밑줄이 자동 표시됩니다. 문장별 실제 WAV 길이를 기준으로 화면이 바뀝니다. 긴 뉴스는 전체 대본을 다음 카드로 이어서 1080×1920 MP4로 저장합니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
