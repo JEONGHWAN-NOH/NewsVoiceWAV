@@ -13,6 +13,6 @@ assert "한 화면의 읽기 좋은 글씨 크기를 초과" in s, "do not trunc
 assert "fitStory(story); // Same text measurement" in s
 assert "이 기사의 아나운서" not in s or "한 화면" in s
 assert "drawProseLine(c,row,layout.x,y,body);" in s
-assert "renderBroadcastCover(context,meta,count)" in s
+assert "renderCityCover(meta,count,stage)" in s and "philippines_cover.webp" not in s
 assert "NewsBroadcastSegments.completedNews(story)" in s
 print("Single-card screen and full script preflight passed")
