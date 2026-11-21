@@ -24,7 +24,11 @@ public final class NewsBroadcastSegments {
             }else if(heading.equals("마감 인사")||heading.equals("클로징")) {
                 if(closing!=null)throw new IllegalArgumentException("마감 인사가 중복됐습니다.");
                 closing=body(section);
-            }else news.add(section);
+            }else {
+                if(section.spokenText().isEmpty())
+                    throw new IllegalArgumentException("일반 뉴스는 첫 줄에 제목, 다음 줄부터 낭독할 본문이 필요합니다: "+heading);
+                news.add(section);
+            }
         }
         if(news.isEmpty())throw new IllegalArgumentException("전할 뉴스 원고가 없습니다.");
         int count=news.size();
@@ -69,7 +73,7 @@ public final class NewsBroadcastSegments {
         StringBuilder result=new StringBuilder();
         for(NewsStory s:sections){
             if(result.length()>0)result.append('\n');
-            result.append(s.narration);
+            result.append(s.spokenText());
         }
         return result.toString();
     }

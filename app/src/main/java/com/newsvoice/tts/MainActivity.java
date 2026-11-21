@@ -200,7 +200,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("뉴스 한 건당 한 화면에 아나운서 대본 전체를 표시합니다. 왼쪽 그림 칸 없이 화면 너비 전체를 사용하며, 시작 인사 → 본 뉴스 → 앵커 한마디 → 마감 인사 순서입니다.",12,false);
+        TextView note=text("제목은 화면에만 표시하고 읽지 않습니다. 뉴스 첫 줄에는 제목을 쓰고, 다음 줄부터 본문을 입력하세요. 화면당 뉴스 한 건을 전체 폭으로 표시하며, 시작 인사와 마지막 앵커 한마디·마감 인사는 낭독합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
@@ -208,7 +208,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         reviewHint.setTextColor(0xff61778e);body.addView(reviewHint,lp(-1,-2,7));
         reviewButton.setOnClickListener(v->reviewEditorScript());
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
-        sample.setOnClickListener(v->editor.setText("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.\n첫 번째 소식입니다. 주요 경제 동향과 기업 투자 현황을 살펴보겠습니다.\n이상으로 뉴스를 마치겠습니다. 감사합니다."));
+        sample.setOnClickListener(v->editor.setText("경제 뉴스 1\n필리핀 정부는 오늘 산업 투자와 고용 관련 계획을 발표했습니다. 구체적인 집행 일정은 추가 발표를 통해 확인해야 합니다.\n===\n사회 뉴스 2\n교육부는 학교 지원 현황을 점검하고 있다고 밝혔습니다. 후속 일정은 공식 발표를 통해 확인하겠습니다."));
         body.addView(text("03  승인한 오프닝 음악 A안",17,true),lp(-1,-2,23));
         TextView openingHelp=text("최초 1회만 승인하신 6초 A안 WAV를 선택해 주세요. 이후 MP4의 첫 6초에 자동 삽입합니다.",12,false);
         openingHelp.setTextColor(0xff61778e);body.addView(openingHelp,lp(-1,-2,7));

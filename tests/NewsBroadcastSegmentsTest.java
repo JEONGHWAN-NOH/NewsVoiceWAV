@@ -13,6 +13,16 @@ public final class NewsBroadcastSegmentsTest {
         assertTrue(segments.get(3).kind==NewsStory.ANCHOR,"anchor last corner");
         assertTrue(segments.get(4).kind==NewsStory.CLOSING,"closing final");
         assertTrue(segments.get(3).narration.contains("차분히"),"custom commentary used");
+        String spoken=NewsBroadcastSegments.audioScript(segments);
+        assertTrue(spoken.startsWith("안녕하십니까."),"opening spoken");
+        assertTrue(spoken.contains("정부는 주요 정책을 발표했습니다."),"news 1 body spoken");
+        assertTrue(spoken.contains("전력 공급을 확인했습니다."),"news 2 body spoken");
+        assertTrue(!spoken.contains("정치 뉴스")&&!spoken.contains("경제 뉴스"),
+            "audio-only script excludes news headlines");
+        assertTrue(spoken.contains("추가 소식도 차분히 확인하겠습니다."),
+            "anchor comment spoken");
+        assertTrue(spoken.endsWith("시청해 주셔서 감사합니다."),
+            "closing spoken");
         NewsStory opening=segments.get(0).page(segments.get(0).narration,0,2,1,1);
         NewsStory second=segments.get(2).page(segments.get(2).narration,2,2,2,3);
         assertTrue(NewsBroadcastSegments.remainingNews(opening)==2,"opening has 2 remaining");
@@ -25,6 +35,10 @@ public final class NewsBroadcastSegmentsTest {
         try{
             NewsBroadcastSegments.build(text,"그렇게 하면 돼.");
             throw new AssertionError("informal comment must be blocked");
+        }catch(IllegalArgumentException expected){}
+        try {
+            NewsBroadcastSegments.build("제목만 있는 뉴스", "");
+            throw new AssertionError("headline-only article must be rejected");
         }catch(IllegalArgumentException expected){}
         System.out.println("NewsBroadcastSegments PASS");
     }

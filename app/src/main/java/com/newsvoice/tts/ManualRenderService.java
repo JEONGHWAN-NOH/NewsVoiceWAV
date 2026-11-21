@@ -108,7 +108,7 @@ public final class ManualRenderService extends Service {
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 처리 스레드가 시스템에서 중단됐습니다.");
                 report("화면별 WAV 생성: "+(i+1)+"/"+pages.size());
-                parts.add(synthesize(pages.get(i).narration,"manual_"+stamp+"_p"+(i+1)));
+                parts.add(synthesize(pages.get(i).spokenText(),"manual_"+stamp+"_p"+(i+1)));
             }
             wav=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+"_combined.wav");
             WavTools.concatenate(parts,wav);

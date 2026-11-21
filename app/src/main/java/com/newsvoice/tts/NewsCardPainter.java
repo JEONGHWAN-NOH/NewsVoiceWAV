@@ -205,10 +205,7 @@ public final class NewsCardPainter {
      * Display the headline once at the top; the prose below is unchanged.
      */
     private static String prose(NewsStory story){
-        String script=story.narration.trim();
-        if(story.kind!=NewsStory.NEWS)return script;
-        int newLine=script.indexOf('\n');
-        return newLine>=0&&newLine<script.length()-1?script.substring(newLine+1).trim():script;
+        return story.spokenText();
     }
     /** No image column; one continuous full-width text block for the complete story. */
     private static final class ReadingFit{

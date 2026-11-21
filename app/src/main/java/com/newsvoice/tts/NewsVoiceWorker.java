@@ -73,7 +73,7 @@ public final class NewsVoiceWorker extends Worker {
             for(int i=0;i<pages.size();i++) {
                 if(isStopped())throw new IOException(stopDetail());
                 AppPrefs.status(context,"화면별 음성 합성: "+(i+1)+"/"+pages.size());
-                waveFiles.add(synthesize(pages.get(i).narration,jobId+"_page"+(i+1)));
+                waveFiles.add(synthesize(pages.get(i).spokenText(),jobId+"_page"+(i+1)));
             }
             File audio=new File(context.getCacheDir(),"newsvoice_"+jobId+"_combined.wav");
             WavTools.concatenate(waveFiles,audio);

@@ -26,6 +26,17 @@ public final class NewsStory {
         return new NewsStory(title,fullPageText,fullPageText,
              articleNo,totalArticles,number,totalPages,kind);
     }
+    /**
+     * News titles are visual-only. TTS must speak only the body after the first
+     * newline; opening, anchor comment and closing remain spoken in full.
+     */
+    public String spokenText(){
+        String text=narration==null?"":narration.trim();
+        if(kind!=NEWS)return text;
+        int pos=text.indexOf('\n');
+        return pos<0?"":text.substring(pos+1).trim();
+    }
+
     public static NewsStory segment(int kind,String title,String narration,int newsCount){
         if(kind==NEWS||narration==null||narration.trim().isEmpty())
             throw new IllegalArgumentException("방송 멘트 형식이 올바르지 않습니다.");
