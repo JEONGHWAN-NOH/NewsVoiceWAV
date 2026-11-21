@@ -30,8 +30,18 @@ public final class NewsVideoComposer {
     public interface Progress { void message(String message) throws IOException; }
     private static final class Span {
         final NewsStory story;
-        final long startUs,endUs;
-        Span(NewsStory story,long startUs,long endUs){this.story=story;this.startUs=startUs;this.endUs=endUs;}
+        final long startUs,endUs,audioStartUs;
+        final long[] sentenceEndUs;
+        Span(NewsStory story,long startUs,long endUs,long audioStartUs,long[] sentenceEndUs){
+            this.story=story;this.startUs=startUs;this.endUs=endUs;
+            this.audioStartUs=audioStartUs;this.sentenceEndUs=sentenceEndUs;
+        }
+        int activeSentence(long presentationUs){
+            if(presentationUs<audioStartUs)return -1; // Pre-roll: show text without highlight.
+            for(int i=0;i<sentenceEndUs.length;i++)
+                if(presentationUs<sentenceEndUs[i])return i;
+            return -1; // Speech for this card has finished.
+        }
     }
     private static final class Timeline {
         final File pcm;
@@ -92,8 +102,11 @@ public final class NewsVideoComposer {
         }
         if(at>0)out.write(chunk,0,at);
     }
-    private static Timeline makeTimeline(Context context,List<NewsStory> stories,List<File> waves,File pcm) throws IOException {
-        if(stories.size()!=waves.size()||stories.isEmpty())throw new IOException("Article/WAV count mismatch");
+    private static Timeline makeTimeline(Context context,List<NewsStory> stories,
+                                         List<File> waves,List<List<Long>> sentenceFrames,
+                                         File pcm) throws IOException {
+        if(stories.size()!=waves.size()||stories.isEmpty()||
+           sentenceFrames.size()!=waves.size())throw new IOException("뉴스 카드와 WAV의 개수가 일치하지 않습니다.");
         List<WavTools.Piece> pieces=new ArrayList<>();byte[] expected=null;
         for(File wav:waves){
             WavTools.Piece part=WavTools.inspect(wav);
@@ -116,20 +129,37 @@ public final class NewsVideoComposer {
                 writeSilence(out,gapFrames*frameBytes);frameCount+=gapFrames;
                 WavTools.Piece part=pieces.get(i);
                 if(part.dataLength%frameBytes!=0)throw new IOException("WAV 데이터의 샘플 경계가 맞지 않습니다.");
+                List<Long> lengths=sentenceFrames.get(i);
+                int expectedSentences=NewsSentenceTimeline.split(stories.get(i).spokenText()).size();
+                if(lengths==null||lengths.size()!=expectedSentences)
+                    throw new IOException("문장별 WAV 타임라인이 빠졌습니다.");
+                long audioStart=frameCount;
+                long[] cueEnds=new long[lengths.size()];
+                long totalFrames=0;
+                for(int cue=0;cue<lengths.size();cue++){
+                    long duration=lengths.get(cue);
+                    if(duration<=0)throw new IOException("빈 문장의 WAV가 있습니다.");
+                    totalFrames+=duration;
+                    cueEnds[cue]=toUs(audioStart+totalFrames,rate);
+                }
+                if(totalFrames!=part.dataLength/frameBytes)
+                    throw new IOException("문장별 재생 시간과 전체 WAV 길이가 다릅니다.");
                 appendWave(out,part);
-                frameCount+=part.dataLength/frameBytes;
-                spans.add(new Span(stories.get(i),start,toUs(frameCount,rate)));
+                frameCount+=totalFrames;
+                spans.add(new Span(stories.get(i),start,toUs(frameCount,rate),
+                    toUs(audioStart,rate),cueEnds));
             }
             long tailFrames=rate/3;writeSilence(out,tailFrames*frameBytes);frameCount+=tailFrames;
         }
         return new Timeline(pcm,rate,channels,toUs(frameCount,rate),spans);
     }
-    public static File create(Context context,List<NewsStory> stories,List<File> waves,File output,Progress progress)throws Exception {
+    public static File create(Context context,List<NewsStory> stories,List<File> waves,
+                              List<List<Long>> sentenceFrames,File output,Progress progress)throws Exception {
         File folder=new File(context.getCacheDir(),"video_work_"+System.nanoTime());
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
         try {
-            Timeline timeline=makeTimeline(context,stories,waves,raw);
+            Timeline timeline=makeTimeline(context,stories,waves,sentenceFrames,raw);
             if(timeline.endUs>12L*60*US_PER_S)throw new IOException("한 영상은 12분 이내 원고를 사용하세요.");
             progress.message("WAV 음성을 AAC로 변환 중");
             encodeAudio(raw,aac,timeline.sampleRate,timeline.channels);
@@ -213,7 +243,7 @@ public final class NewsVideoComposer {
             int track=-1;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
             int frames=(int)((t.endUs*FPS+US_PER_S-1)/US_PER_S);
-            int previousCard=-10;long cardStart=0,cardEnd=0;
+            int previousCard=-10,previousSentence=-10;long cardStart=0,cardEnd=0;
             for(int f=0;f<frames;f++) {
                 long us=f*US_PER_S/FPS;
                 int which;
@@ -223,7 +253,8 @@ public final class NewsVideoComposer {
                     which=0;
                     for(int i=0;i<t.spans.size();i++)if(us>=t.spans.get(i).startUs)which=i;
                 }
-                if(which!=previousCard) {
+                int activeSentence=which>=0?t.spans.get(which).activeSentence(us):-1;
+                if(which!=previousCard || activeSentence!=previousSentence) {
                     if(which==-2) {cardStart=0;cardEnd=4L*US_PER_S;}
                     else if(which==-1){cardStart=4L*US_PER_S;cardEnd=6L*US_PER_S;}
                     else {
@@ -231,8 +262,10 @@ public final class NewsVideoComposer {
                         cardEnd=which+1<t.spans.size()?t.spans.get(which+1).startUs:t.endUs;
                     }
                     NewsStory story=which>=0?t.spans.get(which).story:null;
-                    Bitmap card=NewsCardPainter.render(context,story,Math.max(0,which),articleCount,which<0?which+2:2,meta);
-                    renderer.upload(card);card.recycle();previousCard=which;
+                    Bitmap card=NewsCardPainter.render(context,story,Math.max(0,which),
+                        articleCount,which<0?which+2:2,meta,activeSentence);
+                    renderer.upload(card);card.recycle();
+                    previousCard=which;previousSentence=activeSentence;
                 }
                 float motion=cardEnd<=cardStart?1f:(float)(us-cardStart)/(cardEnd-cardStart);
                 float zoom=1.0f+0.025f*Math.max(0f,Math.min(1f,motion));
