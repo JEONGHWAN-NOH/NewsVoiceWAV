@@ -76,7 +76,7 @@ public final class NewsCardPainter {
     }
     private static void thematicWatermark(Canvas c,String content){
         Paint ghost=p(Color.rgb(65,131,157),0,false);
-        ghost.setAlpha(34);
+        ghost.setAlpha(13);
         ghost.setStrokeWidth(13);
         ghost.setStyle(Paint.Style.STROKE);
         if(content.contains("예산")||content.contains("상원")||content.contains("공공사업")) {
@@ -104,70 +104,94 @@ public final class NewsCardPainter {
             c.drawLine(302,1295,789,1295,ghost);
         }
     }
-    /** v5.3: pale topic-specific background, full narration within one 9:16 card. */
-    private static Bitmap renderFullArticle(NewsStory story,int index,int count) {
+    /** Same font/line layout is used by pagination and actual rendering. */
+    private static final float BODY_SIZE=44f, BODY_STEP=66f, BODY_WIDTH=795f;
+    private static final int MAX_BODY_LINES=11;
+    public static List<NewsStory> paginate(NewsStory article,int articleNo,int articleCount){
+        Paint font=p(Color.rgb(22,44,66),BODY_SIZE,false);
+        List<String> chunks=NewsPageSplitter.split(article.narration,
+            text -> wrapComplete(text,font,BODY_WIDTH).size()<=MAX_BODY_LINES);
+        List<NewsStory> pages=new ArrayList<>();
+        for(int i=0;i<chunks.size();i++)
+            pages.add(article.page(chunks.get(i),articleNo,articleCount,i+1,chunks.size()));
+        return pages;
+    }
+    private static int pastelColor(NewsStory s){
+        String q=s.title+" "+s.narration;
+        if(q.contains("외교")||q.contains("해양")||q.contains("서필리핀해")||q.contains("중국"))return Color.rgb(230,244,251);
+        if(q.contains("탄핵")||q.contains("재판")||q.contains("법원")||q.contains("소명"))return Color.rgb(244,238,251);
+        if(q.contains("상원")||q.contains("예산")||q.contains("공공사업"))return Color.rgb(252,242,226);
+        return Color.rgb(232,247,240);
+    }
+    private static Bitmap renderFullArticle(NewsStory story,int index,int count){
         Bitmap bmp=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bmp);
-        Paint bg=p(Color.rgb(246,249,252),0,false);
-        bg.setShader(new LinearGradient(0,0,WIDTH,HEIGHT,
-            Color.rgb(250,252,253),Color.rgb(234,244,248),Shader.TileMode.CLAMP));
+        final int ink=Color.rgb(20,43,64), blue=Color.rgb(40,98,124);
+        final int teal=Color.rgb(20,112,111), accent=Color.rgb(211,161,65);
+        Paint bg=p(Color.WHITE,0,false);
+        bg.setShader(new LinearGradient(0,0,WIDTH,HEIGHT,Color.rgb(252,253,254),
+            pastelColor(story),Shader.TileMode.CLAMP));
         c.drawRect(0,0,WIDTH,HEIGHT,bg);
-        Paint outline=p(Color.rgb(102,156,176),0,false);
-        outline.setStyle(Paint.Style.STROKE);outline.setStrokeWidth(2);
-        c.drawRoundRect(new RectF(44,46,1036,1868),38,38,outline);
-        final int ink=Color.rgb(15,43,65);
-        final int teal=Color.rgb(34,142,137);
-        final int gold=Color.rgb(232,183,65);
-        rounded(c,ink,63,82,1017,262,28);
-        c.drawText("PHILIPPINES  /  POLITICS",195,148,p(WHITE,31,true));
-        rounded(c,gold,102,126,172,138,6);
+        // Decorative abstract dots remain outside the high-contrast manuscript panel.
+        Paint pastelRing=p(teal,0,false);pastelRing.setAlpha(17);
+        pastelRing.setStyle(Paint.Style.STROKE);pastelRing.setStrokeWidth(30);
+        c.drawCircle(981,168,270,pastelRing);c.drawCircle(85,1744,195,pastelRing);
+        Paint border=p(Color.rgb(200,216,222),0,false);
+        border.setStrokeWidth(3);border.setStyle(Paint.Style.STROKE);
+        c.drawRoundRect(new RectF(45,45,1035,1873),36,36,border);
+        rounded(c,Color.rgb(230,242,244),82,90,998,224,25);
+        c.drawText("필리핀 뉴스 | NEWSVOICE WAV",116,157,p(ink,39,true));
         String date=LocalDateTime.now(ZoneId.of("Asia/Manila"))
             .format(DateTimeFormatter.ofPattern("yyyy. MM. dd"));
-        c.drawText(date+"  |  NEWSVOICE WAV",103,216,p(SUB,29,false));
-        rounded(c,teal,101,304,428,369,18);
-        c.drawText(String.format(java.util.Locale.KOREA,"뉴스 %d / %d",index+1,count),125,349,p(Color.WHITE,34,true));
-        String headline=story.title.replace('\n',' ').trim();
-        List<String> titleLines=null;
-        Paint titleFont=null;
-        for(int size=68;size>=38;size-=2) {
-            titleFont=p(ink,size,true);
-            titleLines=wrapComplete(headline,titleFont,859);
-            if(titleLines.size()<=3)break;
+        c.drawText(date,118,208,p(blue,27,false));
+        int articleNumber=story.articleNumber>0?story.articleNumber:index+1;
+        int articleCount=story.articleCount>0?story.articleCount:count;
+        rounded(c,Color.rgb(226,243,240),100,262,440,321,19);
+        c.drawText("뉴스 "+articleNumber+" / "+articleCount,124,304,p(teal,34,true));
+        rounded(c,Color.rgb(239,235,249),631,262,977,321,19);
+        c.drawText("화면 "+story.pageNumber+" / "+story.pageCount,652,304,p(ink,32,true));
+        List<String> titleRows=null;Paint titlePaint=null;
+        for(int size=62;size>=32;size-=2){
+            titlePaint=p(ink,size,true);
+            titleRows=wrapComplete(story.title.replace("\n"," "),titlePaint,859);
+            if(titleRows.size()<=3)break;
         }
-        if(titleLines==null||titleLines.size()>3)throw new IllegalArgumentException("기사 제목이 너무 깁니다. 제목을 줄여주세요.");
-        float baseline=462;
-        for(String str:titleLines){c.drawText(str,100,baseline,titleFont);baseline+=titleFont.getTextSize()+23;}
-        rounded(c,gold,101,626,341,638,5);
-        rounded(c,Color.rgb(205,225,234),89,701,995,1676,32);
-        rounded(c,Color.WHITE,85,692,990,1667,32);
-        Paint panelBorder=p(Color.rgb(196,216,224),0,false);
-        panelBorder.setStyle(Paint.Style.STROKE);panelBorder.setStrokeWidth(2);
-        c.drawRoundRect(new RectF(85,692,990,1667),32,32,panelBorder);
-        thematicWatermark(c,story.narration);
-        c.drawText("아나운서 낭독 대본 · 전체",127,759,p(teal,37,true));
-        line(c,Color.rgb(214,228,234),127,810,945,810,3);
-        // story.narration contains BOTH the headline and the full voiceover.
-        // Keep both, as this is precisely what TextToSpeech synthesizes.
-        String fullText=story.narration.replace("\n","\n\n");
-        List<String> rows=null;
-        Paint body=null;
-        float step=0;
-        for(int size=55;size>=26;size--){
-            body=p(ink,size,false);
-            rows=wrapComplete(fullText,body,801);
-            step=size*1.55f;
-            if(865+(rows.size()-1)*step<=1605)break;
-        }
-        if(rows==null||865+(rows.size()-1)*step>1605) {
+        if(titleRows==null||titleRows.size()>3)throw new IllegalArgumentException("제목이 너무 깁니다.");
+        float titleBase=425;
+        for(String row:titleRows){c.drawText(row,104,titleBase,titlePaint);titleBase+=titlePaint.getTextSize()+12;}
+        rounded(c,accent,103,630,344,640,5);
+        // The page text always sits on an opaque, warm-white panel.
+        rounded(c,Color.WHITE,86,705,995,1638,30);
+        Paint panelOutline=p(Color.rgb(209,224,228),0,false);
+        panelOutline.setStyle(Paint.Style.STROKE);panelOutline.setStrokeWidth(2);
+        c.drawRoundRect(new RectF(86,705,995,1638),30,30,panelOutline);
+        c.drawText("아나운서 낭독 대본",128,774,p(teal,37,true));
+        line(c,Color.rgb(218,231,232),124,810,948,810,3);
+        // Topic-specific watermark is extremely pale and never compromises readability.
+        c.save(); c.clipRect(98,824,980,1614);
+        thematicWatermark(c,story.title);
+        c.restore();
+        Paint body=p(ink,BODY_SIZE,false);
+        List<String> rows=wrapComplete(story.narration,body,BODY_WIDTH);
+        if(rows.size()>MAX_BODY_LINES){
             bmp.recycle();
-            throw new IllegalArgumentException("기사 원고가 한 카드에 모두 들어가지 않습니다. 기사를 나누거나 원고 길이를 줄여주세요.");
+            throw new IllegalArgumentException("원고 페이지 분할에 실패했습니다. 카드 여백을 확인하세요.");
         }
-        for(int i=0;i<rows.size();i++)if(!rows.get(i).isEmpty())c.drawText(rows.get(i),128,865+i*step,body);
-        line(c,Color.rgb(116,155,178),103,1749,981,1749,2);
-        c.drawText("NEWSVOICE WAV  |  FULL SCRIPT",103,1810,p(ink,26,true));
-        c.drawText(String.format(java.util.Locale.US,"%02d / %02d",index+1,count),866,1810,p(teal,30,true));
-        rounded(c,Color.rgb(208,229,235),103,1832,977,1845,6);
-        rounded(c,teal,103,1832,103+Math.round(874f*(index+1)/Math.max(1,count)),1845,6);
+        float baseline=875;
+        for(String row:rows){
+            if(!row.isEmpty())c.drawText(row,128,baseline,body);
+            baseline+=BODY_STEP;
+        }
+        if(story.pageCount>1) {
+            c.drawText(story.pageNumber<story.pageCount?"다음 화면에서 이어집니다.":"이번 기사의 낭독이 끝났습니다.",
+                130,1597,p(teal,26,true));
+        }
+        line(c,Color.rgb(198,216,223),102,1712,982,1712,2);
+        c.drawText("NEWSVOICE WAV  |  FULL SCRIPT",105,1780,p(ink,28,true));
+        c.drawText(String.format(java.util.Locale.KOREA,"%d / %d",
+             story.pageNumber,story.pageCount),855,1780,p(teal,28,true));
+        rounded(c,Color.rgb(214,232,234),105,1826,977,1840,7);
+        rounded(c,teal,105,1826,105+Math.round(872f*story.pageNumber/Math.max(1,story.pageCount)),1840,7);
         return bmp;
     }
 
@@ -176,9 +200,10 @@ public final class NewsCardPainter {
         Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bitmap);
         Paint bg=p(NAVY,0,false);
-        bg.setShader(new LinearGradient(0,0,WIDTH,HEIGHT,NAVY,BLUE, Shader.TileMode.CLAMP));
+        bg.setShader(new LinearGradient(0,0,WIDTH,HEIGHT,
+            Color.rgb(231,245,248),Color.rgb(249,239,228),Shader.TileMode.CLAMP));
         c.drawRect(0,0,WIDTH,HEIGHT,bg);
-        Paint outline=p(Color.rgb(46,93,111),0,false);outline.setStrokeWidth(2);outline.setStyle(Paint.Style.STROKE);
+        Paint outline=p(Color.rgb(187,209,218),0,false);outline.setStrokeWidth(2);outline.setStyle(Paint.Style.STROKE);
         c.drawRoundRect(new RectF(47,45,1033,1872),36,36,outline);
         c.drawCircle(560,1170,300,outline);
         c.drawCircle(560,1170,225,outline);
@@ -190,7 +215,7 @@ public final class NewsCardPainter {
         if(stage==0){
             rounded(c,Color.rgb(28,71,84),100,212,532,273,18);
             c.drawText("PHILIPPINES",125,259,p(YELLOW,36,false));
-            wrapped(c,"필리핀 뉴스\n경제 종합 브리핑",103,467,860,105,WHITE,85,3,true);
+            wrapped(c,"필리핀 뉴스\n경제 종합 브리핑",103,467,860,105,Color.rgb(20,43,64),85,3,true);
             rounded(c,YELLOW,103,705,270,716,1);
             c.drawText(date,105,865,p(YELLOW,66,false));
             c.drawText(timeLabel,106,940,p(SUB,30,false));
@@ -200,7 +225,7 @@ public final class NewsCardPainter {
         } else if(stage==1){
             rounded(c,Color.rgb(28,71,84),100,232,590,296,16);
             c.drawText("TODAY'S HEADLINES",131,277,p(MINT,34,true));
-            wrapped(c,"오늘의 주요 소식",102,535,860,100,WHITE,82,2,true);
+            wrapped(c,"오늘의 주요 소식",102,535,860,100,Color.rgb(20,43,64),82,2,true);
             line(c,YELLOW,100,646,340,646,9);
             wrapped(c,"뉴스 음성과 카드 화면을 자동으로 동기화합니다.",104,745,820,62,SUB,42,4,false);
             c.drawText(String.format(java.util.Locale.US,"총 %d개 뉴스",count),110,1508,p(YELLOW,55,true));

@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
     <application android:allowBackup="false"
-        android:label="뉴스보이스 WAV 5.3"
+        android:label="뉴스보이스 WAV 5.4"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity android:name="com.newsvoice.tts.MainActivity"

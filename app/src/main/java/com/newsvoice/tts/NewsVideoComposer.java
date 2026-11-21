@@ -92,7 +92,8 @@ public final class NewsVideoComposer {
             progress.message("WAV 음성을 AAC로 변환 중");
             encodeAudio(raw,aac,timeline.sampleRate,timeline.channels);
             progress.message("뉴스 카드 영상 렌더링 중");
-            encodeVideo(video,timeline,stories.size(),progress);
+            encodeVideo(video,timeline,stories.get(0).articleCount>0?
+                stories.get(0).articleCount:stories.size(),progress);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");

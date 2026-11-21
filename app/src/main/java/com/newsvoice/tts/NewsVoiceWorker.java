@@ -41,18 +41,23 @@ public final class NewsVoiceWorker extends Worker {
         VideoResult(File wav,File mp4){this.wav=wav;this.mp4=mp4;}
     }
     private VideoResult makeVideo(String script,String jobId) throws Exception {
-        List<NewsStory> stories=NewsStory.parse(script);
+        List<NewsStory> articles=NewsStory.parse(script);
+        List<NewsStory> pages=new ArrayList<>();
+        for(int i=0;i<articles.size();i++){
+            List<NewsStory> articlePages=NewsCardPainter.paginate(articles.get(i),i+1,articles.size());
+            pages.addAll(articlePages);
+        }
         List<File> waveFiles=new ArrayList<>();
         try {
-            for(int i=0;i<stories.size();i++) {
+            for(int i=0;i<pages.size();i++) {
                 if(isStopped())throw new IOException("사용자가 작업을 중지했습니다.");
-                AppPrefs.status(context,"기사별 WAV 합성: "+(i+1)+"/"+stories.size());
-                waveFiles.add(synthesize(stories.get(i).narration,jobId+"_card"+(i+1)));
+                AppPrefs.status(context,"화면별 음성 합성: "+(i+1)+"/"+pages.size());
+                waveFiles.add(synthesize(pages.get(i).narration,jobId+"_page"+(i+1)));
             }
             File audio=new File(context.getCacheDir(),"newsvoice_"+jobId+"_combined.wav");
             WavTools.concatenate(waveFiles,audio);
             File video=new File(context.getCacheDir(),"newsvoice_"+jobId+".mp4");
-            NewsVideoComposer.create(context,stories,waveFiles,video,message->{
+            NewsVideoComposer.create(context,pages,waveFiles,video,message->{
                 if(isStopped())throw new IOException("사용자가 영상 제작을 중지했습니다.");
                 AppPrefs.status(context,message);
             });

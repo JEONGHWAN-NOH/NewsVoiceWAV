@@ -165,7 +165,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("기사를 여러 장으로 만들려면 각 기사 사이에 === 한 줄을 입력하세요. 뉴스 한 건당 카드 한 장, 약 0.3초 선행 전환합니다. MP4는 1080×1920으로 저장됩니다.",12,false);
+        TextView formatHelp=text("기사 구분은 === 한 줄을 입력하세요. 긴 기사는 파스텔톤 여러 페이지로 자동 분할하며, 페이지별 낭독을 별도로 합성해 다음 카드와 맞춥니다. 1080×1920 MP4로 저장됩니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
