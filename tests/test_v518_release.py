@@ -11,16 +11,16 @@ workflow=Path(".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
 assert 'android:label="@string/app_display_name"' in manifest
 assert '뉴스보이스 WAV 5.14' not in manifest
-assert "def releaseVersion = '5.18'" in gradle
-assert "applicationId 'com.newsvoice.tts.autovideo.v518'" in gradle
+assert "def releaseVersion = '5.19'" in gradle
+assert "applicationId 'com.newsvoice.tts.autovideo.v519'" in gradle
 assert 'versionName releaseVersion' in gradle
 assert "resValue 'string', 'app_display_name'" in gradle
 assert 'outputFileName = "NewsVoiceWAV-v${releaseVersion}-${variant.buildType.name}.apk"' in gradle
 assert 'getString(R.string.app_display_name)' in ui
-assert 'FPS=24;' in composer
+assert 'FPS=30;' in composer
 assert 'float scrollPixels=scrollPlan==null?0f:' in composer
 assert 'Math.round(scrollPlan.offset' not in composer
-assert 'float zoom=which>=0?1.0f:' in composer
+assert 'float zoom=1.0f;' in composer
 assert 'Paint highlight=' not in painter
 assert 'Paint underline=' not in painter
 assert 'readAlready=' not in painter
@@ -32,5 +32,5 @@ assert 'double snare=' in opening
 assert 'double hat=' in opening
 assert 'boolean builtin=AppPrefs.get(context).getBoolean("opening_a_builtin",true)' in opening
 assert 'appendOpeningMusic(out,introWav' in composer
-assert 'NewsVoiceWAV-v5.18-Upbeat-Smooth-Scroll-debug-apk' in workflow
-print("PASS: v5.18 keeps title, APK filename, and version synchronized; upbeat default music and smooth scrolling")
+assert 'NewsVoiceWAV-v5.19-KakaoCover-ContinuousScroll-debug-apk' in workflow
+print("PASS: v5.19 retains v5.18 upbeat music and automatically updates the visible version to 5.19")
