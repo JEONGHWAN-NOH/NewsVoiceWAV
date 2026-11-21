@@ -34,9 +34,9 @@ assert 'Paint highlight=' not in painter
 assert 'Paint underline=' not in painter
 assert 'readAlready=' not in painter
 assert 'app_display_name' in gradle
-assert "def releaseVersion = '5.24'" in gradle
-assert "applicationId 'com.newsvoice.tts.autovideo.v524'" in gradle
-assert 'versionCode 30' in gradle
+assert "def releaseVersion = '5.25'" in gradle
+assert "applicationId 'com.newsvoice.tts.autovideo.v525'" in gradle
+assert 'versionCode 31' in gradle
 assert '56px·줄 간격 84px' in ui
 assert 'MUSIC_REVISION=2' in opening
 assert 'shareLast(true)' in ui and 'shareLast(false)' in ui
@@ -45,5 +45,5 @@ for source in (manual,worker):
     assert 'NewsCoverExporter.coverFile(' in source
     assert '_cover.jpg' in source
 assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
-assert 'NewsVoiceWAV-v5.24-CenteredVoice700ms-debug-apk' in pipeline
+assert 'NewsVoiceWAV-v5.25-CenteredVoice700ms-debug-apk' in pipeline
 print("PASS: 56px/84px and voice-first 700ms delayed scroll with existing cover sharing and music")
