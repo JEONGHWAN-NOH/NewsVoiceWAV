@@ -47,6 +47,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-Auto-v5.4-Pastel-Paginated-Sync-debug-apk
+          name: NewsVoiceWAV-v5.5-Download-Repair-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

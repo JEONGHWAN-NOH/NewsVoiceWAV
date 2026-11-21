@@ -1,6 +1,8 @@
 package com.newsvoice.tts;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -50,7 +52,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private boolean ready = false;
     private EditText editor;
     private Spinner voicesSpinner, enginesSpinner, presetsSpinner;
-    private TextView status, speedValue, pitchValue;
+    private TextView status, jobStatus, speedValue, pitchValue;
+    private SharedPreferences.OnSharedPreferenceChangeListener jobListener;
     private SeekBar speedBar, pitchBar;
     private final List<Voice> koreanVoices = new ArrayList<>();
     private final List<TextToSpeech.EngineInfo> installedEngines = new ArrayList<>();
@@ -156,6 +159,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         sample.setOnClickListener(v->editor.setText("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.\n첫 번째 소식입니다. 주요 경제 동향과 기업 투자 현황을 살펴보겠습니다.\n이상으로 뉴스를 마치겠습니다. 감사합니다."));
         body.addView(text("03  재생 · 저장",17,true),lp(-1,-2,25));
         status=text("음성 엔진을 준비하고 있습니다.",13,false);status.setTextColor(0xff61778e);body.addView(status,lp(-1,-2,8));
+        jobStatus=text("제작 상태: "+AppPrefs.get(this).getString("status","작업 기록 없음"),14,true);
+        jobStatus.setTextColor(0xff157e71);body.addView(jobStatus,lp(-1,-2,10));
         LinearLayout controls=new LinearLayout(this);controls.setOrientation(LinearLayout.HORIZONTAL);body.addView(controls,lp(-1,53,15));
         Button preview=btn("미리 듣기",0xffe3eff2,DARK);controls.addView(preview,new LinearLayout.LayoutParams(0,-1,1));
         Button stop=btn("정지",0xffe3eff2,DARK);LinearLayout.LayoutParams stopP=new LinearLayout.LayoutParams(0,-1,1);stopP.leftMargin=dp(this,6);controls.addView(stop,stopP);
@@ -169,6 +174,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
+        Button lastVideo=btn("최근 저장된 MP4 바로 열기",0xffe7f2f3,DARK);
+        body.addView(lastVideo,lp(-1,50,9));
+        lastVideo.setOnClickListener(v->openLastVideo());
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
             save.setText(isChecked?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장");
@@ -181,6 +189,13 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         save.setOnClickListener(v->queueManualSave());
         buildAutomationControls(body);
         setContentView(sc);
+        jobListener=(prefs,key)->{
+            if("status".equals(key))main.post(()->{
+                if(jobStatus!=null)jobStatus.setText("제작 상태: "+
+                    prefs.getString("status","작업 기록 없음"));
+            });
+        };
+        AppPrefs.get(this).registerOnSharedPreferenceChangeListener(jobListener);
         try {
             currentEngine=AppPrefs.enginePackage(this);
             tts = new TextToSpeech(this, this, currentEngine.isEmpty()?null:currentEngine);
@@ -357,6 +372,22 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         AppPrefs.get(this).edit().putString("engine",currentEngine).putString("voice",voice)
             .putFloat("speed",rate()).putFloat("pitch",pitch()).putInt("preset",selectedPreset).apply();
     }
+    private void openLastVideo(){
+        String value=AppPrefs.get(this).getString("last_mp4_uri","");
+        if(value.isEmpty()){
+            updateStatus("저장된 MP4 기록이 없습니다. 아래 제작 상태를 확인하세요.");
+            return;
+        }
+        try {
+            Intent view=new Intent(Intent.ACTION_VIEW);
+            view.setDataAndType(Uri.parse(value),"video/mp4");
+            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(view);
+        }catch(ActivityNotFoundException | SecurityException ex){
+            updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
+                ". 내 파일 → 다운로드 → NewsVoiceWAV에서 확인하세요.");
+        }
+    }
     private void queueManualSave(){
         if(!ready){updateStatus("한국어 TTS 엔진이 준비되지 않았습니다.");return;}
         String src=editor.getText().toString().trim();
@@ -370,8 +401,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             try(FileOutputStream out=new FileOutputStream(new File(inbox,name))){out.write(src.getBytes(StandardCharsets.UTF_8));}
             Data data=new Data.Builder().putString(NewsVoiceWorker.INPUT_LOCAL_FILE,name).build();
             OneTimeWorkRequest task=new OneTimeWorkRequest.Builder(NewsVoiceWorker.class).setInputData(data).build();
-            WorkManager.getInstance(this).enqueueUniqueWork("newsvoice_manual",ExistingWorkPolicy.APPEND_OR_REPLACE,task);
-            updateStatus("WAV 생성 예약됨. 다운로드/NewsVoiceWAV 폴더를 확인하세요.");
+            WorkManager.getInstance(this).enqueueUniqueWork("newsvoice_manual",ExistingWorkPolicy.REPLACE,task);
+            AppPrefs.status(this,"작업 요청 완료 · 음성 합성 및 MP4 제작 준비 중");
+            updateStatus("제작 작업을 시작했습니다. 아래 제작 상태에서 진행 과정을 확인하세요.");
         }catch(Exception e){updateStatus("수동 저장 요청 실패: "+e.getMessage());}
     }
     private void buildAutomationControls(LinearLayout body){
@@ -429,6 +461,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override public void onDestroy(){
         taskToken++;
+        if(jobListener!=null)AppPrefs.get(this).unregisterOnSharedPreferenceChangeListener(jobListener);
         if(tts!=null){
             try { tts.stop(); tts.shutdown(); } catch(RuntimeException ignored) {}
         }
