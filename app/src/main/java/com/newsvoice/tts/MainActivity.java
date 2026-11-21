@@ -48,6 +48,8 @@ import java.util.Locale;
  */
 public final class MainActivity extends Activity implements TextToSpeech.OnInitListener {
     private static final int DARK = 0xff0e2942;
+    private static final int OPENING_PICKER=5110;
+    private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
     private TextToSpeech tts;
     private boolean ready = false;
@@ -207,7 +209,22 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         reviewButton.setOnClickListener(v->reviewEditorScript());
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
         sample.setOnClickListener(v->editor.setText("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.\n첫 번째 소식입니다. 주요 경제 동향과 기업 투자 현황을 살펴보겠습니다.\n이상으로 뉴스를 마치겠습니다. 감사합니다."));
-        body.addView(text("03  재생 · 저장",17,true),lp(-1,-2,25));
+        body.addView(text("03  승인한 오프닝 음악 A안",17,true),lp(-1,-2,23));
+        TextView openingHelp=text("최초 1회만 승인하신 6초 A안 WAV를 선택해 주세요. 이후 MP4의 첫 6초에 자동 삽입합니다.",12,false);
+        openingHelp.setTextColor(0xff61778e);body.addView(openingHelp,lp(-1,-2,7));
+        openingAStatus=text(new File(getFilesDir(),"newsvoice_opening_A.wav").isFile()?
+            "A안 음원 등록 완료 · 영상 시작 음악에 자동 삽입됩니다.":
+            "A안 음악 미등록 · 영상 첫 6초는 무음입니다.",13,true);
+        body.addView(openingAStatus,lp(-1,-2,7));
+        Button chooseOpening=btn("오프닝 음악 A안 WAV 선택",0xffe7f2f3,MINT);
+        body.addView(chooseOpening,lp(-1,51,9));
+        chooseOpening.setOnClickListener(v->{
+            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            pick.setType("audio/*");
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(pick,OPENING_PICKER);
+        });
+        body.addView(text("04  재생 · 저장",17,true),lp(-1,-2,25));
         status=text("음성 엔진을 준비하고 있습니다.",13,false);status.setTextColor(0xff61778e);body.addView(status,lp(-1,-2,8));
         jobStatus=text("제작 상태: "+AppPrefs.get(this).getString("status","작업 기록 없음"),14,true);
         jobStatus.setTextColor(0xff157e71);body.addView(jobStatus,lp(-1,-2,10));
@@ -558,6 +575,40 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         }
         updateStatus(result.summary());
         return result.approved()?result.reviewed:null;
+    }
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode!=OPENING_PICKER||resultCode!=RESULT_OK||data==null||
+           data.getData()==null)return;
+        File target=new File(getFilesDir(),"newsvoice_opening_A.wav");
+        File candidate=new File(getFilesDir(),"newsvoice_opening_candidate.wav");
+        try(InputStream in=getContentResolver().openInputStream(data.getData());
+            FileOutputStream out=new FileOutputStream(candidate)){
+            if(in==null)throw new IOException("선택한 음악 파일을 읽을 수 없습니다.");
+            byte[] buf=new byte[16384];int n;long bytes=0;
+            while((n=in.read(buf))!=-1){
+                bytes+=n;if(bytes>6L*1024*1024)
+                    throw new IOException("6MB 이하의 WAV 파일을 선택해 주세요.");
+                out.write(buf,0,n);
+            }
+            WavTools.Piece wav=WavTools.inspect(candidate);
+            int format=(wav.format[0]&255)|((wav.format[1]&255)<<8);
+            int bits=(wav.format[14]&255)|((wav.format[15]&255)<<8);
+            int channels=(wav.format[2]&255)|((wav.format[3]&255)<<8);
+            int hz=(wav.format[4]&255)|((wav.format[5]&255)<<8)|
+                ((wav.format[6]&255)<<16)|((wav.format[7]&255)<<24);
+            double length=(double)wav.dataLength/(hz*channels*2.);
+            if(format!=1||bits!=16||channels<1||channels>2||
+               hz<8000||hz>96000||length<5.5||length>6.3)
+                throw new IOException("5.5~6.3초 PCM 16-bit WAV 음원만 사용할 수 있습니다.");
+            java.nio.file.Files.move(candidate.toPath(),target.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            openingAStatus.setText("A안 등록 완료 · "+String.format(Locale.KOREA,"%.1f",length)+"초");
+            updateStatus("오프닝 음악이 등록됐습니다. 앞으로 MP4 첫 6초에 사용합니다.");
+        }catch(Exception ex){
+            openingAStatus.setText("음원 등록 실패 · 올바른 A안 WAV 파일을 확인하세요.");
+            updateStatus("오프닝 WAV 오류: "+ex.getMessage());
+        }finally{candidate.delete();}
     }
     private void queueManualSave(){
         if(!ready){updateStatus("한국어 음성 엔진이 준비되지 않았습니다.");return;}

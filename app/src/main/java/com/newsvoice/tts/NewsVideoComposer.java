@@ -18,7 +18,7 @@ import java.util.List;
  * Offline MP4 renderer: news-card Canvas -> EGL -> hardware H.264 encoder;
  * 16-bit PCM WAV -> AAC encoder; MediaExtractor/MediaMuxer join to playable MP4.
  * No internet or unlicensed third-party codecs required.
- * A 6s opening is reserved; it is SILENT until the approved intro soundtrack is supplied.
+ * A 6s opening is reserved. Users may import their approved A-opening WAV once.
  * Each card starts 0.30s before the corresponding narrated article.
  */
 public final class NewsVideoComposer {
@@ -52,7 +52,47 @@ public final class NewsVideoComposer {
             while(remaining>0){int n=f.read(chunk,0,(int)Math.min(chunk.length,remaining));if(n<0)throw new EOFException();out.write(chunk,0,n);remaining-=n;}
         }
     }
-    private static Timeline makeTimeline(List<NewsStory> stories,List<File> waves,File pcm) throws IOException {
+
+    /** Resample the user's approved original opening A into the TTS output format.
+     * Do not accept an arbitrary MP3: the imported WAV is verified as PCM16. */
+    private static void appendOpeningMusic(OutputStream out,File wav,int rate,int channels,
+                                           long frames)throws IOException{
+        WavTools.Piece piece=WavTools.inspect(wav);
+        byte[] format=piece.format;
+        int sourceChannels=shortLE(format,2),sourceRate=intLE(format,4);
+        if(shortLE(format,0)!=1||shortLE(format,14)!=16||
+           sourceChannels<1||sourceChannels>2||sourceRate<8000||sourceRate>96000||
+           piece.dataLength<sourceRate*sourceChannels*2L*5L||
+           piece.dataLength>6L*1024*1024)
+            throw new IOException("오프닝 A안은 6초 길이의 PCM 16-bit WAV로 선택하세요.");
+        byte[] source=new byte[(int)piece.dataLength];
+        try(RandomAccessFile file=new RandomAccessFile(wav,"r")){
+            file.seek(piece.dataOffset);
+            file.readFully(source);
+        }
+        long sourceFrames=piece.dataLength/(sourceChannels*2L);
+        byte[] chunk=new byte[8192];
+        int at=0;
+        for(long f=0;f<frames;f++){
+            long sourceFrame=Math.min(sourceFrames-1,(f*sourceRate)/rate);
+            int base=(int)(sourceFrame*sourceChannels*2L);
+            int left=(short)shortLE(source,base);
+            int right=sourceChannels==2?(short)shortLE(source,base+2):left;
+            double seconds=(double)f/rate;
+            double fade=Math.min(1.,Math.max(0.,(6.-seconds)/0.9));
+            double gain=0.66*fade;
+            for(int channel=0;channel<channels;channel++){
+                int current=channel==0?left:right;
+                short sample=(short)Math.max(Short.MIN_VALUE,
+                    Math.min(Short.MAX_VALUE,Math.round(current*gain)));
+                chunk[at++]=(byte)(sample&255);
+                chunk[at++]=(byte)((sample>>8)&255);
+                if(at>=chunk.length-4){out.write(chunk,0,at);at=0;}
+            }
+        }
+        if(at>0)out.write(chunk,0,at);
+    }
+    private static Timeline makeTimeline(Context context,List<NewsStory> stories,List<File> waves,File pcm) throws IOException {
         if(stories.size()!=waves.size()||stories.isEmpty())throw new IOException("Article/WAV count mismatch");
         List<WavTools.Piece> pieces=new ArrayList<>();byte[] expected=null;
         for(File wav:waves){
@@ -67,7 +107,10 @@ public final class NewsVideoComposer {
         List<Span> spans=new ArrayList<>();
         try(OutputStream out=new BufferedOutputStream(new FileOutputStream(pcm))){
             long introFrames=6L*rate;
-            writeSilence(out,introFrames*frameBytes);frameCount+=introFrames;
+            File introWav=new File(context.getFilesDir(),"newsvoice_opening_A.wav");
+            if(introWav.isFile())appendOpeningMusic(out,introWav,rate,channels,introFrames);
+            else writeSilence(out,introFrames*frameBytes);
+            frameCount+=introFrames;
             for(int i=0;i<pieces.size();i++){
                 long start=toUs(frameCount,rate);
                 long gapFrames=rate*3L/10; // Cards appear ~0.3s before narration.
@@ -87,7 +130,7 @@ public final class NewsVideoComposer {
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
         try {
-            Timeline timeline=makeTimeline(stories,waves,raw);
+            Timeline timeline=makeTimeline(context,stories,waves,raw);
             if(timeline.endUs>12L*60*US_PER_S)throw new IOException("한 영상은 12분 이내 원고를 사용하세요.");
             progress.message("WAV 음성을 AAC로 변환 중");
             encodeAudio(raw,aac,timeline.sampleRate,timeline.channels);

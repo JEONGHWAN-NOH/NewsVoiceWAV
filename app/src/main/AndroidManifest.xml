@@ -10,7 +10,7 @@
         <package android:name="com.samsung.SMT"/>
     </queries>
     <application android:allowBackup="false"
-        android:label="뉴스보이스 WAV 5.10"
+        android:label="뉴스보이스 WAV 5.11"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <service android:name="com.newsvoice.tts.ManualRenderService"
