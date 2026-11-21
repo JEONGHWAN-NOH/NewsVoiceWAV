@@ -38,5 +38,5 @@ assert 'NewsCoverExporter.coverFile(' in manual
 assert "def releaseVersion = '5.24'" in gradle
 assert "applicationId 'com.newsvoice.tts.autovideo.v524'" in gradle
 assert 'versionCode 30' in gradle
-assert 'NewsVoiceWAV-v5.24-Centered700ms-debug-apk' in workflow
+assert 'NewsVoiceWAV-v5.24-CenteredVoice700ms-debug-apk' in workflow
 print("PASS: 56px body, 84px leading, measured WAV alignment with 700ms scroll lag and complete final card")
