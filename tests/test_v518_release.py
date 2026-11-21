@@ -11,8 +11,8 @@ workflow=Path(".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
 assert 'android:label="@string/app_display_name"' in manifest
 assert '뉴스보이스 WAV 5.14' not in manifest
-assert "def releaseVersion = '5.23'" in gradle
-assert "applicationId 'com.newsvoice.tts.autovideo.v523'" in gradle
+assert "def releaseVersion = '5.24'" in gradle
+assert "applicationId 'com.newsvoice.tts.autovideo.v524'" in gradle
 assert 'versionName releaseVersion' in gradle
 assert "resValue 'string', 'app_display_name'" in gradle
 assert 'outputFileName = "NewsVoiceWAV-v${releaseVersion}-${variant.buildType.name}.apk"' in gradle
@@ -32,5 +32,5 @@ assert 'double snare=' in opening
 assert 'double hat=' in opening
 assert 'boolean builtin=AppPrefs.get(context).getBoolean("opening_a_builtin",true)' in opening
 assert 'appendOpeningMusic(out,introWav' in composer
-assert 'NewsVoiceWAV-v5.23-VoiceFirst700ms-debug-apk' in workflow
-print("PASS: v5.23 keeps upbeat auto opener and consistent app version 5.23")
+assert 'NewsVoiceWAV-v5.24-Centered700ms-debug-apk' in workflow
+print("PASS: v5.24 keeps upbeat auto opener and consistent app version 5.24")
