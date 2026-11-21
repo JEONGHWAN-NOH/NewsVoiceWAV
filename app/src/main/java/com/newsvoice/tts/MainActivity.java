@@ -104,7 +104,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         ScrollView sc = new ScrollView(this);sc.setFillViewport(true);sc.setBackgroundColor(0xfff7fbff);
         LinearLayout body = new LinearLayout(this);body.setPadding(dp(this,20),dp(this,27),dp(this,20),dp(this,30));body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);
         TextView brand=text("●  광명시 뉴스보이스",19,true);brand.setTextColor(MINT);body.addView(brand);
-        TextView headline=text("광명시 뉴스 WAV · MP4 제작 v1.1",24,true);body.addView(headline,lp(-1,-2,14));
+        TextView headline=text("광명시 뉴스 WAV · MP4 제작 v1.2",24,true);body.addView(headline,lp(-1,-2,14));
         TextView sub=text("광명시 뉴스 원고를 입력하고 한국어 아나운서 음성으로 낭독하세요.",13,false);sub.setTextColor(0xff61778e);body.addView(sub,lp(-1,-2,5));
         body.addView(text("01  TTS 엔진과 한국어 목소리 · 미리 듣기",17,true),lp(-1,-2,25));
         TextView enginesHelp=text("설치된 삼성·구글 등 TTS 엔진 중 선택합니다. 표시되는 엔진과 음성 개수는 휴대폰마다 다릅니다.",12,false);
@@ -200,7 +200,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("광명시 뉴스 첫 줄에는 화면에 표시할 제목을 쓰고, 다음 줄부터 읽을 본문을 입력하세요. 제목은 읽지 않습니다. 기사별로 한 장에 표시하되 내용이 길면 여러 화면에 자동으로 나누며, 앵커 한마디와 마감 인사는 끝에 낭독합니다.",12,false);
+        TextView note=text("광명시 뉴스 첫 줄에는 화면에 표시할 제목을 쓰고, 다음 줄부터 읽을 본문을 입력하세요. 제목은 읽지 않습니다. 기사별로 한 장에 표시하되 내용이 길면 여러 화면에 자동으로 나눕니다. MP4에서는 낭독 중인 문장에 노란 하이라이트가 표시됩니다. 앵커 한마디와 마감 인사는 끝에 낭독합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
@@ -210,20 +210,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
         sample.setOnClickListener(v->editor.setText("광명시 정책 뉴스\n광명시 주요 정책을 안내드립니다. 이 내용은 앱의 작동 확인을 위한 예시 문장입니다. 실제 정책 내용은 광명시 공식 발표를 확인해 주세요.\n===\n광명시 교육 뉴스\n광명시 교육 지원 관련 소식입니다. 뉴스 내용이 확인된 뒤 실제 보도 내용으로 교체해 주세요."));
         body.addView(text("03  승인한 오프닝 음악 A안",17,true),lp(-1,-2,23));
-        TextView openingHelp=text("최초 1회만 승인하신 6초 A안 WAV를 선택해 주세요. 이후 MP4의 첫 6초에 자동 삽입합니다.",12,false);
+        TextView openingHelp=text("승인하신 최초 A타입 음악(6초)이 APK에 내장되었습니다. MP4 첫 화면에 별도 선택 없이 매번 자동 삽입하며, 다른 음악으로 대체되지 않습니다.",12,false);
         openingHelp.setTextColor(0xff61778e);body.addView(openingHelp,lp(-1,-2,7));
-        openingAStatus=text(new File(getFilesDir(),"newsvoice_opening_A.wav").isFile()?
-            "A안 음원 등록 완료 · 영상 시작 음악에 자동 삽입됩니다.":
-            "A안 음악 미등록 · 영상 첫 6초는 무음입니다.",13,true);
-        body.addView(openingAStatus,lp(-1,-2,7));
-        Button chooseOpening=btn("오프닝 음악 A안 WAV 선택",0xffe7f2f3,MINT);
-        body.addView(chooseOpening,lp(-1,51,9));
-        chooseOpening.setOnClickListener(v->{
-            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            pick.setType("audio/*");
-            pick.addCategory(Intent.CATEGORY_OPENABLE);
-            startActivityForResult(pick,OPENING_PICKER);
-        });
+        openingAStatus=text("A타입 6초 오프닝 · 기본 내장 · 자동 사용",13,true);
+        openingAStatus.setTextColor(MINT);body.addView(openingAStatus,lp(-1,-2,7));
         body.addView(text("04  재생 · 저장",17,true),lp(-1,-2,25));
         status=text("음성 엔진을 준비하고 있습니다.",13,false);status.setTextColor(0xff61778e);body.addView(status,lp(-1,-2,8));
         jobStatus=text("제작 상태: "+AppPrefs.get(this).getString("status","작업 기록 없음"),14,true);
