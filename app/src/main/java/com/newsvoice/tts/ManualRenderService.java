@@ -93,6 +93,7 @@ public final class ManualRenderService extends Service {
         List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
         String stamp=String.valueOf(System.currentTimeMillis());
         List<File> parts=new ArrayList<>();
+        List<List<Long>> sentenceFrames=new ArrayList<>();
         File wav=null,mp4=null;
         boolean success=false;
         try{
@@ -108,14 +109,16 @@ public final class ManualRenderService extends Service {
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 처리 스레드가 시스템에서 중단됐습니다.");
                 report("화면별 WAV 생성: "+(i+1)+"/"+pages.size());
-                parts.add(synthesize(pages.get(i).spokenText(),"manual_"+stamp+"_p"+(i+1)));
+                List<Long> cues=new ArrayList<>();
+                parts.add(synthesize(pages.get(i).spokenText(),"manual_"+stamp+"_p"+(i+1),cues));
+                sentenceFrames.add(cues);
             }
             wav=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+"_combined.wav");
             WavTools.concatenate(parts,wav);
             DownloadsPublisher.publish(context,wav,"newsvoice_"+stamp+".wav");
             report("WAV 저장 성공 · MP4 변환 준비");
             mp4=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+".mp4");
-            NewsVideoComposer.create(context,pages,parts,mp4,step->{
+            NewsVideoComposer.create(context,pages,parts,sentenceFrames,mp4,step->{
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 작업 스레드가 시스템에서 중단됐습니다.");
                 report(step);
@@ -134,6 +137,10 @@ public final class ManualRenderService extends Service {
         }
     }
     private File synthesize(String script,String jobId) throws Exception {
+        return synthesize(script,jobId,null);
+    }
+    /** Cues use exact frames from each separately synthesized sentence WAV. */
+    private File synthesize(String script,String jobId,List<Long> sentenceFrames) throws Exception {
         CountDownLatch init=new CountDownLatch(1);AtomicInteger initStatus=new AtomicInteger(TextToSpeech.ERROR);
         String selectedEngine=AppPrefs.enginePackage(context);
         TextToSpeech tts=new TextToSpeech(context, s->{initStatus.set(s);init.countDown();},
@@ -167,7 +174,16 @@ public final class ManualRenderService extends Service {
                 @Override public void onError(String id,int code){onError(id);}
             });
             int max=Math.min(1800,TextToSpeech.getMaxSpeechInputLength()-50);
-            List<String> segments=WavTools.splitText(script,max);
+            List<String> sentences=sentenceFrames==null?
+                java.util.Collections.singletonList(script):NewsSentenceTimeline.split(script);
+            List<String> segments=new ArrayList<>();
+            List<Integer> sentenceEnds=new ArrayList<>();
+            for(String sentence:sentences){
+                segments.addAll(WavTools.splitText(sentence,max));
+                sentenceEnds.add(segments.size());
+            }
+            int sentenceIndex=0;
+            long elapsedSentenceFrames=0;
             File folder=new File(context.getCacheDir(),"wav_parts_"+UUID.randomUUID());
             if(!folder.mkdirs())throw new IOException("Cache folder creation failed");
             try {
@@ -179,12 +195,25 @@ public final class ManualRenderService extends Service {
                     if(result!=TextToSpeech.SUCCESS)throw new IOException("TTS synthesis rejected part "+(i+1));
                     if(!finish.await(120,TimeUnit.SECONDS))throw new IOException("TTS synthesis timed out at part "+(i+1));
                     if(errors.containsKey(id))throw new IOException("TTS engine failed at part "+(i+1));
-                    WavTools.inspect(part);chunks.add(part);
+                    WavTools.Piece written=WavTools.inspect(part);chunks.add(part);
+                    if(sentenceFrames!=null){
+                        int channels=(written.format[2]&255)|((written.format[3]&255)<<8);
+                        if(channels<1||channels>2||written.dataLength%(channels*2)!=0)
+                            throw new IOException("문장 WAV 프레임이 유효하지 않습니다.");
+                        elapsedSentenceFrames+=written.dataLength/(channels*2);
+                        if(i+1==sentenceEnds.get(sentenceIndex)){
+                            sentenceFrames.add(elapsedSentenceFrames);
+                            elapsedSentenceFrames=0;
+                            sentenceIndex++;
+                        }
+                    }
                     pending.remove(id);
                     report("음성 합성 구간: "+(i+1)+"/"+segments.size());
                 }
                 File output=new File(context.getCacheDir(),"newsvoice_"+jobId+".wav");
                 WavTools.concatenate(chunks,output);
+                if(sentenceFrames!=null && sentenceFrames.size()!=sentences.size())
+                    throw new IOException("문장별 음성 길이가 일치하지 않습니다.");
                 return output;
             }finally{for(File f:folder.listFiles()==null?new File[0]:folder.listFiles())f.delete();folder.delete();}
         }finally{tts.stop();tts.shutdown();}
