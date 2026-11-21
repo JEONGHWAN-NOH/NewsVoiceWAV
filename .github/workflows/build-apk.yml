@@ -51,6 +51,8 @@ jobs:
         run: python3 tests/test_news_single_card.py
       - name: Verify screen-only headlines and body-only narration
         run: python3 tests/test_news_body_only_audio.py
+      - name: Check built-in A opening and custom replacement
+        run: python3 tests/test_opening_a_builtin.py
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
         run: |
@@ -66,6 +68,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.14-Body-Only-Narration-debug-apk
+          name: NewsVoiceWAV-v5.15-Stable-A-Opening-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
