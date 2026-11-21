@@ -35,8 +35,8 @@ assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
 assert 'shareLast(true)' in ui and 'shareLast(false)' in ui
 assert 'NewsCoverExporter.coverFile(' in worker
 assert 'NewsCoverExporter.coverFile(' in manual
-assert "def releaseVersion = '5.25'" in gradle
+assert "def releaseVersion = '5.26'" in gradle
 assert "applicationId 'com.newsvoice.tts.autovideo.v525'" in gradle
-assert 'versionCode 31' in gradle
-assert 'NewsVoiceWAV-v5.25-CenteredVoice700ms-debug-apk' in workflow
+assert 'versionCode 32' in gradle
+assert 'NewsVoiceWAV-v5.26-CenteredVoice700ms-debug-apk' in workflow
 print("PASS: 56px body, 84px leading, measured WAV alignment with 700ms scroll lag and complete final card")
