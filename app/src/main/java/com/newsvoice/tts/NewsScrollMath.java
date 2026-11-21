@@ -83,6 +83,17 @@ public final class NewsScrollMath {
             return clamp((float)val,0f,lastPixel);
         }
 
+        /**
+         * Scroll trails the rendered audio timeline by a fixed number of
+         * microseconds. The original PCM playback remains untouched.
+         */
+        public float delayedPosition(long playbackUs,long delayUs){
+            if(delayUs<0)throw new IllegalArgumentException("스크롤 지연은 음수가 될 수 없습니다.");
+            long queryUs=playbackUs<Long.MIN_VALUE+delayUs?
+                Long.MIN_VALUE:playbackUs-delayUs;
+            return position(queryUs);
+        }
+
         public int sentenceCount(){return timesUs.length-1;}
     }
 
