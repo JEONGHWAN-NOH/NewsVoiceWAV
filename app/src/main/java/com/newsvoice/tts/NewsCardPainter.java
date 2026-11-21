@@ -120,7 +120,7 @@ public final class NewsCardPainter {
         String body=story.spokenText();
         if(body.isEmpty())throw new IllegalArgumentException("읽을 뉴스 본문이 없습니다: "+story.title);
         List<String> sections=NewsPageSplitter.split(body, part->{
-            String script=story.kind==NewsStory.NEWS ? story.title+"\\n"+part : part;
+            String script=story.kind==NewsStory.NEWS ? story.title+"\n"+part : part;
             NewsStory candidate=story.page(script,newsNumber,newsTotal,1,1);
             try{ fitStory(candidate); return true; }
             catch(IllegalArgumentException e){return false;}
@@ -128,7 +128,7 @@ public final class NewsCardPainter {
         List<NewsStory> result=new ArrayList<>();
         for(int i=0;i<sections.size();i++){
             String segmentText=story.kind==NewsStory.NEWS ?
-                story.title+"\\n"+sections.get(i) : sections.get(i);
+                story.title+"\n"+sections.get(i) : sections.get(i);
             NewsStory page=story.page(segmentText,newsNumber,newsTotal,i+1,sections.size());
             fitStory(page); // identical measurement to the final rendering
             result.add(page);
