@@ -23,7 +23,7 @@ import java.util.List;
  */
 public final class NewsVideoComposer {
     private NewsVideoComposer() { }
-    public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=12;
+    public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=24;
     private static final long US_PER_S=1_000_000L;
     private static final int PCM_CHUNK=16384;
 
@@ -37,7 +37,7 @@ public final class NewsVideoComposer {
             this.audioStartUs=audioStartUs;this.sentenceEndUs=sentenceEndUs;
         }
         int activeSentence(long presentationUs){
-            if(presentationUs<audioStartUs)return -1; // Pre-roll: show text without highlight.
+            if(presentationUs<audioStartUs)return -1; // Audio pre-roll: text remains stationary.
             for(int i=0;i<sentenceEndUs.length;i++)
                 if(presentationUs<sentenceEndUs[i])return i;
             return -1; // Speech for this card has finished.
@@ -256,7 +256,7 @@ public final class NewsVideoComposer {
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
             int frames=(int)((t.endUs*FPS+US_PER_S-1)/US_PER_S);
             reusableSlide=Bitmap.createBitmap(VIDEO_WIDTH,VIDEO_HEIGHT,Bitmap.Config.ARGB_8888);
-            int previousCard=-10,previousSentence=-10,previousScroll=-999;
+            int previousCard=-10;float previousScroll=Float.NaN;
             NewsCardPainter.ScrollPlan scrollPlan=null;
             long cardStart=0,cardEnd=0;
             for(int f=0;f<frames;f++) {
@@ -282,22 +282,24 @@ public final class NewsVideoComposer {
                 }
                 float spokenFraction=current!=null?
                     current.sentenceProgress(us,activeSentence):0f;
-                int scrollPixels=scrollPlan==null?0:
-                    Math.round(scrollPlan.offset(activeSentence,spokenFraction,
-                        current.narrationFinished(us))/3f)*3;
-                if(which!=previousCard || activeSentence!=previousSentence ||
-                   scrollPixels!=previousScroll){
+                float scrollPixels=scrollPlan==null?0f:
+                    scrollPlan.offset(activeSentence,spokenFraction,
+                        current.narrationFinished(us));
+                if(which!=previousCard || Float.isNaN(previousScroll) ||
+                   Math.abs(scrollPixels-previousScroll)>=0.05f){
                     Bitmap card=current!=null?
                         NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
                             articleCount,meta,activeSentence,scrollPlan,scrollPixels,reusableSlide):
                         NewsCardPainter.render(context,null,0,articleCount,which+2,meta);
                     renderer.upload(card);
                     if(card!=reusableSlide)card.recycle();
-                    previousCard=which;previousSentence=activeSentence;
+                    previousCard=which;
                     previousScroll=scrollPixels;
                 }
                 float motion=cardEnd<=cardStart?1f:(float)(us-cardStart)/(cardEnd-cardStart);
-                float zoom=1.0f+0.025f*Math.max(0f,Math.min(1f,motion));
+                // Keep news text stable and sharp during smooth upward scroll.
+                float zoom=which>=0?1.0f:
+                    1.0f+0.025f*Math.max(0f,Math.min(1f,motion));
                 renderer.draw(us*1000L,zoom);
                 int newTrack=drainVideo(codec,mux,track,info,false);
                 if(newTrack>=0){track=newTrack;muxStarted=true;}
