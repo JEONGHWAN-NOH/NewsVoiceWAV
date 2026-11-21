@@ -42,6 +42,17 @@ public final class NewsVideoComposer {
                 if(presentationUs<sentenceEndUs[i])return i;
             return -1; // Speech for this card has finished.
         }
+        float sentenceProgress(long presentationUs,int active){
+            if(active<0)return 0f;
+            long first=active==0?audioStartUs:sentenceEndUs[active-1];
+            long last=sentenceEndUs[active];
+            if(last<=first)return 1f;
+            return NewsScrollMath.clamp((float)(presentationUs-first)/(last-first),0f,1f);
+        }
+        boolean narrationFinished(long presentationUs){
+            return sentenceEndUs.length>0 &&
+                presentationUs>=sentenceEndUs[sentenceEndUs.length-1];
+        }
     }
     private static final class Timeline {
         final File pcm;
@@ -243,7 +254,9 @@ public final class NewsVideoComposer {
             int track=-1;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
             int frames=(int)((t.endUs*FPS+US_PER_S-1)/US_PER_S);
-            int previousCard=-10,previousSentence=-10;long cardStart=0,cardEnd=0;
+            int previousCard=-10,previousSentence=-10,previousScroll=-999;
+            NewsCardPainter.ScrollPlan scrollPlan=null;
+            long cardStart=0,cardEnd=0;
             for(int f=0;f<frames;f++) {
                 long us=f*US_PER_S/FPS;
                 int which;
@@ -253,19 +266,32 @@ public final class NewsVideoComposer {
                     which=0;
                     for(int i=0;i<t.spans.size();i++)if(us>=t.spans.get(i).startUs)which=i;
                 }
-                int activeSentence=which>=0?t.spans.get(which).activeSentence(us):-1;
-                if(which!=previousCard || activeSentence!=previousSentence) {
+                Span current=which>=0?t.spans.get(which):null;
+                int activeSentence=current!=null?current.activeSentence(us):-1;
+                if(which!=previousCard){
                     if(which==-2) {cardStart=0;cardEnd=4L*US_PER_S;}
                     else if(which==-1){cardStart=4L*US_PER_S;cardEnd=6L*US_PER_S;}
                     else {
-                        cardStart=t.spans.get(which).startUs;
+                        cardStart=current.startUs;
                         cardEnd=which+1<t.spans.size()?t.spans.get(which+1).startUs:t.endUs;
                     }
-                    NewsStory story=which>=0?t.spans.get(which).story:null;
-                    Bitmap card=NewsCardPainter.render(context,story,Math.max(0,which),
-                        articleCount,which<0?which+2:2,meta,activeSentence);
+                    // Prepare text wrapping only once per news article.
+                    scrollPlan=current!=null?NewsCardPainter.prepareScroll(current.story):null;
+                }
+                float spokenFraction=current!=null?
+                    current.sentenceProgress(us,activeSentence):0f;
+                int scrollPixels=scrollPlan==null?0:
+                    Math.round(scrollPlan.offset(activeSentence,spokenFraction,
+                        current.narrationFinished(us))/3f)*3;
+                if(which!=previousCard || activeSentence!=previousSentence ||
+                   scrollPixels!=previousScroll){
+                    Bitmap card=current!=null?
+                        NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
+                            articleCount,meta,activeSentence,scrollPlan,scrollPixels):
+                        NewsCardPainter.render(context,null,0,articleCount,which+2,meta);
                     renderer.upload(card);card.recycle();
                     previousCard=which;previousSentence=activeSentence;
+                    previousScroll=scrollPixels;
                 }
                 float motion=cardEnd<=cardStart?1f:(float)(us-cardStart)/(cardEnd-cardStart);
                 float zoom=1.0f+0.025f*Math.max(0f,Math.min(1f,motion));
