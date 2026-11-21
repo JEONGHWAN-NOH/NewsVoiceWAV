@@ -104,18 +104,22 @@ public final class ManualRenderService extends Service {
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
+            List<long[]> cues=new ArrayList<>();
             for(int i=0;i<pages.size();i++){
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 처리 스레드가 시스템에서 중단됐습니다.");
                 report("화면별 WAV 생성: "+(i+1)+"/"+pages.size());
-                parts.add(synthesize(pages.get(i).spokenText(),"manual_"+stamp+"_p"+(i+1)));
+                SpeechCueBuilder.Result made=SpeechCueBuilder.make(context,
+                    pages.get(i).spokenText(),"manual_"+stamp+"_p"+(i+1),this::synthesize);
+                parts.add(made.wav);
+                cues.add(made.sentenceEndUs);
             }
             wav=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+"_combined.wav");
             WavTools.concatenate(parts,wav);
             DownloadsPublisher.publish(context,wav,"newsvoice_"+stamp+".wav");
             report("WAV 저장 성공 · MP4 변환 준비");
             mp4=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+".mp4");
-            NewsVideoComposer.create(context,pages,parts,mp4,step->{
+            NewsVideoComposer.create(context,pages,parts,cues,mp4,step->{
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 작업 스레드가 시스템에서 중단됐습니다.");
                 report(step);
