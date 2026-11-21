@@ -217,9 +217,9 @@ public final class NewsCardPainter {
             c.drawText("PHILIPPINES",125,259,p(YELLOW,36,false));
             wrapped(c,"필리핀 뉴스\n경제 종합 브리핑",103,467,860,105,Color.rgb(20,43,64),85,3,true);
             rounded(c,YELLOW,103,705,270,716,1);
-            c.drawText(date,105,865,p(YELLOW,66,false));
-            c.drawText(timeLabel,106,940,p(SUB,30,false));
-            c.drawText("NEWSVOICE WAV",248,1225,p(MINT,70,true));
+            c.drawText(date,105,865,p(Color.rgb(31,74,102),66,true));
+            c.drawText(timeLabel,106,940,p(Color.rgb(45,90,115),30,false));
+            c.drawText("NEWSVOICE WAV",248,1225,p(Color.rgb(18,100,103),70,true));
             rounded(c,Color.rgb(21,49,66),100,1430,982,1685,30);
             wrapped(c,"뉴스 보이스 자동 음성 · 기사별 카드 · MP4",135,1525,808,59,WHITE,39,3,false);
         } else if(stage==1){
@@ -227,8 +227,8 @@ public final class NewsCardPainter {
             c.drawText("TODAY'S HEADLINES",131,277,p(MINT,34,true));
             wrapped(c,"오늘의 주요 소식",102,535,860,100,Color.rgb(20,43,64),82,2,true);
             line(c,YELLOW,100,646,340,646,9);
-            wrapped(c,"뉴스 음성과 카드 화면을 자동으로 동기화합니다.",104,745,820,62,SUB,42,4,false);
-            c.drawText(String.format(java.util.Locale.US,"총 %d개 뉴스",count),110,1508,p(YELLOW,55,true));
+            wrapped(c,"뉴스 음성과 카드 화면을 자동으로 동기화합니다.",104,745,820,62,Color.rgb(43,89,111),42,4,false);
+            c.drawText(String.format(java.util.Locale.US,"총 %d개 뉴스",count),110,1508,p(Color.rgb(29,89,113),55,true));
         } else {
             rounded(c,Color.rgb(27,69,83),100,215,582,286,19);
             c.drawText(String.format(java.util.Locale.US,"%02d  주요 소식",index+1),127,265,p(MINT,39,true));
