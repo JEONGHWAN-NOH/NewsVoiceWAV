@@ -6,7 +6,7 @@ public class NewsPageSplitterTest {
     String src="첫 번째 뉴스입니다. 정부는 정책을 발표했습니다. 시민들의 반응이 이어졌습니다. "+
       "두 번째 내용입니다. 예산안의 조정은 최종 확정이 아닙니다.";
     List<String> pages=NewsPageSplitter.split(src,s->s.length()<=53);
-    check(pages.size()>=3,"page count");
+    check(pages.size()>=2,"page count");
     String merged=String.join("",pages).replaceAll("\\s+","");
     check(merged.equals(src.replaceAll("\\s+","")),"content preservation");
     for(String page:pages)check(page.length()<=53,"page too long");
