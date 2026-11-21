@@ -41,8 +41,8 @@ public final class NewsBroadcastSegmentsTest {
             throw new AssertionError("headline-only article must be rejected");
         }catch(IllegalArgumentException expected){}
         // Explicit script prompts override defaults; never append a second copy.
-        String supplied="시작 인사\\n특별한 인사입니다.\\n===\\n"+text+
-            "\\n===\\n앵커 한마디\\n확인된 사실을 전하겠습니다.\\n===\\n마감 인사\\n이상으로 마치겠습니다.";
+        String supplied="시작 인사\n특별한 인사입니다.\n===\n"+text+
+            "\n===\n앵커 한마디\n확인된 사실을 전하겠습니다.\n===\n마감 인사\n이상으로 마치겠습니다.";
         List<NewsStory> explicit=NewsBroadcastSegments.build(supplied,"별도 앵커 설명입니다.");
         assertTrue(explicit.size()==5,"no duplicate intro anchor or closing");
         String complete=NewsBroadcastSegments.audioScript(explicit);
