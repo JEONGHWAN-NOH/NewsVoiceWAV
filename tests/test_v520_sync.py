@@ -19,7 +19,7 @@ assert 'if(total!=NewsSentenceTimeline.visibleLength(script))' in painter
 assert 'sentenceStarts=sentenceStarts' in painter
 assert 'NewsScrollMath.AudioCurve scrollCurve=null;' in video
 assert 'scrollPlan.centeredAudioCurve(' in video
-assert 'current.audioStartUs,current.sentenceEndUs,' in video
+assert 'current.audioStartUs,current.sentenceEndUs):null;' in video
 assert 'NewsScrollMath.centeredAudioCurve(voiceStartUs,' in painter
 assert 'scrollCurve.delayedPosition(us,SCROLL_DELAY_US)' in video
 assert 'private final long[] timesUs;' in math
