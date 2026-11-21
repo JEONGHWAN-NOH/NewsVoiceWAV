@@ -1,5 +1,5 @@
-def releaseVersion = '5.18'
 plugins { id 'com.android.application' }
+def releaseVersion = '5.18'
 
 android {
     namespace 'com.newsvoice.tts'
