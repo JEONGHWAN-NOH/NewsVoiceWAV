@@ -1,8 +1,8 @@
-# NewsVoiceWAV — 뉴스보이스 WAV v5.27
+# NewsVoiceWAV — 뉴스보이스 WAV v5.28
 
 한국어 뉴스 원고를 갤럭시 한국어 TTS로 낭독하고, 1080×1920 세로형 MP4 카드뉴스·WAV 음성·카카오톡 표지 JPG를 생성하는 Android 앱입니다.
 
-## 승인된 v5.27 설정
+## 승인된 v5.28 설정
 
 1. **본문 한 단계 축소**: v5.23의 60px에서 **56px**, 줄 간격 88px에서 **84px**로 변경했습니다. 화면용 제목은 낭독하지 않으며, 본문 흰색·중요 숫자 노란색·네이비 배경·뉴스 진행바 디자인을 유지합니다. 원고를 축약하거나 삭제하지 않습니다.
 2. **가변 속도 중앙 추종**: 실제 문장별 WAV 생성 길이와 원고의 글자 수뿐 아니라 880px 본문 폭에서 실제로 줄바꿈된 글자 위치까지 연결합니다. 각 줄의 시작 시각을 해당 문장의 WAV 길이와 누적 글자 수로 근사하고, **현재 낭독하는 줄의 기준선이 카드 본문 화면 중앙(대략 1110px 기준선)에 오도록** 시간에 따른 스크롤 목표 거리를 계산합니다. 글씨는 본문 영역 안에서 부드럽게 위로 이동하며 기존처럼 전체 기사 시간을 단순 비례시키지 않습니다.
@@ -15,12 +15,12 @@
 
 ## 설치 및 빌드
 
-- 앱 표시 이름: **뉴스보이스 WAV 5.24**
-- Gradle 단일 버전값: `releaseVersion = '5.27'`
-- Android 패키지: `com.newsvoice.tts.autovideo.v524`, 버전 코드 30
-- 빌드 APK: `NewsVoiceWAV-v5.27-debug.apk`
-- GitHub Actions artifact: `NewsVoiceWAV-v5.27-CenteredVoice700ms-debug-apk`
-- 이전 v5.23과는 별도 앱으로 설치됩니다. 등록한 사용자 WAV 파일, TTS 설정 및 앱 데이터는 자동 이전되지 않습니다.
+- 앱 표시 이름: **뉴스보이스 WAV 5.28**
+- Gradle 단일 버전값: `releaseVersion = '5.28'`
+- Android 패키지: `com.newsvoice.tts.stable`, 버전 코드 34
+- 빌드 APK: `NewsVoiceWAV-v5.28-debug.apk`
+- GitHub Actions artifact: `NewsVoiceWAV-v5.28-release-unsigned`
+- 기존 v5.27과는 별도 앱으로 설치됩니다. 앱 데이터는 자동 이전되지 않습니다. 등록한 사용자 WAV 파일, TTS 설정 및 앱 데이터는 자동 이전되지 않습니다.
 
 ## 검수 중점
 
@@ -29,4 +29,15 @@
 - 문장/줄 경계 속도 연속·글씨 역행 및 잘림 방지.
 - 700ms 음성 우선 유지, 마지막 카드 누락 방지.
 - 표지 JPG·MP4와 오프닝 음악·카카오톡 공유 유지.
-\n## v5.27 날짜별 뉴스 파일·APK 직접 다운로드\n\n- 폴더: `Download/1. 필리핀뉴스/YYYY-MM-DD` (Asia/Manila 현지 날짜).\n- 파일명: `YYYY-MM-DD_오전6시_필리핀뉴스_HHmmss.wav`, 같은 이름의 `.mp4`, `_cover.jpg`, `_image_credits.txt`. 오후 뉴스는 `오후6시`로 구분합니다.\n- 수동 및 자동 생성 양쪽 모두 적용; 구버전에서 저장한 기존 파일은 이동·삭제하지 않습니다. 같은 시간대 반복 제작 시 제작시각(초)으로 구분하며 MediaStore는 같은 파일명 충돌 시 별도 엔트리를 만듭니다.\n- APK 직접 다운로드: [최신 GitHub Release](https://github.com/JEONGHWAN-NOH/NewsVoiceWAV/releases/latest). ZIP을 풀 필요 없이 `.apk` 파일을 선택할 수 있습니다.\n- 기존 앱의 서명과 다르면 Android가 업데이트를 거부할 수 있습니다. 앱 설정 백업 후 기존 앱 삭제·재설치가 필요할 수 있습니다.\n
+\n## v5.28 날짜별 뉴스 파일·APK 직접 다운로드\n\n- 폴더: `Download/1. 필리핀뉴스/YYYY-MM-DD` (Asia/Manila 현지 날짜).\n- 파일명: `YYYY-MM-DD_오전6시_필리핀뉴스_HHmmss.wav`, 같은 이름의 `.mp4`, `_cover.jpg`, `_image_credits.txt`. 오후 뉴스는 `오후6시`로 구분합니다.\n- 수동 및 자동 생성 양쪽 모두 적용; 구버전에서 저장한 기존 파일은 이동·삭제하지 않습니다. 같은 시간대 반복 제작 시 제작시각(초)으로 구분하며 MediaStore는 같은 파일명 충돌 시 별도 엔트리를 만듭니다.\n- APK 직접 다운로드: [최신 GitHub Release](https://github.com/JEONGHWAN-NOH/NewsVoiceWAV/releases/latest). ZIP을 풀 필요 없이 `.apk` 파일을 선택할 수 있습니다.\n- 기존 앱의 서명과 다르면 Android가 업데이트를 거부할 수 있습니다. 앱 설정 백업 후 기존 앱 삭제·재설치가 필요할 수 있습니다.\n
+
+## v5.28: 고정 서명 및 향후 업데이트
+
+- 새로운 고정 Android 앱 ID: `com.newsvoice.tts.stable` (기존 v5.27과 나란히 설치 가능).
+- 인증서 SHA-256 핀: `signing/expected-cert-sha256.txt`; 인증서가 다르면 릴리스가 차단됩니다.
+- 비공개 서명키는 **GitHub 공개 저장소에 넣지 않으며** 사용자에게 제공되는 PKCS12 파일을 별도로 안전하게 보관해야 합니다.
+- GitHub Actions의 `SIGNING_KEYSTORE_B64`, `NEWSVOICE_SIGNING_STORE_PASSWORD`, `NEWSVOICE_SIGNING_KEY_ALIAS`, `NEWSVOICE_SIGNING_KEY_PASSWORD`에 설정할 때만 서명 및 공개 APK 배포됩니다.
+- 비밀값이 없으면 CI는 **서명되지 않은 빌드 검사용 APK만 생성**하며 설치용 최종 릴리스로 게시하지 않습니다.
+- 미래 v5.29 이상은 동일한 앱 ID·서명키를 유지하고 버전코드만 증가시키면 앱 삭제 없이 업데이트할 수 있습니다.
+- 기존 v5.27의 내부 설정을 자동으로 옮길 수는 없습니다. 새 앱에서 TTS/음악 설정을 확인하세요.
+- 기존 사용자의 WAV·MP4 저장 폴더 `Download/1. 필리핀뉴스/YYYY-MM-DD`는 유지됩니다.
