@@ -25,7 +25,7 @@ public final class NewsVideoComposer {
     private NewsVideoComposer() { }
     public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=30;
     private static final long US_PER_S=1_000_000L;
-    private static final long SCROLL_DELAY_US=300_000L; // narration leads the scroll by 0.3 seconds
+    private static final long SCROLL_DELAY_US=700_000L; // narration leads the scroll by 0.7 seconds
     private static final int PCM_CHUNK=16384;
 
     public interface Progress { void message(String message) throws IOException; }
@@ -137,7 +137,7 @@ public final class NewsVideoComposer {
             frameCount+=introFrames;
             for(int i=0;i<pieces.size();i++){
                 long start=toUs(frameCount,rate);
-                long gapFrames=rate*3L/10; // Cards appear ~0.3s before narration.
+                long gapFrames=rate*3L/4; // 0.75s pre-roll leaves 0.05s before narration after a 0.7s card handoff.
                 writeSilence(out,gapFrames*frameBytes);frameCount+=gapFrames;
                 WavTools.Piece part=pieces.get(i);
                 if(part.dataLength%frameBytes!=0)throw new IOException("WAV 데이터의 샘플 경계가 맞지 않습니다.");
@@ -161,7 +161,8 @@ public final class NewsVideoComposer {
                 spans.add(new Span(stories.get(i),start,toUs(frameCount,rate),
                     toUs(audioStart,rate),cueEnds));
             }
-            long tailFrames=rate/3;writeSilence(out,tailFrames*frameBytes);frameCount+=tailFrames;
+            long tailFrames=rate*4L/5; // Keep the final frame 0.8s, longer than the 0.7s scroll delay.
+            writeSilence(out,tailFrames*frameBytes);frameCount+=tailFrames;
         }
         return new Timeline(pcm,rate,channels,toUs(frameCount,rate),spans);
     }
@@ -272,7 +273,7 @@ public final class NewsVideoComposer {
                 if(us<6L*US_PER_S)which=-2;
                 else {
                     which=0;
-                    // The previous article remains on screen for its final 300ms
+                    // The previous article remains on screen for its final 700ms
                     // after its narration ends, while the next article uses
                     // the remaining 200ms silent pre-roll before its voice starts.
                     for(int i=0;i<t.spans.size();i++)
@@ -294,7 +295,7 @@ public final class NewsVideoComposer {
                         scrollPlan.maxOffset):null;
                 }
                 // Each sentence endpoint matches actual WAV length and prose position.
-                // C1-continuous interpolation follows the voice with a 300ms lag.
+                // C1-continuous interpolation follows the voice with a 700ms lag.
                 float scrollPixels=scrollCurve==null?0f:
                     scrollCurve.delayedPosition(us,SCROLL_DELAY_US);
                 if(which!=previousCard || Float.isNaN(previousScroll) ||
