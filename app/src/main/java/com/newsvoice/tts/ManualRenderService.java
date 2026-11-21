@@ -94,7 +94,8 @@ public final class ManualRenderService extends Service {
         String stamp=String.valueOf(System.currentTimeMillis());
         List<File> parts=new ArrayList<>();
         List<List<Long>> sentenceFrames=new ArrayList<>();
-        File wav=null,mp4=null;
+        List<NewsImageFetcher.Photo> photos=new ArrayList<>();
+        File wav=null,mp4=null,credits=null;
         boolean success=false;
         try{
             if(!AppPrefs.videoEnabled(context)){
@@ -117,12 +118,19 @@ public final class ManualRenderService extends Service {
             WavTools.concatenate(parts,wav);
             DownloadsPublisher.publish(context,wav,"newsvoice_"+stamp+".wav");
             report("WAV 저장 성공 · MP4 변환 준비");
+            for(int i=0;i<pages.size();i++){
+                if(Thread.currentThread().isInterrupted())
+                    throw new IOException("이미지 검색 중 작업이 중단됐습니다.");
+                report("관련 자료 이미지 검색 "+(i+1)+"/"+pages.size());
+                photos.add(NewsImageFetcher.fetch(pages.get(i)));
+            }
+            credits=NewsVoiceWorker.makeImageCredits(pages,photos,context.getCacheDir(),"manual_"+stamp);
             mp4=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+".mp4");
             NewsVideoComposer.create(context,pages,parts,sentenceFrames,mp4,step->{
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 작업 스레드가 시스템에서 중단됐습니다.");
                 report(step);
-            });
+            },photos);
             report("MP4 다운로드 폴더에 기록하는 중");
             Uri saved=DownloadsPublisher.publish(context,mp4,"newsvoice_"+stamp+".mp4");
             File cover=NewsCoverExporter.coverFile(mp4);
@@ -133,10 +141,17 @@ public final class ManualRenderService extends Service {
                 .putString("last_cover_uri",savedCover.toString())
                 .putString("last_cover_name","newsvoice_"+stamp+"_cover.jpg").apply();
             cover.delete();
+            if(credits!=null)
+                DownloadsPublisher.publish(context,credits,
+                    "newsvoice_"+stamp+"_image_credits.txt");
             report("저장 완료: 뉴스 MP4 및 카카오톡용 표지 JPG");
             success=true;
         }finally{
             for(File f:parts)f.delete();
+            for(NewsImageFetcher.Photo photo:photos)
+                if(photo!=null&&photo.bitmap!=null&&!photo.bitmap.isRecycled())
+                    photo.bitmap.recycle();
+            if(credits!=null)credits.delete();
             if(wav!=null)wav.delete();
             if(mp4!=null){
                 NewsCoverExporter.coverFile(mp4).delete();

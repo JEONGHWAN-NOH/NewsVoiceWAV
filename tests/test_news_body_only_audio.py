@@ -11,7 +11,7 @@ assert "result.append(s.spokenText());" in sections
 assert 'synthesize(pages.get(i).spokenText()' in manual
 assert 'synthesize(pages.get(i).spokenText()' in worker
 assert "return story.spokenText();" in painter
-assert "뉴스 첫 줄은 화면용 제목" in ui
+assert "A안: 아나운서 대본만" in ui
 assert 'synthesize(pages.get(i).narration' not in manual
 assert 'synthesize(pages.get(i).narration' not in worker
 print("PASS: all preview/WAV/MP4 voice paths exclude news titles")

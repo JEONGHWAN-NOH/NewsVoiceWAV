@@ -168,6 +168,14 @@ public final class NewsVideoComposer {
     }
     public static File create(Context context,List<NewsStory> stories,List<File> waves,
                               List<List<Long>> sentenceFrames,File output,Progress progress)throws Exception {
+        return create(context,stories,waves,sentenceFrames,output,progress,
+            java.util.Collections.emptyList());
+    }
+    public static File create(Context context,List<NewsStory> stories,List<File> waves,
+                              List<List<Long>> sentenceFrames,File output,Progress progress,
+                              List<NewsImageFetcher.Photo> photos)throws Exception {
+        if(!photos.isEmpty()&&photos.size()!=stories.size())
+            throw new IOException("뉴스 화면과 사진 목록의 개수가 일치하지 않습니다.");
         File folder=new File(context.getCacheDir(),"video_work_"+System.nanoTime());
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
@@ -179,7 +187,7 @@ public final class NewsVideoComposer {
             progress.message("뉴스 카드 영상 렌더링 중");
             NewsCoverMeta coverMeta=NewsCoverMeta.now();
             encodeVideo(context,video,timeline,stories.get(0).articleCount>0?
-                stories.get(0).articleCount:stories.size(),coverMeta,progress);
+                stories.get(0).articleCount:stories.size(),coverMeta,progress,photos);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
@@ -242,7 +250,9 @@ public final class NewsVideoComposer {
             if(mux!=null){if(muxStarted)mux.stop();mux.release();}
         }
     }
-    private static void encodeVideo(Context context,File output,Timeline t,int articleCount,NewsCoverMeta meta,Progress progress)throws Exception {
+    private static void encodeVideo(Context context,File output,Timeline t,int articleCount,
+                                    NewsCoverMeta meta,Progress progress,
+                                    List<NewsImageFetcher.Photo> photos)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
         Bitmap reusableSlide=null;
@@ -263,6 +273,13 @@ public final class NewsVideoComposer {
             int frames=(int)((t.endUs*FPS+US_PER_S-1)/US_PER_S);
             reusableSlide=Bitmap.createBitmap(VIDEO_WIDTH,VIDEO_HEIGHT,Bitmap.Config.ARGB_8888);
             int previousCard=-10;float previousScroll=Float.NaN;
+            float previousProgress=Float.NaN;
+            long firstNews=-1,lastNews=-1;
+            for(Span span:t.spans)if(span.story.kind==NewsStory.NEWS){
+                if(firstNews<0)firstNews=span.audioStartUs;
+                lastNews=span.endUs;
+            }
+            if(firstNews<0||lastNews<=firstNews)throw new IOException("영상의 뉴스 구간이 없습니다.");
             NewsCardPainter.ScrollPlan scrollPlan=null;
             NewsScrollMath.AudioCurve scrollCurve=null;
             long cardStart=0,cardEnd=0;
@@ -297,16 +314,26 @@ public final class NewsVideoComposer {
                 // Preserve the approved 700ms voice-first lag and smooth transitions.
                 float scrollPixels=scrollCurve==null?0f:
                     scrollCurve.delayedPosition(us,SCROLL_DELAY_US);
+                float totalProgress=Math.max(0f,Math.min(1f,
+                    (float)(us-firstNews)/(lastNews-firstNews)));
+                if(current!=null&&current.story.kind!=NewsStory.NEWS&&
+                   current.story.kind!=NewsStory.OPENING)totalProgress=1f;
                 if(which!=previousCard || Float.isNaN(previousScroll) ||
-                   Math.abs(scrollPixels-previousScroll)>0.0001f){
+                   Math.abs(scrollPixels-previousScroll)>0.0001f ||
+                   Float.isNaN(previousProgress) ||
+                   Math.abs(totalProgress-previousProgress)>=0.002f){
+                    NewsImageFetcher.Photo photo=which>=0&&which<photos.size()?
+                        photos.get(which):null;
                     Bitmap card=current!=null?
                         NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
-                            articleCount,meta,activeSentence,scrollPlan,scrollPixels,reusableSlide):
+                            articleCount,meta,activeSentence,scrollPlan,scrollPixels,
+                            photo,totalProgress,reusableSlide):
                         NewsCardPainter.render(context,null,0,articleCount,which+2,meta);
                     renderer.upload(card);
                     if(card!=reusableSlide)card.recycle();
                     previousCard=which;
                     previousScroll=scrollPixels;
+                    previousProgress=totalProgress;
                 }
                 float motion=cardEnd<=cardStart?1f:(float)(us-cardStart)/(cardEnd-cardStart);
                 // Keep news text stable and sharp during smooth upward scroll.

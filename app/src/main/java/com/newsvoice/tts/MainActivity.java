@@ -49,6 +49,7 @@ import java.util.Locale;
 public final class MainActivity extends Activity implements TextToSpeech.OnInitListener {
     private static final int DARK = 0xff0e2942;
     private static final int OPENING_PICKER=5110;
+    private static final int SCRIPT_PICKER=5111;
     private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
     private TextToSpeech tts;
@@ -185,11 +186,19 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent){}
         });
-        body.addView(text("02  뉴스 원고",17,true),lp(-1,-2,21));
+        body.addView(text("02  뉴스 원고 · 대본만 입력하면 자동 제작",17,true),lp(-1,-2,21));
         editor = new EditText(this);editor.setTextSize(16);editor.setTextColor(DARK);editor.setGravity(Gravity.TOP);editor.setPadding(dp(this,14),dp(this,14),dp(this,14),dp(this,14));
-        editor.setHint("여기에 한국어 뉴스 원고를 붙여 넣으세요.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
+        editor.setHint("아나운서 대본 전체를 붙여 넣으세요. 첫 번째 소식입니다. 등 순서가 있으면 자동으로 뉴스를 분리합니다.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         body.addView(editor,lp(-1,-2,10));
+        Button importScript=btn("휴대폰에서 대본 TXT 파일 불러오기",0xffffe78b,DARK);
+        body.addView(importScript,lp(-1,50,8));
+        importScript.setOnClickListener(v->{
+            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            pick.setType("text/*");
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(pick,SCRIPT_PICKER);
+        });
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
         anchorEdit=new EditText(this);
         anchorEdit.setHint("비워 두면 정중한 기본 멘트가 자동 삽입됩니다. 필요하면 오늘 뉴스에 맞는 앵커 멘트를 작성하세요.");
@@ -200,7 +209,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("뉴스 첫 줄은 화면용 제목이고, 둘째 줄부터 본문을 낭독합니다. === 줄로 뉴스를 구분하세요. 시작 인사·앵커 한마디·마감 인사는 한 번씩만 자동 구성합니다.",12,false);
+        TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 소식입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 상단 자료 이미지 검색과 하단 전체 뉴스 진행률은 MP4 생성 시 자동 적용되며, 사진을 찾지 못하면 중립 이미지를 사용합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
@@ -244,7 +253,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("v5.24 중앙 추종 가변 스크롤: 본문 56px·줄 간격 84px, 30fps. 아나운서의 문장별 WAV 시간과 실제 줄바꿈 위치를 함께 분석하여 낭독하는 글씨가 본문 화면 중앙 부근에 머물도록 속도를 가변 조정합니다. 기존 음성 우선 0.7초(700ms) 지연과 6초 표지·JPG·음악·카카오톡 공유를 유지하며, 읽는 문장 하이라이트·밑줄은 없습니다.",12,false);
+        TextView formatHelp=text("v5.25 자동 이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 6초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 그림 자료의 출처는 다운로드되는 image_credits.txt를 참고하세요.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
@@ -614,6 +623,25 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==SCRIPT_PICKER){
+            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+            try(InputStream input=getContentResolver().openInputStream(data.getData())){
+                if(input==null)throw new IOException("선택한 대본 파일을 읽을 수 없습니다.");
+                java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();
+                byte[] buf=new byte[8192];int n;
+                while((n=input.read(buf))>=0){
+                    if(bytes.size()+n>240000)throw new IOException("240KB 이하의 대본을 선택하세요.");
+                    bytes.write(buf,0,n);
+                }
+                String script=new String(bytes.toByteArray(),StandardCharsets.UTF_8)
+                    .replace("\uFEFF","").trim();
+                if(script.isEmpty()||script.length()>60000)
+                    throw new IOException("비어 있거나 너무 긴 대본입니다.");
+                editor.setText(script);editor.setSelection(editor.length());
+                updateStatus("대본 불러오기 완료 · 뉴스 자동 분리 및 제작 버튼을 누르세요.");
+            }catch(Exception ex){updateStatus("대본 불러오기 오류: "+ex.getMessage());}
+            return;
+        }
         if(requestCode!=OPENING_PICKER||resultCode!=RESULT_OK||data==null||
            data.getData()==null)return;
         File target=new File(getFilesDir(),"newsvoice_opening_A.wav");
