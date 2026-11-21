@@ -22,9 +22,14 @@ jobs:
           java -cp /tmp/newsvoice-classes WavToolsTest
       - name: Test job-server API
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
-      - uses: android-actions/setup-android@v3
-      - name: Install SDK 35
-        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Install Android SDK 35 from runner SDK tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -1)"
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
