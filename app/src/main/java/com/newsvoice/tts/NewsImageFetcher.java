@@ -34,6 +34,21 @@ public final class NewsImageFetcher {
             this.license=license;this.licenseUrl=licenseUrl;
         }
     }
+    /** User-approved gallery portrait for opening, anchor comment and closing. */
+    public static Photo anchorPortrait(android.content.Context context,NewsStory story){
+        if(story==null||story.kind==NewsStory.NEWS)return null;
+        String slot=story.kind==NewsStory.OPENING?"opening":
+            story.kind==NewsStory.ANCHOR?"anchor":"closing";
+        java.io.File file=new java.io.File(context.getFilesDir(),"portrait_"+slot+".jpg");
+        if(!file.isFile())return null;
+        BitmapFactory.Options opts=new BitmapFactory.Options();
+        opts.inJustDecodeBounds=true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(),opts);
+        opts.inSampleSize=Math.max(1,Math.max(opts.outWidth,opts.outHeight)/1200);
+        opts.inJustDecodeBounds=false;
+        Bitmap bmp=BitmapFactory.decodeFile(file.getAbsolutePath(),opts);
+        return bmp==null?null:new Photo(bmp,"사용자 지정 아나운서 이미지","","개인 등록 이미지","");
+    }
     private static String searchTerm(String title){
         // Geographic or subject reference images are preferable to falsely
         // representing current-day accident or protest photos as genuine.
