@@ -239,6 +239,7 @@ public final class NewsVideoComposer {
     private static void encodeVideo(Context context,File output,Timeline t,int articleCount,NewsCoverMeta meta,Progress progress)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
+        Bitmap reusableSlide=null;
         boolean started=false,muxStarted=false;
         try {
             MediaFormat fmt=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,VIDEO_WIDTH,VIDEO_HEIGHT);
@@ -254,6 +255,7 @@ public final class NewsVideoComposer {
             int track=-1;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
             int frames=(int)((t.endUs*FPS+US_PER_S-1)/US_PER_S);
+            reusableSlide=Bitmap.createBitmap(VIDEO_WIDTH,VIDEO_HEIGHT,Bitmap.Config.ARGB_8888);
             int previousCard=-10,previousSentence=-10,previousScroll=-999;
             NewsCardPainter.ScrollPlan scrollPlan=null;
             long cardStart=0,cardEnd=0;
@@ -287,9 +289,10 @@ public final class NewsVideoComposer {
                    scrollPixels!=previousScroll){
                     Bitmap card=current!=null?
                         NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
-                            articleCount,meta,activeSentence,scrollPlan,scrollPixels):
+                            articleCount,meta,activeSentence,scrollPlan,scrollPixels,reusableSlide):
                         NewsCardPainter.render(context,null,0,articleCount,which+2,meta);
-                    renderer.upload(card);card.recycle();
+                    renderer.upload(card);
+                    if(card!=reusableSlide)card.recycle();
                     previousCard=which;previousSentence=activeSentence;
                     previousScroll=scrollPixels;
                 }
@@ -312,6 +315,7 @@ public final class NewsVideoComposer {
                 }else if(index==MediaCodec.INFO_TRY_AGAIN_LATER&&++stalls>150)throw new IOException("H264 video encoder stalled");
             }
         } finally {
+            if(reusableSlide!=null&&!reusableSlide.isRecycled())reusableSlide.recycle();
             if(renderer!=null)renderer.close();
             if(inputSurface!=null)inputSurface.release();
             if(started){try{codec.stop();}catch(Exception ignored){}}
