@@ -244,13 +244,22 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("큰 글씨 자연스러운 자동 스크롤: 한 기사 전체를 82px 고정 글씨로 보여주며 24fps로 위로 부드럽게 이동합니다. 읽는 문장의 색상 강조·밑줄·이전 문장 흐림 효과는 없습니다. 제목·진행바는 고정하고 본문은 줄이거나 생략하지 않습니다.",12,false);
+        TextView formatHelp=text("v5.19 끊김 없는 연속 스크롤: 82px 큰 글씨가 전체 음성 시간에 맞춰 30fps로 일정하게 위로 흐릅니다. 문장 사이 공백에서도 멈추지 않으며, 하이라이트·밑줄은 없습니다. MP4 시작 6초 동안 뉴스 표지를 고정하고 동일한 JPG를 자동 저장합니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
         Button lastVideo=btn("최근 저장된 MP4 바로 열기",0xffe7f2f3,DARK);
         body.addView(lastVideo,lp(-1,50,9));
         lastVideo.setOnClickListener(v->openLastVideo());
+        body.addView(text("05  카카오톡 공유 · 표지 먼저",17,true),lp(-1,-2,18));
+        TextView shareHelp=text("① 표지를 먼저 사진으로 공유하면 채팅방에 뉴스 카드가 표시됩니다. ② 이어서 MP4를 공유하세요. MP4 자체의 미리보기 선택은 카카오톡이 결정하므로 100% 고정은 보장되지 않습니다.",12,false);
+        shareHelp.setTextColor(0xff61778e);body.addView(shareHelp,lp(-1,-2,7));
+        Button shareCover=btn("① 카카오톡용 뉴스 표지 JPG 공유",0xffffe78b,DARK);
+        body.addView(shareCover,lp(-1,49,8));
+        shareCover.setOnClickListener(v->shareLast(true));
+        Button shareVideo=btn("② 뉴스 영상 MP4 공유",0xffd8edf6,DARK);
+        body.addView(shareVideo,lp(-1,49,8));
+        shareVideo.setOnClickListener(v->shareLast(false));
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
             save.setText(isChecked?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장");
@@ -557,6 +566,26 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         String voice=(selected>=0 && selected<koreanVoices.size())?koreanVoices.get(selected).getName():"";
         AppPrefs.get(this).edit().putString("engine",currentEngine).putString("voice",voice)
             .putFloat("speed",rate()).putFloat("pitch",pitch()).putInt("preset",selectedPreset).apply();
+    }
+    /** Native chooser: share JPG first so a cover message is visible in KakaoTalk. */
+    private void shareLast(boolean cover){
+        String key=cover?"last_cover_uri":"last_mp4_uri";
+        String value=AppPrefs.get(this).getString(key,"");
+        if(value.isEmpty()){
+            updateStatus(cover?"먼저 MP4를 제작해 표지 JPG를 저장하세요.":
+                "먼저 뉴스 MP4를 제작하고 저장하세요.");
+            return;
+        }
+        try{
+            Intent send=new Intent(Intent.ACTION_SEND);
+            send.setType(cover?"image/jpeg":"video/mp4");
+            send.putExtra(Intent.EXTRA_STREAM,Uri.parse(value));
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(send,
+                cover?"표지 사진 공유 · 카카오톡 선택":"뉴스 동영상 공유 · 카카오톡 선택"));
+        }catch(ActivityNotFoundException | SecurityException ex){
+            updateStatus("공유할 앱이 없거나 접근 권한이 없습니다: "+ex.getClass().getSimpleName());
+        }
     }
     private void openLastVideo(){
         String value=AppPrefs.get(this).getString("last_mp4_uri","");
