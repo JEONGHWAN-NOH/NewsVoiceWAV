@@ -244,7 +244,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("v5.21 음성 우선 스크롤: 본문 72px·줄 간격 100px, 30fps. 실제 문장별 WAV 길이·본문 위치에 맞춘 부드러운 이동을 유지하면서, 스크롤은 아나운서 음성보다 항상 0.1초(100ms) 늦게 따라가도록 설계했습니다. 문장 하이라이트·밑줄은 제거 상태이며, 기존 6초 뉴스 표지·JPG·활기찬 음악·카카오톡 공유를 유지합니다.",12,false);
+        TextView formatHelp=text("v5.22 음성 우선 스크롤: 본문 64px·줄 간격 92px, 30fps. 실제 문장별 WAV 길이·본문 위치에 맞춘 부드러운 이동을 유지하면서, 스크롤은 아나운서 음성보다 항상 0.3초(300ms) 늦게 따라가도록 설계했습니다. 문장 하이라이트·밑줄은 제거 상태이며, 기존 6초 뉴스 표지·JPG·활기찬 음악·카카오톡 공유를 유지합니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
