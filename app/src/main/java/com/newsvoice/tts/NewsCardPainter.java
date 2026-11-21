@@ -235,8 +235,8 @@ public final class NewsCardPainter {
         throw new IllegalArgumentException("자동 분할 후에도 배치할 수 없습니다: "+story.title);
     }
 
-    private static final float SCROLL_FONT=82f;
-    private static final float SCROLL_STEP=115f;
+    private static final float SCROLL_FONT=76f;
+    private static final float SCROLL_STEP=104f;
     private static final float SCROLL_TOP=710f;
     private static final float SCROLL_BOTTOM=1568f;
     private static final float SCROLL_FOCUS_ROWS=3.2f;
