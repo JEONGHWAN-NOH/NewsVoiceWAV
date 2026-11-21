@@ -32,5 +32,5 @@ assert 'double snare=' in opening
 assert 'double hat=' in opening
 assert 'boolean builtin=AppPrefs.get(context).getBoolean("opening_a_builtin",true)' in opening
 assert 'appendOpeningMusic(out,introWav' in composer
-assert 'NewsVoiceWAV-v5.24-Centered700ms-debug-apk' in workflow
+assert 'NewsVoiceWAV-v5.24-CenteredVoice700ms-debug-apk' in workflow
 print("PASS: v5.24 keeps upbeat auto opener and consistent app version 5.24")
