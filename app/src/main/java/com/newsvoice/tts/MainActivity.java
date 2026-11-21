@@ -49,6 +49,7 @@ import java.util.Locale;
 public final class MainActivity extends Activity implements TextToSpeech.OnInitListener {
     private static final int DARK = 0xff0e2942;
     private static final int OPENING_PICKER=5110;
+    private static final int SCRIPT_PICKER=5111;
     private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
     private TextToSpeech tts;
@@ -190,6 +191,14 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         editor.setHint("아나운서 대본 전체를 붙여 넣으세요. 첫 번째 소식입니다. 등 순서가 있으면 자동으로 뉴스를 분리합니다.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         body.addView(editor,lp(-1,-2,10));
+        Button importScript=btn("휴대폰에서 대본 TXT 파일 불러오기",0xffffe78b,DARK);
+        body.addView(importScript,lp(-1,50,8));
+        importScript.setOnClickListener(v->{
+            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            pick.setType("text/*");
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(pick,SCRIPT_PICKER);
+        });
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
         anchorEdit=new EditText(this);
         anchorEdit.setHint("비워 두면 정중한 기본 멘트가 자동 삽입됩니다. 필요하면 오늘 뉴스에 맞는 앵커 멘트를 작성하세요.");
@@ -614,6 +623,25 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==SCRIPT_PICKER){
+            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+            try(InputStream input=getContentResolver().openInputStream(data.getData())){
+                if(input==null)throw new IOException("선택한 대본 파일을 읽을 수 없습니다.");
+                java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();
+                byte[] buf=new byte[8192];int n;
+                while((n=input.read(buf))>=0){
+                    if(bytes.size()+n>240000)throw new IOException("240KB 이하의 대본을 선택하세요.");
+                    bytes.write(buf,0,n);
+                }
+                String script=new String(bytes.toByteArray(),StandardCharsets.UTF_8)
+                    .replace("\uFEFF","").trim();
+                if(script.isEmpty()||script.length()>60000)
+                    throw new IOException("비어 있거나 너무 긴 대본입니다.");
+                editor.setText(script);editor.setSelection(editor.length());
+                updateStatus("대본 불러오기 완료 · 뉴스 자동 분리 및 제작 버튼을 누르세요.");
+            }catch(Exception ex){updateStatus("대본 불러오기 오류: "+ex.getMessage());}
+            return;
+        }
         if(requestCode!=OPENING_PICKER||resultCode!=RESULT_OK||data==null||
            data.getData()==null)return;
         File target=new File(getFilesDir(),"newsvoice_opening_A.wav");
