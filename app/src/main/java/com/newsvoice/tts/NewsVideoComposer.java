@@ -246,22 +246,29 @@ public final class NewsVideoComposer {
             mux=new MediaMuxer(dest.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             int vid=mux.addTrack(v.getTrackFormat(0)),aud=mux.addTrack(a.getTrackFormat(0));
             mux.start();started=true;
-            copyTrack(v,mux,vid,4*1024*1024);
-            copyTrack(a,mux,aud,256*1024);
+            ByteBuffer videoBytes=ByteBuffer.allocateDirect(4*1024*1024);
+            ByteBuffer audioBytes=ByteBuffer.allocateDirect(256*1024);
+            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
+            long videoUs=v.getSampleTime(),audioUs=a.getSampleTime();
+            while(videoUs>=0 || audioUs>=0){
+                if(audioUs<0 || (videoUs>=0 && videoUs<=audioUs)){
+                    copySample(v,mux,vid,videoBytes,info);
+                    v.advance();videoUs=v.getSampleTime();
+                }else{
+                    copySample(a,mux,aud,audioBytes,info);
+                    a.advance();audioUs=a.getSampleTime();
+                }
+            }
         }finally{
             v.release();a.release();
             if(mux!=null){if(started)mux.stop();mux.release();}
         }
     }
-    private static void copyTrack(MediaExtractor extractor,MediaMuxer mux,int index,int maxBuffer)throws IOException {
-        ByteBuffer buffer=ByteBuffer.allocateDirect(maxBuffer);
-        MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
-        while(true){
-            buffer.clear();int n=extractor.readSampleData(buffer,0);
-            if(n<0)break;
-            info.set(0,n,extractor.getSampleTime(),extractor.getSampleFlags());
-            buffer.position(0);buffer.limit(n);mux.writeSampleData(index,buffer,info);
-            if(!extractor.advance())break;
-        }
+    private static void copySample(MediaExtractor extractor,MediaMuxer mux,int index,
+                                   ByteBuffer buffer,MediaCodec.BufferInfo info)throws IOException {
+        buffer.clear();int n=extractor.readSampleData(buffer,0);
+        if(n<0)throw new IOException("MP4 트랙이 예상보다 빨리 종료됐습니다.");
+        info.set(0,n,extractor.getSampleTime(),extractor.getSampleFlags());
+        buffer.position(0);buffer.limit(n);mux.writeSampleData(index,buffer,info);
     }
 }
