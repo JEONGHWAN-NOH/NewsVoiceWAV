@@ -10,13 +10,14 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 /**
- * Original built-in A-style instrumental news opening, precisely six seconds.
- * A user's exact approved A WAV, if imported, takes priority over this fallback.
- * The generated audio is original rather than a recording of the earlier A option.
+ * Original upbeat 6-second news opener, with bright brass-like lead,
+ * rhythmic stabs, bass, kick, snare, and a rising resolved final flourish.
+ * Always auto-generated if not installed; a user's imported WAV takes priority.
+ * This is newly synthesized original music, not third-party recorded music.
  */
 public final class OpeningMusicA {
     private OpeningMusicA(){}
-    private static final int RATE=22050, CHANNELS=2, DURATION=6;
+    private static final int RATE=22050, CHANNELS=2, DURATION=6, MUSIC_REVISION=2;
     private static final double TWO_PI=2.0*Math.PI;
 
     private static void le16(DataOutputStream out,int v)throws IOException{
@@ -33,26 +34,63 @@ public final class OpeningMusicA {
         le32(out,RATE*CHANNELS*2);le16(out,CHANNELS*2);le16(out,16);
         out.writeBytes("data");le32(out,bytes);
     }
-    private static double note(double hz,double t){
-        return Math.sin(TWO_PI*hz*t)+0.21*Math.sin(TWO_PI*2*hz*t);
+    private static double harmonic(double hz,double t){
+        return Math.sin(TWO_PI*hz*t)+
+            0.26*Math.sin(TWO_PI*2*hz*t)+
+            0.10*Math.sin(TWO_PI*3*hz*t);
+    }
+    /** Deterministic noise for short hi-hat/snare hits; no asset or network dependency. */
+    private static double noise(double t,int channel){
+        double n=Math.sin((t*14531+channel*1.7)*12.9898)*43758.5453;
+        return 2*(n-Math.floor(n))-1;
     }
     private static double sample(double t,int channel){
-        // Original, six-second ceremonial fanfare. All musical material is
-        // synthesized on the device; no embedded third-party recording.
-        double[][] harmony={{261.63,329.63,392.00},{196,246.94,392.00},
-                            {220,261.63,329.63},{174.61,261.63,349.23}};
-        double[] top={523.25,659.25,783.99,659.25,698.46,1046.50};
-        int h=Math.min(3,(int)(t/1.5)),beat=Math.min(5,(int)t);
-        double time=t-beat, pad=0;
+        // Three bars at 120 BPM, entirely original melody and arrangement.
+        final double[][] chords={
+            {261.63,329.63,392.00},  // C major: bright introduction
+            {349.23,440.00,523.25},  // F major: energetic lift
+            {392.00,493.88,587.33}   // G major: final flourish
+        };
+        final double[] lead={
+            659.25,783.99,1046.50,783.99,
+            880.00,1046.50,1174.66,1046.50,
+            987.77,1174.66,1318.51,1567.98
+        };
+        int eighth=Math.min(11,(int)(t*2.0));
+        int bar=Math.min(2,(int)(t/2.0));
+        double eighthTime=t-eighth*0.5;
+        double leadEnv=Math.exp(-3.0*eighthTime);
+        double melodic=harmonic(lead[eighth]*(channel==0?0.999:1.001),t)*leadEnv;
+        double brass=0;
         for(int i=0;i<3;i++)
-            pad+=note(harmony[h][i]*(channel==0?0.998:1.002),t)/3.0;
-        double pulseTime=t-Math.floor(t*2.0)/2.0;
-        double pulse=Math.sin(TWO_PI*harmony[h][0]*0.5*t)*Math.exp(-8*pulseTime);
-        double chime=(Math.sin(TWO_PI*top[beat]*time)+
-            .32*Math.sin(TWO_PI*top[beat]*2*time))*Math.exp(-3.5*time);
-        double start=Math.min(1.0,t/.18);
-        double end=Math.min(1.0,Math.max(0.0,(DURATION-t)/.95));
-        return Math.max(-.9,Math.min(.9,(.29*pad+.18*pulse+.20*chime)*start*end));
+            brass+=harmonic(chords[bar][i]*(channel==0?0.998:1.002),t)/3.0;
+        // Chord stabs follow each beat, leaving rhythmic space.
+        double beatTime=t-Math.floor(t*2.0)/2.0;
+        brass*=Math.exp(-3.0*beatTime);
+        double bassHz=chords[bar][0]*0.5;
+        double bass=Math.sin(TWO_PI*bassHz*t)*Math.exp(-3.1*beatTime);
+        double kickTime=t-Math.floor(t*2.0)/2.0;
+        double kick=Math.sin(TWO_PI*(105-45*kickTime)*kickTime)*Math.exp(-26*kickTime);
+        double snareTime=t-(Math.floor(t*2.0-1.0)+1.0)/2.0;
+        // Snare on offbeats; clamp when no snare is scheduled yet.
+        double snare=0;
+        if(snareTime>=0 && Math.floor(t*2.0)%2==1){
+            snare=noise(t,channel)*Math.exp(-33*snareTime);
+        }
+        double hatTime=t-Math.floor(t*4.0)/4.0;
+        double hat=noise(t*1.3+0.1,channel)*Math.exp(-65*hatTime);
+        // Bright resolving sustained chord for the last 0.7 seconds.
+        double finale=0;
+        if(t>=5.20){
+            double dt=t-5.20;
+            finale=(harmonic(523.25,t)+harmonic(659.25,t)+
+                harmonic(783.99,t))/3.0*Math.exp(-1.7*dt);
+        }
+        double attack=Math.min(1.0,t/0.025);
+        double release=Math.min(1.0,Math.max(0,(DURATION-t)/0.38));
+        double mix=0.26*melodic+0.22*brass+0.17*bass+
+            0.15*kick+0.065*snare+0.035*hat+0.25*finale;
+        return Math.max(-0.92,Math.min(0.92,mix*attack*release));
     }
     private static boolean valid(File file){
         try {
@@ -68,10 +106,13 @@ public final class OpeningMusicA {
                 wave.dataLength/(double)(rate*count*2)<=6.3;
         }catch(Exception ignored){return false;}
     }
-    /** Install once; preserve an existing valid imported WAV between app launches. */
+    /** Install the current upbeat opener automatically; retain user-imported custom WAV. */
     public static synchronized File ensureInstalled(Context context)throws IOException {
         File dest=new File(context.getFilesDir(),"newsvoice_opening_A.wav");
-        if(valid(dest))return dest;
+        boolean exists=valid(dest);
+        boolean builtin=AppPrefs.get(context).getBoolean("opening_a_builtin",true);
+        int revision=AppPrefs.get(context).getInt("opening_a_revision",0);
+        if(exists && (!builtin || revision==MUSIC_REVISION))return dest;
         File tmp=new File(context.getFilesDir(),"newsvoice_opening_A_builtin.tmp");
         try(DataOutputStream out=new DataOutputStream(
                 new BufferedOutputStream(new FileOutputStream(tmp)))){
@@ -87,7 +128,8 @@ public final class OpeningMusicA {
             throw new IOException("A 타입 오프닝 음악을 생성하지 못했습니다.");
         }
         Files.move(tmp.toPath(),dest.toPath(),StandardCopyOption.REPLACE_EXISTING);
-        AppPrefs.get(context).edit().putBoolean("opening_a_builtin",true).apply();
+        AppPrefs.get(context).edit().putBoolean("opening_a_builtin",true)
+            .putInt("opening_a_revision",MUSIC_REVISION).apply();
         return dest;
     }
 }
