@@ -1,7 +1,7 @@
 name: Build NewsVoice WAV Automatic APK
 on:
   push:
-    branches: [main, feature/v528-stable-signing]
+    branches: [main, feature/v529-double-header]
   workflow_dispatch:
 permissions:
   contents: write
@@ -89,11 +89,11 @@ jobs:
         run: python3 tests/test_v520_sync.py
       - name: Verify 56px typography and 700ms voice-first narration lead
         run: python3 tests/test_v521_voice_lead.py
-      - name: Verify v5.28 voice lead and typography
+      - name: Verify v5.29 voice lead and typography
         run: python3 tests/test_v522_voice_lead.py
-      - name: Verify v5.28 voice-first 700ms and clean final card transition
+      - name: Verify v5.29 voice-first 700ms and clean final card transition
         run: python3 tests/test_v523_voice_delay.py
-      - name: Verify row-centered variable-speed v5.28 news scroll
+      - name: Verify row-centered variable-speed v5.29 news scroll
         run: python3 tests/test_v524_centered_scroll.py
       - name: Verify stable signing and parallel-install policy
         run: python3 tests/test_v528_stable_signing.py
@@ -111,13 +111,13 @@ jobs:
       - name: Build review APK and unsigned release candidate
         run: |
           gradle --no-daemon :app:assembleDebug :app:assembleRelease
-          test -s app/build/outputs/apk/debug/NewsVoiceWAV-v5.28-debug.apk
-          test -s app/build/outputs/apk/release/NewsVoiceWAV-v5.28-release.apk
+          test -s app/build/outputs/apk/debug/NewsVoiceWAV-v5.29-debug.apk
+          test -s app/build/outputs/apk/release/NewsVoiceWAV-v5.29-release.apk
       - name: Upload unsigned release candidate (not for installation)
         uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.28-release-unsigned
-          path: app/build/outputs/apk/release/NewsVoiceWAV-v5.28-release.apk
+          name: NewsVoiceWAV-v5.29-release-unsigned
+          path: app/build/outputs/apk/release/NewsVoiceWAV-v5.29-release.apk
           if-no-files-found: error
       - name: Sign and verify official installable APK with pinned certificate
         id: sign
@@ -138,8 +138,8 @@ jobs:
           KEYSTORE="$(mktemp)"
           trap 'rm -f "$KEYSTORE"' EXIT
           printf '%s' "$SIGNING_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
-          SOURCE="app/build/outputs/apk/release/NewsVoiceWAV-v5.28-release.apk"
-          SIGNED="app/build/outputs/apk/release/NewsVoiceWAV-v5.28-stable-signed.apk"
+          SOURCE="app/build/outputs/apk/release/NewsVoiceWAV-v5.29-release.apk"
+          SIGNED="app/build/outputs/apk/release/NewsVoiceWAV-v5.29-stable-signed.apk"
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           "$SDK_ROOT/build-tools/35.0.0/apksigner" sign \
             --ks "$KEYSTORE" --ks-type PKCS12 \
@@ -153,8 +153,8 @@ jobs:
         if: steps.sign.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.28-stable-signed-apk
-          path: app/build/outputs/apk/release/NewsVoiceWAV-v5.28-stable-signed.apk
+          name: NewsVoiceWAV-v5.29-stable-signed-apk
+          path: app/build/outputs/apk/release/NewsVoiceWAV-v5.29-stable-signed.apk
           if-no-files-found: error
       - name: Publish signed APK for direct download (main only)
         if: github.ref == 'refs/heads/main' && steps.sign.outputs.ready == 'true'
@@ -163,13 +163,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/release/NewsVoiceWAV-v5.28-stable-signed.apk"
+          APK="app/build/outputs/apk/release/NewsVoiceWAV-v5.29-stable-signed.apk"
           bash scripts/verify-stable-apk.sh "$APK"
-          if gh release view v5.28 >/dev/null 2>&1; then
-            gh release upload v5.28 "$APK" --clobber
+          if gh release view v5.29 >/dev/null 2>&1; then
+            gh release upload v5.29 "$APK" --clobber
           else
-            gh release create v5.28 "$APK" \
-              --title "뉴스보이스 WAV v5.28 · 고정 서명 신규 앱" \
+            gh release create v5.29 "$APK" \
+              --title "뉴스보이스 WAV v5.29 · 고정 서명 신규 앱" \
               --notes "기존 v5.27과 별도 설치됩니다. 뉴스 파일은 Download/1. 필리핀뉴스/날짜별 폴더에 저장됩니다. 고정 서명 검증 완료." \
               --latest
           fi
