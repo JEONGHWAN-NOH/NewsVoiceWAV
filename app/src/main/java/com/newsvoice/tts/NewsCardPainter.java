@@ -354,8 +354,13 @@ public final class NewsCardPainter {
     /** Large-print news slide: voice-synchronized upward movement within a clipped viewport. */
     private static Bitmap renderFullArticle(NewsStory story,int index,int count,
                                             NewsCoverMeta meta,int activeSentence,
-                                            ScrollPlan scroll,int scrollPixels){
-        Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
+                                            ScrollPlan scroll,int scrollPixels,
+                                            Bitmap reusable){
+        Bitmap bitmap=reusable==null?
+            Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888):reusable;
+        if(bitmap.getWidth()!=WIDTH||bitmap.getHeight()!=HEIGHT||
+           bitmap.getConfig()!=Bitmap.Config.ARGB_8888)
+            throw new IllegalArgumentException("재사용 영상 버퍼 크기나 형식이 잘못됐습니다.");
         Canvas c=new Canvas(bitmap);
         int white=Color.WHITE,yellow=Color.rgb(255,210,46),blue=Color.rgb(11,48,101);
         Paint background=p(Color.rgb(5,17,44),0,false);
@@ -551,14 +556,15 @@ public final class NewsCardPainter {
     }
     /** Called by the video encoder with a cached plan and a per-frame scroll offset. */
     public static Bitmap renderScrolling(NewsStory story,int index,int count,NewsCoverMeta meta,
-                                         int activeSentence,ScrollPlan plan,int scrollPixels){
+                                         int activeSentence,ScrollPlan plan,int scrollPixels,
+                                         Bitmap reusable){
         if(plan.story!=story)throw new IllegalArgumentException("기사와 스크롤 레이아웃이 다릅니다.");
-        return renderFullArticle(story,index,count,meta,activeSentence,plan,scrollPixels);
+        return renderFullArticle(story,index,count,meta,activeSentence,plan,scrollPixels,reusable);
     }
     public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,
                                 NewsCoverMeta meta,int activeSentence){
         if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta,
-            activeSentence,prepareScroll(story),0);
+            activeSentence,prepareScroll(story),0,null);
         if(stage==0){
             Bitmap artwork=renderBroadcastCover(context,meta,count);
             if(artwork!=null)return artwork;
