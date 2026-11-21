@@ -47,6 +47,8 @@ jobs:
           mkdir -p /tmp/newsbroadcast-classes
           javac -encoding UTF-8 -d /tmp/newsbroadcast-classes app/src/main/java/com/newsvoice/tts/NewsStory.java app/src/main/java/com/newsvoice/tts/BroadcastScriptReview.java app/src/main/java/com/newsvoice/tts/NewsBroadcastSegments.java tests/NewsBroadcastSegmentsTest.java
           java -cp /tmp/newsbroadcast-classes NewsBroadcastSegmentsTest
+      - name: Verify news single-card layout policy
+        run: python3 tests/test_news_single_card.py
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
         run: |
@@ -62,6 +64,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.11-Navy-Reading-and-Opening-A-debug-apk
+          name: NewsVoiceWAV-v5.12-Single-Full-Script-Card-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

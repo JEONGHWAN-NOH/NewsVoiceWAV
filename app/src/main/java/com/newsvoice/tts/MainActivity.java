@@ -200,7 +200,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("자동 순서: 시작 인사 → 본 뉴스 → 앵커 한마디 → 마감 인사. 카드 하단에는 남은 뉴스 건수와 전체 진행률을 표시합니다.",12,false);
+        TextView note=text("뉴스 한 건당 한 화면에 대본 전체를 표시합니다. 시작 인사 → 본 뉴스 → 앵커 한마디 → 마감 인사 순서이며, 하단에는 남은 뉴스와 진행률을 표시합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));

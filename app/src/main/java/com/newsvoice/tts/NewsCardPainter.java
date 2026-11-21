@@ -109,17 +109,12 @@ public final class NewsCardPainter {
             c.drawLine(302,1295,789,1295,ghost);
         }
     }
-    /** Same font/line layout is used by pagination and actual rendering. */
-    private static final float BODY_SIZE=43f, BODY_STEP=52f, BODY_WIDTH=740f;
-    private static final int MAX_BODY_LINES=9;
-    public static List<NewsStory> paginate(NewsStory article,int articleNo,int articleCount){
-        Paint font=p(Color.rgb(22,44,66),BODY_SIZE,false);
-        List<String> chunks=NewsPageSplitter.split(article.narration,
-            text -> wrapComplete(text,font,BODY_WIDTH).size()<=MAX_BODY_LINES);
-        List<NewsStory> pages=new ArrayList<>();
-        for(int i=0;i<chunks.size();i++)
-            pages.add(article.page(chunks.get(i),articleNo,articleCount,i+1,chunks.size()));
-        return pages;
+    /** One original news item including its entire narrated script = one video card. */
+    public static List<NewsStory> paginate(NewsStory story,int newsNumber,int newsTotal){
+        fitStory(story); // Same text measurement as the final rendered card.
+        List<NewsStory> result=new ArrayList<>();
+        result.add(story.page(story.narration,newsNumber,newsTotal,1,1));
+        return result;
     }
     public static List<NewsStory> paginateBroadcast(List<NewsStory> sections){
         int total=NewsBroadcastSegments.newsCount(sections),counted=0;
@@ -206,96 +201,185 @@ public final class NewsCardPainter {
 
     /** Navy-blue body card with an uncluttered news-photo area and three text panels.
      * No article photographs are invented. The central panel uses topic graphics. */
-    private static Bitmap renderFullArticle(NewsStory story,int index,int count,NewsCoverMeta meta){
-        Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
-        Canvas c=new Canvas(bitmap);
-        final int white=Color.WHITE,bright=Color.rgb(253,207,43);
-        final int navy=Color.rgb(3,17,42),card=Color.rgb(9,43,92);
-        Paint bg=p(navy,0,false);
-        bg.setShader(new LinearGradient(0,0,0,HEIGHT,
-            Color.rgb(7,28,68),Color.rgb(2,12,32),Shader.TileMode.CLAMP));
-        c.drawRect(0,0,WIDTH,HEIGHT,bg);
-        rounded(c,bright,0,0,WIDTH,17,0);
-        c.drawText("PHILIPPINES  |  NEWS BRIEF",56,93,p(white,34,true));
-        c.drawText("오늘의 주요 뉴스",55,187,p(bright,74,true));
-        rounded(c,bright,55,210,1027,218,4);
-
-        rounded(c,card,55,246,1025,588,33);
-        Paint border=p(Color.rgb(34,126,216),0,false);
-        border.setStyle(Paint.Style.STROKE);border.setStrokeWidth(4);
-        c.drawRoundRect(new RectF(56,247,1024,587),32,32,border);
-        rounded(c,bright,77,274,90,552,6);
-
-        Paint title=null;List<String> titleLines=null;
-        for(int size=64;size>=37;size-=3){
-            title=p(white,size,true);
-            titleLines=wrapComplete(story.title,title,867f);
-            if(titleLines.size()<=4)break;
+    /**
+     * The parser includes the headline in narration so TTS can read it aloud.
+     * Display the headline once at the top; the prose below is unchanged.
+     */
+    private static String prose(NewsStory story){
+        String script=story.narration.trim();
+        if(story.kind!=NewsStory.NEWS)return script;
+        int newLine=script.indexOf('\n');
+        return newLine>=0&&newLine<script.length()-1?script.substring(newLine+1).trim():script;
+    }
+    private static final class ReadingFit{
+        final float x,top,size,step;
+        final boolean wide;
+        final List<String> lines;
+        ReadingFit(float x,float top,float size,float step,boolean wide,List<String> lines){
+            this.x=x;this.top=top;this.size=size;this.step=step;this.wide=wide;this.lines=lines;
         }
-        if(titleLines==null||titleLines.size()>4)
-            throw new IllegalArgumentException("뉴스 제목이 카드에 비해 너무 깁니다.");
-        float step=title.getTextSize()+10f;
-        float first=378f-(titleLines.size()-2)*step/2f;
-        for(String row:titleLines){
-            c.drawText(row,119,first,title);
-            first+=step;
+    }
+    /**
+     * Measured layout, no ellipsis: prioritize left-picture/right-script composition.
+     * If an entry is long, show a narrower image ribbon and make the script full width.
+     */
+    private static ReadingFit fitStory(NewsStory story){
+        String text=prose(story);
+        for(int size=47;size>=24;size--){
+            List<String> lines=wrapComplete(text,p(Color.WHITE,size,true),620f);
+            float step=size*1.38f;
+            if(lines.size()*step<=987f)return new ReadingFit(380,538,size,step,false,lines);
         }
-        graphics(c,story.title,story.kind);
-
-        final Paint font=p(white,BODY_SIZE,true);
-        List<String> lines=wrapComplete(story.narration,font,BODY_WIDTH);
-        if(lines.size()>MAX_BODY_LINES){
-            bitmap.recycle();
-            throw new IllegalArgumentException("본문 글자 수에 맞춘 자동 페이지 분할에 실패했습니다.");
+        for(int size=41;size>=21;size--){
+            List<String> lines=wrapComplete(text,p(Color.WHITE,size,true),877f);
+            float step=size*1.34f;
+            if(lines.size()*step<=841f)return new ReadingFit(100,708,size,step,true,lines);
         }
-        int[] starts={992,1180,1368};
-        for(int block=0;block<3;block++){
-            int top=starts[block];
-            rounded(c,card,58,top,1022,top+172,27);
-            Paint edge=p(Color.rgb(23,95,184),0,false);
-            edge.setStyle(Paint.Style.STROKE);edge.setStrokeWidth(2);
-            c.drawRoundRect(new RectF(59,top+1,1021,top+171),26,26,edge);
-            rounded(c,Color.rgb(13,72,149),77,top+17,204,top+153,22);
-            Paint symbol=p(bright,63,true);
-            String icon=block==0?"01":block==1?"02":"03";
-            c.drawText(icon,94,top+100,symbol);
-            line(c,Color.rgb(115,180,240),226,top+28,226,top+142,3);
-            for(int j=0;j<3;j++){
-                int which=block*3+j;
-                if(which<lines.size()&&!lines.get(which).isEmpty()){
-                    c.drawText(lines.get(which),252,top+47+j*BODY_STEP,font);
-                }
+        throw new IllegalArgumentException("기사 한 건의 대본 전체를 한 화면에 읽기 좋은 크기로 담을 수 없습니다. "
+            +"대본 내용을 줄이거나 기사 항목을 다시 구성해 주세요: "+story.title);
+    }
+    private static void stroke(Canvas c,float x1,float y1,float x2,float y2,int color,float width,float radius){
+        Paint pen=p(color,0,false);pen.setStyle(Paint.Style.STROKE);pen.setStrokeWidth(width);
+        c.drawRoundRect(new RectF(x1,y1,x2,y2),radius,radius,pen);
+    }
+    private static void drawArticleArt(Canvas c,NewsStory story,boolean compact){
+        int left=compact?74:60,right=compact?1007:354;
+        int top=compact?475:485,bottom=compact?667:1544;
+        rounded(c,Color.rgb(7,53,117),left,top,right,bottom,26);
+        stroke(c,left+1,top+1,right-1,bottom-1,Color.rgb(28,142,248),3,26);
+        String headline=story.title;
+        boolean government=headline.contains("예산")||headline.contains("상원")||
+            headline.contains("정부")||headline.contains("공공사업")||headline.contains("국회");
+        boolean finance=headline.contains("투자")||headline.contains("경제")||
+            headline.contains("수출")||headline.contains("산업")||
+            headline.contains("유가")||headline.contains("경유")||
+            headline.contains("휘발유")||headline.contains("기업");
+        String category=story.kind==NewsStory.OPENING?"시작 인사":
+            story.kind==NewsStory.ANCHOR?"앵커 한마디":
+            story.kind==NewsStory.CLOSING?"마감 인사":
+            government?"경제·정책":finance?"경제·산업":"필리핀 주요 뉴스";
+        c.drawText(category,left+24,top+58,p(Color.rgb(255,210,46),compact?32:30,true));
+        float cx=compact?725:207,cy=compact?585:940;
+        Paint outline=p(Color.rgb(125,196,255),0,false);
+        outline.setStyle(Paint.Style.STROKE);outline.setStrokeWidth(7);
+        float scale=compact?.65f:1f;
+        if(government){
+            Path shape=new Path();
+            shape.moveTo(cx-115*scale,cy-85*scale);
+            shape.lineTo(cx,cy-158*scale);
+            shape.lineTo(cx+115*scale,cy-85*scale);
+            c.drawPath(shape,outline);
+            line(c,Color.rgb(255,210,46),cx-110*scale,cy-75*scale,
+                cx+110*scale,cy-75*scale,8);
+            for(int i=-1;i<=1;i++){
+                float x=cx+75*i*scale;
+                rounded(c,Color.rgb(33,115,206),x-21*scale,cy-70*scale,
+                    x+21*scale,cy+102*scale,10);
             }
+            line(c,Color.rgb(255,210,46),cx-132*scale,cy+110*scale,
+                cx+132*scale,cy+110*scale,8);
+        }else if(finance){
+            for(int i=0;i<5;i++){
+                float x=cx-133*scale+i*59*scale;
+                rounded(c,Color.rgb(20+i*16,110+i*16,203),
+                    x,cy+(77-38*i)*scale,x+41*scale,cy+115*scale,8);
+            }
+            line(c,Color.rgb(255,210,46),cx-133*scale,cy+12*scale,
+                cx+135*scale,cy-129*scale,10);
+        }else{
+            c.drawCircle(cx,cy,117*scale,outline);
+            c.drawOval(new RectF(cx-57*scale,cy-117*scale,
+                cx+57*scale,cy+117*scale),outline);
+            line(c,Color.rgb(255,210,46),cx-117*scale,cy,
+                cx+117*scale,cy,7);
         }
-
-        int total=Math.max(1,story.articleCount);
-        int completed=NewsBroadcastSegments.completedNews(story);
-        int remaining=NewsBroadcastSegments.remainingNews(story);
-        rounded(c,bright,57,1611,239,1685,18);
-        c.drawText("뉴스 진행",77,1660,p(Color.rgb(5,22,49),40,true));
-        String fraction=story.kind==NewsStory.NEWS?completed+"/"+total:
-            story.kind==NewsStory.OPENING?"0/"+total:total+"/"+total;
-        c.drawText(fraction,269,1662,p(white,45,true));
-        rounded(c,Color.rgb(77,99,139),455,1630,884,1668,19);
-        if(completed>0)rounded(c,bright,455,1630,
-            455+Math.round(429f*completed/total),1668,19);
-        c.drawText(Math.round(100f*completed/total)+"%",907,1662,p(white,37,true));
-        String status=story.kind==NewsStory.OPENING?
-            "시작 전 · 남은 뉴스 "+remaining+"건":
-            story.kind==NewsStory.NEWS?
-            "현재 "+completed+"번째 뉴스 · 이후 남은 뉴스 "+remaining+"건":
-            "본 뉴스 종료 · 남은 뉴스 0건";
-        c.drawText(status,65,1747,p(white,36,true));
-        line(c,Color.rgb(44,94,171),51,1791,1029,1791,3);
-        c.drawText(meta.date,58,1862,p(white,39,true));
-        Paint timestamp=p(Color.rgb(213,225,244),29,true);
-        String slot=meta.clock;
-        while(timestamp.getTextSize()>19&&timestamp.measureText(slot)>480)
-            timestamp.setTextSize(timestamp.getTextSize()-1);
-        c.drawText(slot,610,1862,timestamp);
-        return bitmap;
+        if(!compact){
+            Paint caption=p(Color.rgb(194,224,252),22,false);
+            String label="기사 관련 주제 그래픽";
+            c.drawText(label,left+(right-left-caption.measureText(label))/2,1440,caption);
+        }
+    }
+    private static void drawProseLine(Canvas c,String row,float x,float baseline,Paint white){
+        Paint yellow=p(Color.rgb(255,210,46),white.getTextSize(),true);
+        java.util.regex.Matcher m=java.util.regex.Pattern
+            .compile("[0-9][0-9,.:]*").matcher(row);
+        int pos=0;float drawX=x;
+        while(m.find()){
+            if(m.start()>pos){
+                String segment=row.substring(pos,m.start());
+                c.drawText(segment,drawX,baseline,white);drawX+=white.measureText(segment);
+            }
+            String digits=m.group();
+            c.drawText(digits,drawX,baseline,yellow);drawX+=yellow.measureText(digits);
+            pos=m.end();
+        }
+        if(pos<row.length())c.drawText(row.substring(pos),drawX,baseline,white);
     }
 
+    /** Full TTS script inside ONE continuous panel, with the illustration to its left. */
+    private static Bitmap renderFullArticle(NewsStory story,int index,int count,NewsCoverMeta meta){
+        ReadingFit layout=fitStory(story);
+        Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(bitmap);
+        int white=Color.WHITE,yellow=Color.rgb(255,210,46),blue=Color.rgb(11,48,101);
+        Paint background=p(Color.rgb(5,17,44),0,false);
+        background.setShader(new LinearGradient(0,0,0,HEIGHT,
+            Color.rgb(9,37,87),Color.rgb(2,11,31),Shader.TileMode.CLAMP));
+        c.drawRect(0,0,WIDTH,HEIGHT,background);
+        rounded(c,yellow,0,0,WIDTH,14,0);
+        c.drawText("PHILIPPINES  |  NEWS BRIEF",51,93,p(white,34,true));
+        c.drawText("오늘의 주요 뉴스",50,178,p(yellow,69,true));
+        rounded(c,yellow,51,196,1031,204,3);
+        rounded(c,blue,43,233,1037,453,30);
+        stroke(c,43,233,1037,453,Color.rgb(41,157,241),4,30);
+        rounded(c,yellow,64,256,77,431,5);
+        Paint headline=null;List<String> headlines=null;
+        for(int size=61;size>=32;size--){
+            headline=p(white,size,true);
+            headlines=wrapComplete(story.title,headline,909);
+            if(headlines.size()<=3 && headlines.size()*size*1.21f<=174)break;
+        }
+        if(headlines==null||headlines.size()>3)
+            throw new IllegalArgumentException("제목이 한 화면을 초과합니다: "+story.title);
+        float lineHeight=headline.getTextSize()*1.21f;
+        float titleY=313+(2-headlines.size())*lineHeight/2f;
+        for(String t:headlines){c.drawText(t,101,titleY,headline);titleY+=lineHeight;}
+        rounded(c,Color.rgb(8,43,94),44,469,1036,1598,29);
+        stroke(c,44,469,1036,1598,Color.rgb(40,153,237),4,29);
+        drawArticleArt(c,story,layout.wide);
+        if(layout.wide)line(c,Color.rgb(54,137,224),85,682,994,682,3);
+        else line(c,Color.rgb(61,147,231),368,516,368,1537,3);
+        Paint body=p(white,layout.size,true);
+        float y=layout.top;
+        for(String row:layout.lines){
+            if(!row.isEmpty())drawProseLine(c,row,layout.x,y,body);
+            y+=layout.step;
+        }
+        if(y-layout.step>1572)throw new IllegalStateException("기사 본문이 카드 경계를 넘었습니다.");
+        int total=Math.max(1,story.articleCount);
+        int completed=NewsBroadcastSegments.completedNews(story);
+        int remain=NewsBroadcastSegments.remainingNews(story);
+        rounded(c,yellow,46,1632,257,1700,14);
+        c.drawText("뉴스 진행",65,1679,p(Color.rgb(9,24,45),41,true));
+        c.drawText(completed+" / "+total,283,1678,p(white,46,true));
+        rounded(c,Color.rgb(96,113,147),485,1648,896,1688,20);
+        if(completed>0)
+            rounded(c,yellow,485,1648,485+411f*completed/total,1688,20);
+        c.drawText(Math.round(completed*100f/total)+"%",919,1679,p(white,37,true));
+        String remaining=story.kind==NewsStory.OPENING?
+            "뉴스 시작 전 · 남은 뉴스 "+remain+"건":
+            story.kind==NewsStory.NEWS?
+            "현재 "+completed+"번째 뉴스 · 이후 남은 뉴스 "+remain+"건":
+            "본 뉴스 완료 · 남은 뉴스 0건";
+        c.drawText(remaining,55,1763,p(white,33,true));
+        line(c,Color.rgb(39,110,192),46,1801,1031,1801,3);
+        c.drawText(meta.date,53,1864,p(white,40,true));
+        Paint clock=p(Color.rgb(218,230,247),31,true);
+        while(clock.getTextSize()>20&&clock.measureText(meta.clock)>450)
+            clock.setTextSize(clock.getTextSize()-1f);
+        c.drawText(meta.clock,598,1864,clock);
+        return bitmap;
+    }
     /** Pixel artwork is an original offline image; date/slot/count are live Android overlays. */
     private static Bitmap renderBroadcastCover(Context context,NewsCoverMeta meta,int articleCount) {
         Bitmap cover=null;
