@@ -10,7 +10,7 @@ assert 'private static final float SCROLL_STEP=84f;' in p
 assert 'result.add(story.page(story.narration,newsNumber,newsTotal,1,1));' in p
 assert 'if(total!=NewsSentenceTimeline.visibleLength(script))' in p
 assert 'if(boundaries[boundaries.length-1]!=total)' in p
-assert 'c.clipRect(75f,611f,1002f,SCROLL_BOTTOM);' in p
+assert 'c.clipRect(75f,829f,1002f,SCROLL_BOTTOM);' in p
 assert 'float y=SCROLL_TOP+row*SCROLL_STEP-scrollPixels;' in p
 assert 'float maxOffset=Math.max(0f,(rows.size()-1)*SCROLL_STEP);' in p
 assert 'public float offset(int sentence,float fraction,boolean narrationFinished)' in p
