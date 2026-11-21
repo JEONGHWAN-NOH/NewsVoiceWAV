@@ -32,9 +32,9 @@ for service in [worker,manual]:
     assert "NewsCoverExporter.coverFile(" in service
 assert "MUSIC_REVISION=2" in opening
 assert "shareLast(true)" in ui and "shareLast(false)" in ui
-assert "def releaseVersion = '5.28'" in gradle
+assert "def releaseVersion = '5.29'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert "versionCode 34" in gradle
-assert "NewsVoiceWAV-v5.28-debug.apk" in actions
-assert "NewsVoiceWAV-v5.28-release-unsigned" in actions
-print("PASS: v5.28 font 56px, 84px leading, voice-first 700ms lag and retained existing features")
+assert "versionCode 35" in gradle
+assert "NewsVoiceWAV-v5.29-debug.apk" in actions
+assert "NewsVoiceWAV-v5.29-release-unsigned" in actions
+print("PASS: v5.29 font 56px, 84px leading, voice-first 700ms lag and retained existing features")
