@@ -73,10 +73,12 @@ jobs:
         run: python3 tests/test_v519_cover_share.py
       - name: Verify 76px typography and cue-smoothed v5.20 narration sync
         run: python3 tests/test_v520_sync.py
-      - name: Verify 64px typography and 300ms voice-first narration lead
+      - name: Verify 60px typography and 700ms voice-first narration lead
         run: python3 tests/test_v521_voice_lead.py
-      - name: Verify v5.22 voice lead and typography
+      - name: Verify v5.23 voice lead and typography
         run: python3 tests/test_v522_voice_lead.py
+      - name: Verify v5.23 voice-first 700ms and clean final card transition
+        run: python3 tests/test_v523_voice_delay.py
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
         run: |
@@ -91,9 +93,9 @@ jobs:
       - name: Build installable APK
         run: |
           gradle --no-daemon :app:assembleDebug
-          test -f app/build/outputs/apk/debug/NewsVoiceWAV-v5.22-debug.apk
+          test -f app/build/outputs/apk/debug/NewsVoiceWAV-v5.23-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.22-VoiceFirst300ms-debug-apk
+          name: NewsVoiceWAV-v5.23-VoiceFirst700ms-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
