@@ -12,8 +12,8 @@ worker=(root/"NewsVoiceWorker.java").read_text(encoding="utf-8")
 poster=(root/"NewsCoverExporter.java").read_text(encoding="utf-8")
 pipeline=Path(".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
-assert 'private static final float SCROLL_FONT=64f;' in painter
-assert 'private static final float SCROLL_STEP=92f;' in painter
+assert 'private static final float SCROLL_FONT=60f;' in painter
+assert 'private static final float SCROLL_STEP=88f;' in painter
 assert 'List<String> rows=wrapComplete(script,p(Color.WHITE,SCROLL_FONT,true),880f);' in painter
 assert 'if(total!=NewsSentenceTimeline.visibleLength(script))' in painter
 assert 'sentenceStarts=sentenceStarts' in painter
@@ -34,10 +34,10 @@ assert 'Paint highlight=' not in painter
 assert 'Paint underline=' not in painter
 assert 'readAlready=' not in painter
 assert 'app_display_name' in gradle
-assert "def releaseVersion = '5.22'" in gradle
-assert "applicationId 'com.newsvoice.tts.autovideo.v522'" in gradle
-assert 'versionCode 28' in gradle
-assert '64px·줄 간격 92px' in ui
+assert "def releaseVersion = '5.23'" in gradle
+assert "applicationId 'com.newsvoice.tts.autovideo.v523'" in gradle
+assert 'versionCode 29' in gradle
+assert '60px·줄 간격 88px' in ui
 assert 'MUSIC_REVISION=2' in opening
 assert 'shareLast(true)' in ui and 'shareLast(false)' in ui
 assert 'NewsCoverExporter.save(context,coverMeta,' in video
@@ -45,5 +45,5 @@ for source in (manual,worker):
     assert 'NewsCoverExporter.coverFile(' in source
     assert '_cover.jpg' in source
 assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
-assert 'NewsVoiceWAV-v5.22-VoiceFirst300ms-debug-apk' in pipeline
-print("PASS: 64px/92px and voice-first 300ms delayed scroll with existing cover sharing and music")
+assert 'NewsVoiceWAV-v5.23-VoiceFirst700ms-debug-apk' in pipeline
+print("PASS: 60px/88px and voice-first 700ms delayed scroll with existing cover sharing and music")
