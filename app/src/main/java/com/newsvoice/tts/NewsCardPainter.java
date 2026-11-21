@@ -296,7 +296,8 @@ public final class NewsCardPainter {
     }
 
     /** Entire current-page narrated body inside one full-width panel. */
-    private static Bitmap renderFullArticle(NewsStory story,int index,int count,NewsCoverMeta meta){
+    private static Bitmap renderFullArticle(NewsStory story,int index,int count,
+                                            NewsCoverMeta meta,int activeSentence){
         ReadingFit layout=fitStory(story);
         Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bitmap);
@@ -360,8 +361,33 @@ public final class NewsCardPainter {
         line(c,Color.rgb(69,143,220),87,586,990,586,2);
         drawWatermark(c,story);
         Paint body=p(white,layout.size,true);
+        int[] visibleRange=NewsSentenceTimeline.visibleRange(
+            NewsSentenceTimeline.split(story.spokenText()),activeSentence);
+        int nonWhitespaceOffset=0;
         float y=layout.top;
         for(String row:layout.lines){
+            int from=-1,to=-1;
+            for(int at=0;at<row.length();at++){
+                if(Character.isWhitespace(row.charAt(at)))continue;
+                if(nonWhitespaceOffset>=visibleRange[0] &&
+                   nonWhitespaceOffset<visibleRange[1] && visibleRange[0]>=0){
+                    if(from<0)from=at;
+                    to=at+1;
+                }
+                nonWhitespaceOffset++;
+            }
+            if(from>=0 && to>from){
+                float left=layout.x+body.measureText(row.substring(0,from));
+                float right=left+body.measureText(row.substring(from,to));
+                // Highlight only the sentence being narrated, never the headline.
+                Paint highlight=p(Color.rgb(17,119,129),0,false);
+                highlight.setAlpha(215);
+                c.drawRoundRect(new RectF(left-8,y-layout.size*0.98f,
+                    right+9,y+layout.size*0.20f),11,11,highlight);
+                Paint underline=p(Color.rgb(255,210,46),0,false);
+                underline.setStrokeWidth(3.5f);
+                c.drawLine(left,y+layout.size*0.24f,right,y+layout.size*0.24f,underline);
+            }
             if(!row.isEmpty())drawProseLine(c,row,layout.x,y,body);
             y+=layout.step;
         }
@@ -452,8 +478,13 @@ public final class NewsCardPainter {
         }
     }
 
-    public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,NewsCoverMeta meta){
-        if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta);
+    public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,
+                                NewsCoverMeta meta){
+        return render(context,story,index,count,stage,meta,-1);
+    }
+    public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,
+                                NewsCoverMeta meta,int activeSentence){
+        if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta,activeSentence);
         if(stage==0){
             Bitmap artwork=renderBroadcastCover(context,meta,count);
             if(artwork!=null)return artwork;
