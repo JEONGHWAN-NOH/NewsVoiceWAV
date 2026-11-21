@@ -393,7 +393,8 @@ public final class NewsCardPainter {
             c.drawText("PHILIPPINES",147,607,p(Color.WHITE,25,true));
         }
         rounded(c,Color.argb(195,3,20,43),l,b-32,r,b,0);
-        String credit=photo==null?"뉴스 관련 중립 이미지":"자료 이미지 · Wikimedia Commons";
+        String credit=photo==null?"뉴스 관련 중립 이미지":
+            photo.sourceUrl.isEmpty()?"아나운서 이미지":"자료 이미지 · Wikimedia Commons";
         c.drawText(credit,l+12,b-10,p(Color.WHITE,19,true));
         c.restore();
         Paint border=p(Color.rgb(88,183,255),0,false);
