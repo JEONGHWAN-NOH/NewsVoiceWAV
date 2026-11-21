@@ -54,6 +54,8 @@ jobs:
           java -cp /tmp/news-auto-classes NewsAutoScriptTest
       - name: Verify new image and progress pipeline
         run: python3 tests/test_v525_auto_images.py
+      - name: Verify Download/1. 필리핀뉴스 common output folder
+        run: python3 tests/test_v526_download_folder.py
       - name: Verify news single-card layout policy
         run: python3 tests/test_news_single_card.py
       - name: Verify screen-only headlines and body-only narration
