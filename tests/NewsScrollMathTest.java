@@ -97,6 +97,58 @@ public final class NewsScrollMathTest{
     try{curve.delayedPosition(0,-700_000L);}
     catch(IllegalArgumentException expected){invalidDelay=true;}
     check(invalidDelay,"negative narration delays are rejected");
+
+    // v5.24: center the actually spoken line using wrapped-row boundaries
+    // and the exact WAV duration of every sentence (not a total-time ratio).
+    int[] focusedRows={8,8,8,8,8};
+    int[] focusedSentenceBoundaries={0,8,24,40};
+    long[] focusedEnds={1_000_000L,3_000_000L,9_000_000L};
+    float focusedStep=84f,focusedMax=336f,focusedBaseline=1110f;
+    NewsScrollMath.AudioCurve centered=NewsScrollMath.centeredAudioCurve(0L,
+        focusedEnds,focusedSentenceBoundaries,focusedRows,
+        focusedStep,focusedMax);
+    check(centered.sentenceCount()>=3,
+        "spoken sentences plus wrapped-row timing anchors are present");
+    check(centered.position(0)==0f,"first spoken row starts at screen center");
+    check(Math.abs(centered.position(1_000_000L)-84f)<0.001f,
+        "second visual row should be centered at the first WAV sentence cue");
+    check(Math.abs(centered.position(2_000_000L)-168f)<0.001f,
+        "third visual row is centered at its time inside the second sentence");
+    check(Math.abs(centered.position(3_000_000L)-252f)<0.001f,
+        "fourth visual row is centered at the second sentence boundary");
+    check(Math.abs(centered.position(9_000_000L)-336f)<0.001f,
+        "final visual row reaches the center by the end of the final voice cue");
+    check(Math.abs(focusedBaseline+2*focusedStep-
+        centered.position(2_000_000L)-focusedBaseline)<0.001f,
+        "current printed line baseline must remain at vertical reading focus");
+    check(Math.abs(centered.delayedPosition(2_700_000L,700_000L)-168f)<0.001f,
+        "approved 700ms audio lead remains intact");
+    float prevFocused=-1f;
+    for(long t=0;t<=9_000_000L;t+=10_000L){
+        float y=centered.position(t);
+        check(y>=prevFocused,"line-centered interpolator is monotone");
+        check(y>=0f && y<=focusedMax,"line-centered scroll stays within video");
+        prevFocused=y;
+    }
+    for(long boundaryUs:new long[]{1_000_000L,2_000_000L,3_000_000L}){
+        float before=centered.position(boundaryUs)-
+            centered.position(boundaryUs-1_000L);
+        float after=centered.position(boundaryUs+1_000L)-
+            centered.position(boundaryUs);
+        check(Math.abs(before-after)<0.2f,
+            "no speed jumps at sentence or wrapped-line boundaries");
+    }
+    NewsScrollMath.AudioCurve singleLine=NewsScrollMath.centeredAudioCurve(
+        4_000L,new long[]{2_004_000L},new int[]{0,4},new int[]{4},
+        focusedStep,0f);
+    check(singleLine.position(1_000_000L)==0f,
+        "one-line news should remain centered without unnecessary scrolling");
+    boolean brokenFocusRejected=false;
+    try{
+        NewsScrollMath.centeredAudioCurve(0,new long[]{1_000_000L},
+            new int[]{0,4},new int[]{3},focusedStep,focusedMax);
+    }catch(IllegalArgumentException expected){brokenFocusRejected=true;}
+    check(brokenFocusRejected,"character count mismatch must be rejected");
     System.out.println("NewsScrollMathTest PASS");
   }
 }
