@@ -29,5 +29,5 @@ assert 'com.newsvoice.tts.autovideo.v520' in gradle
 assert "def releaseVersion = '5.20'" in gradle
 assert 'versionName releaseVersion' in gradle
 assert 'FPS=30;' in v
-assert 'float scrollPixels=scrollPlan==null?0f:' in v
+assert 'float scrollPixels=scrollCurve==null?0f:scrollCurve.position(us);' in v
 print("PASS: scroll slides preserve full narration, maintain large text and move with actual WAV sentence clock")
