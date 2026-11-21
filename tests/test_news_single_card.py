@@ -1,7 +1,7 @@
 from pathlib import Path
 p=Path("app/src/main/java/com/newsvoice/tts/NewsCardPainter.java").read_text(encoding="utf-8")
 assert 'result.add(story.page(story.narration,newsNumber,newsTotal,1,1));' in p
-assert 'story.kind==NewsStory.NEWS?++counted:' in p
+assert 'segment.kind==NewsStory.NEWS?++counted:' in p
 assert 'story.spokenText()' in p
 assert 'private static final float SCROLL_FONT=82f;' in p
 assert 'private static final float SCROLL_STEP=115f;' in p
