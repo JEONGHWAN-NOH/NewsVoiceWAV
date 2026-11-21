@@ -4,11 +4,11 @@ android {
     namespace 'com.newsvoice.tts'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.newsvoice.tts.autovideo.v516'
+        applicationId 'com.newsvoice.tts.autovideo.v517'
         minSdk 29
         targetSdk 35
-        versionCode 22
-        versionName '5.16-sentence-highlight'
+        versionCode 23
+        versionName '5.17-large-text-auto-scroll'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
