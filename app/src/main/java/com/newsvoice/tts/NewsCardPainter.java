@@ -109,11 +109,18 @@ public final class NewsCardPainter {
             c.drawLine(302,1295,789,1295,ghost);
         }
     }
-    /** One original news item including its entire narrated script = one video card. */
+    /** A short article remains one card; long articles continue without losing a word. */
     public static List<NewsStory> paginate(NewsStory story,int newsNumber,int newsTotal){
-        fitStory(story); // Same text measurement as the final rendered card.
+        List<String> chunks=NewsPageSplitter.split(story.spokenText(),
+            text->tryFitNarration(text)!=null);
         List<NewsStory> result=new ArrayList<>();
-        result.add(story.page(story.narration,newsNumber,newsTotal,1,1));
+        for(int i=0;i<chunks.size();i++){
+            // NewsStory.spokenText excludes the heading before the first newline.
+            // Never synthesize the title; preserve the full narration on each page.
+            String text=story.kind==NewsStory.NEWS?
+                story.title+"\n"+chunks.get(i):chunks.get(i);
+            result.add(story.page(text,newsNumber,newsTotal,i+1,chunks.size()));
+        }
         return result;
     }
     public static List<NewsStory> paginateBroadcast(List<NewsStory> sections){
@@ -215,22 +222,22 @@ public final class NewsCardPainter {
             this.x=x;this.top=top;this.size=size;this.step=step;this.lines=lines;
         }
     }
-    /**
-     * The exact same text layout drives preflight and final rendering.
-     * Larger text is preferred. No summarization, ellipsis, or multi-page split.
-     */
-    private static ReadingFit fitStory(NewsStory story){
-        String body=prose(story);
+    /** Same real Canvas metrics are used by the splitter and final renderer. */
+    private static ReadingFit tryFitNarration(String body){
+        if(body==null||body.trim().isEmpty())return null;
         for(int size=69;size>=27;size--){
             Paint font=p(Color.WHITE,size,true);
             List<String> lines=wrapComplete(body,font,891f);
             float step=size*1.35f;
-            // Continuous reading area below its section label (y = 659..1570).
             if(lines.size()>0 && lines.size()*step<=894f)
                 return new ReadingFit(92,658,size,step,lines);
         }
-        throw new IllegalArgumentException("이 뉴스 대본이 한 화면의 읽기 좋은 글씨 크기를 초과했습니다. "
-            +"대본을 임의로 축약하거나 숨기지 않았습니다. 기사 원고를 검토해 주세요: "+story.title);
+        return null;
+    }
+    private static ReadingFit fitStory(NewsStory story){
+        ReadingFit fit=tryFitNarration(prose(story));
+        if(fit!=null)return fit;
+        throw new IllegalArgumentException("자동 분할 후에도 배치할 수 없습니다: "+story.title);
     }
 
     private static void stroke(Canvas c,float x1,float y1,float x2,float y2,int color,float width,float radius){
@@ -345,6 +352,11 @@ public final class NewsCardPainter {
             story.kind==NewsStory.CLOSING?"마감 인사":
             economy?"경제·산업":"필리핀 주요 뉴스";
         c.drawText(category,89,557,p(yellow,43,true));
+        if(story.pageCount>1){
+            String label="본문 "+story.pageNumber+" / "+story.pageCount;
+            Paint pageFont=p(white,31,true);
+            c.drawText(label,990-pageFont.measureText(label),555,pageFont);
+        }
         line(c,Color.rgb(69,143,220),87,586,990,586,2);
         drawWatermark(c,story);
         Paint body=p(white,layout.size,true);
