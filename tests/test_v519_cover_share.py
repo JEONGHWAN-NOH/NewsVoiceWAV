@@ -19,7 +19,7 @@ assert 'float zoom=1.0f;' in video
 assert 'FPS=30;' in video
 # Scroll follows real WAV sentence boundaries with smoothed speed changes.
 assert 'NewsScrollMath.audioCurve(' in video
-assert 'scrollCurve.position(us)' in video
+assert 'scrollCurve.delayedPosition(us,SCROLL_DELAY_US)' in video
 assert 'scrollPlan.maxOffset):null;' in video
 assert 'Math.round(scrollPlan.offset' not in video
 # The JPEG is derived from the same cover renderer and SAME metadata as the MP4.
@@ -39,8 +39,8 @@ assert 'shareLast(false)' in ui
 assert 'Intent.ACTION_SEND' in ui
 assert 'Intent.FLAG_GRANT_READ_URI_PERMISSION' in ui
 assert '카카오톡이 결정하므로 100% 고정은 보장되지 않습니다.' in ui
-assert "def releaseVersion = '5.20'" in gradle
-assert "applicationId 'com.newsvoice.tts.autovideo.v520'" in gradle
+assert "def releaseVersion = '5.21'" in gradle
+assert "applicationId 'com.newsvoice.tts.autovideo.v521'" in gradle
 assert 'android:label="@string/app_display_name"' in manifest
-assert 'NewsVoiceWAV-v5.20-VoiceAlignedScroll-debug-apk' in workflow
+assert 'NewsVoiceWAV-v5.21-VoiceFirst100ms-debug-apk' in workflow
 print("PASS: v5.19 uses a full 6s first-frame cover, exact JPEG poster, native share and uninterrupted scroll")
