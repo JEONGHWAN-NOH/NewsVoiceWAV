@@ -1,7 +1,7 @@
 name: Build NewsVoice WAV Automatic APK
 on:
   push:
-    branches: [main]
+    branches: [main, feature/auto-script-thumbnails-progress]
   workflow_dispatch:
 permissions:
   contents: read
@@ -45,8 +45,15 @@ jobs:
       - name: Test news opening anchor closing and remaining-news count
         run: |
           mkdir -p /tmp/newsbroadcast-classes
-          javac -encoding UTF-8 -d /tmp/newsbroadcast-classes app/src/main/java/com/newsvoice/tts/NewsStory.java app/src/main/java/com/newsvoice/tts/BroadcastScriptReview.java app/src/main/java/com/newsvoice/tts/NewsBroadcastSegments.java tests/NewsBroadcastSegmentsTest.java
+          javac -encoding UTF-8 -d /tmp/newsbroadcast-classes app/src/main/java/com/newsvoice/tts/NewsStory.java app/src/main/java/com/newsvoice/tts/BroadcastScriptReview.java app/src/main/java/com/newsvoice/tts/NewsAutoScript.java app/src/main/java/com/newsvoice/tts/NewsBroadcastSegments.java tests/NewsBroadcastSegmentsTest.java
           java -cp /tmp/newsbroadcast-classes NewsBroadcastSegmentsTest
+      - name: Test script-only Korean news article detection
+        run: |
+          mkdir -p /tmp/news-auto-classes
+          javac -encoding UTF-8 -d /tmp/news-auto-classes app/src/main/java/com/newsvoice/tts/NewsStory.java app/src/main/java/com/newsvoice/tts/BroadcastScriptReview.java app/src/main/java/com/newsvoice/tts/NewsAutoScript.java app/src/main/java/com/newsvoice/tts/NewsBroadcastSegments.java tests/NewsAutoScriptTest.java
+          java -cp /tmp/news-auto-classes NewsAutoScriptTest
+      - name: Verify new image and progress pipeline
+        run: python3 tests/test_v525_auto_images.py
       - name: Verify news single-card layout policy
         run: python3 tests/test_news_single_card.py
       - name: Verify screen-only headlines and body-only narration
@@ -75,11 +82,11 @@ jobs:
         run: python3 tests/test_v520_sync.py
       - name: Verify 56px typography and 700ms voice-first narration lead
         run: python3 tests/test_v521_voice_lead.py
-      - name: Verify v5.24 voice lead and typography
+      - name: Verify v5.25 voice lead and typography
         run: python3 tests/test_v522_voice_lead.py
-      - name: Verify v5.24 voice-first 700ms and clean final card transition
+      - name: Verify v5.25 voice-first 700ms and clean final card transition
         run: python3 tests/test_v523_voice_delay.py
-      - name: Verify row-centered variable-speed v5.24 news scroll
+      - name: Verify row-centered variable-speed v5.25 news scroll
         run: python3 tests/test_v524_centered_scroll.py
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
@@ -95,9 +102,9 @@ jobs:
       - name: Build installable APK
         run: |
           gradle --no-daemon :app:assembleDebug
-          test -f app/build/outputs/apk/debug/NewsVoiceWAV-v5.24-debug.apk
+          test -f app/build/outputs/apk/debug/NewsVoiceWAV-v5.25-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.24-CenteredVoice700ms-debug-apk
+          name: NewsVoiceWAV-v5.25-CenteredVoice700ms-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
