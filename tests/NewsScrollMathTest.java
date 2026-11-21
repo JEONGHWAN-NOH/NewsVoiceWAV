@@ -71,30 +71,30 @@ public final class NewsScrollMathTest{
         NewsScrollMath.audioCurve(0,new long[]{3,3},new int[]{0,2,4},4,100f);
     } catch(IllegalArgumentException expected){rejected=true;}
     check(rejected,"invalid WAV cue chronology must be rejected");
-    // v5.22: the announcer must lead the moving text by exactly 300ms.
-    long delay=300_000L;
+    // v5.23: the announcer must lead the moving text by exactly 700ms.
+    long delay=700_000L;
     check(curve.delayedPosition(-1L,delay)==0f,
         "before narration the screen must remain stationary");
     check(curve.delayedPosition(0L,delay)==0f,
-        "when the voice starts the text stays still for 300ms");
-    check(curve.delayedPosition(299_999L,delay)==0f,
-        "no premature scroll before the 300ms delay");
-    check(curve.delayedPosition(300_000L,delay)==0f,
+        "when the voice starts the text stays still for 700ms");
+    check(curve.delayedPosition(699_999L,delay)==0f,
+        "no premature scroll before the 700ms delay");
+    check(curve.delayedPosition(700_000L,delay)==0f,
         "exactly at the scroll start frame");
-    check(curve.delayedPosition(300_001L,delay)>0f,
-        "scroll begins just after 300ms");
-    for(long playedUs=301_000L;playedUs<=8_000_000L;playedUs+=73_000L){
+    check(curve.delayedPosition(700_001L,delay)>0f,
+        "scroll begins just after 700ms");
+    for(long playedUs=701_000L;playedUs<=8_000_000L;playedUs+=73_000L){
         float expected=curve.position(playedUs-delay);
         float actual=curve.delayedPosition(playedUs,delay);
         check(Math.abs(expected-actual)<0.001f,
-            "scroll position must equal the WAV position 0.3 seconds earlier");
+            "scroll position must equal the WAV position 0.7 seconds earlier");
         check(actual<=curve.position(playedUs),
             "narration must always lead scrolling");
     }
-    check(curve.delayedPosition(8_300_000L,delay)==800f,
-        "full scroll completes 300ms after the final voice cue");
+    check(curve.delayedPosition(8_700_000L,delay)==800f,
+        "full scroll completes 700ms after the final voice cue");
     boolean invalidDelay=false;
-    try{curve.delayedPosition(0,-300_000L);}
+    try{curve.delayedPosition(0,-700_000L);}
     catch(IllegalArgumentException expected){invalidDelay=true;}
     check(invalidDelay,"negative narration delays are rejected");
     System.out.println("NewsScrollMathTest PASS");
