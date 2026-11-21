@@ -131,8 +131,12 @@ public final class NewsVoiceWorker extends Worker {
         List<File> chunks=new ArrayList<>();
         try {
             if(!init.await(25,TimeUnit.SECONDS)||initStatus.get()!=TextToSpeech.SUCCESS)throw new IOException("TTS engine initialization failed");
-            if(!selectedEngine.isEmpty()&&!selectedEngine.equals(tts.getCurrentEngine())){
-                throw new IOException("Locked TTS engine unavailable: "+selectedEngine);
+            if(!selectedEngine.isEmpty()){
+                boolean found=false;
+                for(TextToSpeech.EngineInfo info:tts.getEngines()){
+                    if(selectedEngine.equals(info.name)){found=true;break;}
+                }
+                if(!found)throw new IOException("Locked TTS engine not installed: "+selectedEngine);
             }
             int lang=tts.setLanguage(Locale.KOREAN);
             if(lang==TextToSpeech.LANG_MISSING_DATA||lang==TextToSpeech.LANG_NOT_SUPPORTED)throw new IOException("Korean TTS voice not installed");

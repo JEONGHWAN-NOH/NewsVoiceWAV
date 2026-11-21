@@ -207,13 +207,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                     updateStatus("음성 합성 오류. 다른 한국어 음성을 선택해 주세요.");
                 }
             });
-            String active=tts.getCurrentEngine();
+            String active=currentEngine.isEmpty()?tts.getDefaultEngine():currentEngine;
             if(active==null||active.isEmpty()){
-                updateStatus("현재 TTS 엔진을 확인하지 못했습니다.");
-                return;
-            }
-            if(!currentEngine.isEmpty()&&!currentEngine.equals(active)){
-                updateStatus("선택한 TTS 엔진이 실행되지 않았습니다. 설치 여부를 확인하세요.");
+                updateStatus("TTS 엔진 정보를 확인하지 못했습니다.");
                 return;
             }
             currentEngine=active;
