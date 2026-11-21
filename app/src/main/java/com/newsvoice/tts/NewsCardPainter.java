@@ -206,15 +206,15 @@ public final class NewsCardPainter {
         }
     }
 
-    /** Full text news reading card; no article photograph or segmented narration. */
+    /** Full-width news reading card; long articles may use consecutive cards. */
     /**
-     * The parser includes the headline in narration so TTS can read it aloud.
+     * The displayed headline is explicitly excluded from synthesized speech.
      * Display the headline once at the top; the prose below is unchanged.
      */
     private static String prose(NewsStory story){
         return story.spokenText();
     }
-    /** No image column; one continuous full-width text block for the complete story. */
+    /** No image column; one continuous full-width text block per card. */
     private static final class ReadingFit{
         final float x,top,size,step;
         final List<String> lines;
@@ -295,7 +295,7 @@ public final class NewsCardPainter {
         if(pos<row.length())c.drawText(row.substring(pos),drawX,baseline,white);
     }
 
-    /** Full TTS script inside ONE continuous full-width panel. */
+    /** Entire current-page narrated body inside one full-width panel. */
     private static Bitmap renderFullArticle(NewsStory story,int index,int count,NewsCoverMeta meta){
         ReadingFit layout=fitStory(story);
         Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
