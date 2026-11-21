@@ -354,7 +354,7 @@ public final class NewsCardPainter {
     /** Large-print news slide: voice-synchronized upward movement within a clipped viewport. */
     private static Bitmap renderFullArticle(NewsStory story,int index,int count,
                                             NewsCoverMeta meta,int activeSentence,
-                                            ScrollPlan scroll,int scrollPixels,
+                                            ScrollPlan scroll,float scrollPixels,
                                             Bitmap reusable){
         Bitmap bitmap=reusable==null?
             Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888):reusable;
@@ -420,41 +420,16 @@ public final class NewsCardPainter {
             555,scrollLabelPaint);
         line(c,Color.rgb(69,143,220),87,586,990,586,2);
         drawWatermark(c,story);
-        int[] visibleRange=NewsSentenceTimeline.visibleRange(
-            NewsSentenceTimeline.split(story.spokenText()),activeSentence);
+        // No active-sentence shading or underline: steady white large print.
+        // Sentence cues only determine the gradual vertical movement.
         c.save();
         c.clipRect(75f,611f,1002f,SCROLL_BOTTOM);
-        Paint highlight=p(Color.rgb(16,119,129),0,false);
-        highlight.setAlpha(225);
-        Paint underline=p(Color.rgb(255,210,46),0,false);
-        underline.setStrokeWidth(4f);
+        Paint body=p(Color.WHITE,SCROLL_FONT,true);
         for(int row=0;row<scroll.lines.size();row++){
             float y=SCROLL_TOP+row*SCROLL_STEP-scrollPixels;
             if(y<611f-SCROLL_STEP || y>SCROLL_BOTTOM+SCROLL_STEP)continue;
             String text=scroll.lines.get(row);
-            if(text.isEmpty())continue;
-            int offset=scroll.rowStarts[row];
-            boolean readAlready=activeSentence>=0&&offset+scroll.rowLengths[row]<=visibleRange[0];
-            Paint body=p(readAlready?Color.rgb(163,184,211):Color.WHITE,SCROLL_FONT,true);
-            int from=-1,to=-1,nonWhitespaceOffset=offset;
-            for(int at=0;at<text.length();at++){
-                if(Character.isWhitespace(text.charAt(at)))continue;
-                if(visibleRange[0]>=0 && nonWhitespaceOffset>=visibleRange[0] &&
-                   nonWhitespaceOffset<visibleRange[1]){
-                    if(from<0)from=at;
-                    to=at+1;
-                }
-                nonWhitespaceOffset++;
-            }
-            if(from>=0&&to>from){
-                float left=92f+body.measureText(text.substring(0,from));
-                float right=left+body.measureText(text.substring(from,to));
-                c.drawRoundRect(new RectF(left-7,y-SCROLL_FONT*0.98f,
-                    right+8,y+SCROLL_FONT*0.20f),12,12,highlight);
-                c.drawLine(left,y+SCROLL_FONT*0.23f,right,
-                    y+SCROLL_FONT*0.23f,underline);
-            }
-            drawProseLine(c,text,92f,y,body);
+            if(!text.isEmpty())drawProseLine(c,text,92f,y,body);
         }
         c.restore();
         // A quiet progress rail makes the scroll position visible without subtitles.
@@ -556,7 +531,7 @@ public final class NewsCardPainter {
     }
     /** Called by the video encoder with a cached plan and a per-frame scroll offset. */
     public static Bitmap renderScrolling(NewsStory story,int index,int count,NewsCoverMeta meta,
-                                         int activeSentence,ScrollPlan plan,int scrollPixels,
+                                         int activeSentence,ScrollPlan plan,float scrollPixels,
                                          Bitmap reusable){
         if(plan.story!=story)throw new IllegalArgumentException("기사와 스크롤 레이아웃이 다릅니다.");
         return renderFullArticle(story,index,count,meta,activeSentence,plan,scrollPixels,reusable);
