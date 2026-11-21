@@ -1,0 +1,10 @@
+.gradle/
+.idea/
+**/build/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+newsvoice_jobs/
+__pycache__/

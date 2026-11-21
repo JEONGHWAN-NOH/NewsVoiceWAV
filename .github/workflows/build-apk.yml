@@ -1,0 +1,37 @@
+name: Build NewsVoice WAV Automatic APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Test pure Java WAV merger
+        run: |
+          mkdir -p /tmp/newsvoice-classes
+          javac -d /tmp/newsvoice-classes app/src/main/java/com/newsvoice/tts/WavTools.java tests/WavToolsTest.java
+          java -cp /tmp/newsvoice-classes WavToolsTest
+      - name: Test job-server API
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - uses: android-actions/setup-android@v3
+      - name: Install SDK 35
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build installable APK
+        run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NewsVoiceWAV-Auto-v5-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

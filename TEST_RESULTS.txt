@@ -1,0 +1,15 @@
+NewsVoiceWAV Auto v5 — 2026-11-21 local validation
+
+PASS: javac (JDK 21, target independent) compiled WavTools.java and WavToolsTest.java
+PASS: Java WAV test: RIFF/WAVE merge, mismatch rejection, Korean script splitting
+PASS: Python stdlib integration test: authenticated job publish, lease, WAV upload, 204 after completion, unauthorized request rejection
+PASS: Source archive files and CI build workflow prepared
+
+NOT YET TESTED: Android Gradle APK build (Android SDK/Gradle not available in execution environment)
+NOT YET TESTED: APK installation/opening on the user's Galaxy
+NOT YET TESTED: Real device TTS engine, installed Korean voice, Android 17 background policies
+NOT YET CONNECTED: ChatGPT news automations -> external HTTPS queue, MP4 rendering
+
+Historic APK signature note:
+- The supplied NewsVoiceWav-debug.apk has an APK Signature Scheme v2 signing block (ID 0x7109871a) and no JAR/v1 signature. 'Not a signed jar file' alone does NOT prove it is unsigned.
+- Actual application crash cause remains unverified without Android logcat.
