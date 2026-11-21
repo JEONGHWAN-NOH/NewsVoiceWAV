@@ -18,7 +18,7 @@ import java.util.List;
  * Offline MP4 renderer: news-card Canvas -> EGL -> hardware H.264 encoder;
  * 16-bit PCM WAV -> AAC encoder; MediaExtractor/MediaMuxer join to playable MP4.
  * No internet or unlicensed third-party codecs required.
- * A 6s opening is reserved. Users may import their approved A-opening WAV once.
+ * An original built-in A-style six-second opening plays automatically. A registered original A WAV overrides it.
  * Each card starts 0.30s before the corresponding narrated article.
  */
 public final class NewsVideoComposer {
@@ -107,9 +107,8 @@ public final class NewsVideoComposer {
         List<Span> spans=new ArrayList<>();
         try(OutputStream out=new BufferedOutputStream(new FileOutputStream(pcm))){
             long introFrames=6L*rate;
-            File introWav=new File(context.getFilesDir(),"newsvoice_opening_A.wav");
-            if(introWav.isFile())appendOpeningMusic(out,introWav,rate,channels,introFrames);
-            else writeSilence(out,introFrames*frameBytes);
+            File introWav=OpeningMusicA.ensureInstalled(context);
+            appendOpeningMusic(out,introWav,rate,channels,introFrames);
             frameCount+=introFrames;
             for(int i=0;i<pieces.size();i++){
                 long start=toUs(frameCount,rate);
