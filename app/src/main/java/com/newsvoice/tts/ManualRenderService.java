@@ -100,7 +100,7 @@ public final class ManualRenderService extends Service {
                 report("WAV 음성 생성 중");
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                 DownloadsPublisher.publish(context,wav,"newsvoice_"+stamp+".wav");
-                report("저장 완료: 다운로드/NewsVoiceWAV/newsvoice_"+stamp+".wav");
+                report("저장 완료: 다운로드/GwangmyeongNews/newsvoice_"+stamp+".wav");
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
@@ -124,7 +124,7 @@ public final class ManualRenderService extends Service {
             Uri saved=DownloadsPublisher.publish(context,mp4,"newsvoice_"+stamp+".mp4");
             AppPrefs.get(context).edit().putString("last_mp4_uri",saved.toString())
                 .putString("last_mp4_name","newsvoice_"+stamp+".mp4").apply();
-            report("저장 완료: 다운로드/NewsVoiceWAV/newsvoice_"+stamp+".mp4");
+            report("저장 완료: 다운로드/GwangmyeongNews/newsvoice_"+stamp+".mp4");
             success=true;
         }finally{
             for(File f:parts)f.delete();

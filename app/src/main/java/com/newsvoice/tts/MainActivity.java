@@ -103,9 +103,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         ScrollView sc = new ScrollView(this);sc.setFillViewport(true);sc.setBackgroundColor(0xfff7fbff);
         LinearLayout body = new LinearLayout(this);body.setPadding(dp(this,20),dp(this,27),dp(this,20),dp(this,30));body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);
-        TextView brand=text("●  뉴스보이스",19,true);brand.setTextColor(MINT);body.addView(brand);
-        TextView headline=text("한국어 뉴스 음성 자동 생성",24,true);body.addView(headline,lp(-1,-2,14));
-        TextView sub=text("원고를 입력하고 한국어 음성을 선택해 낭독하세요.",13,false);sub.setTextColor(0xff61778e);body.addView(sub,lp(-1,-2,5));
+        TextView brand=text("●  광명시 뉴스보이스",19,true);brand.setTextColor(MINT);body.addView(brand);
+        TextView headline=text("광명시 뉴스 WAV · MP4 제작",24,true);body.addView(headline,lp(-1,-2,14));
+        TextView sub=text("광명시 뉴스 원고를 입력하고 한국어 아나운서 음성으로 낭독하세요.",13,false);sub.setTextColor(0xff61778e);body.addView(sub,lp(-1,-2,5));
         body.addView(text("01  TTS 엔진과 한국어 목소리 · 미리 듣기",17,true),lp(-1,-2,25));
         TextView enginesHelp=text("설치된 삼성·구글 등 TTS 엔진 중 선택합니다. 표시되는 엔진과 음성 개수는 휴대폰마다 다릅니다.",12,false);
         enginesHelp.setTextColor(0xff61778e);body.addView(enginesHelp,lp(-1,-2,6));
@@ -200,7 +200,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("제목은 화면에만 표시하고 읽지 않습니다. 뉴스 첫 줄에는 제목을 쓰고, 다음 줄부터 본문을 입력하세요. 화면당 뉴스 한 건을 전체 폭으로 표시하며, 시작 인사와 마지막 앵커 한마디·마감 인사는 낭독합니다.",12,false);
+        TextView note=text("광명시 뉴스 첫 줄에는 화면에 표시할 제목을 쓰고, 다음 줄부터 읽을 본문을 입력하세요. 제목은 읽지 않습니다. 기사마다 한 장으로 표시하고, 앵커 한마디와 마감 인사는 끝에 낭독합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
@@ -208,7 +208,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         reviewHint.setTextColor(0xff61778e);body.addView(reviewHint,lp(-1,-2,7));
         reviewButton.setOnClickListener(v->reviewEditorScript());
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
-        sample.setOnClickListener(v->editor.setText("경제 뉴스 1\n필리핀 정부는 오늘 산업 투자와 고용 관련 계획을 발표했습니다. 구체적인 집행 일정은 추가 발표를 통해 확인해야 합니다.\n===\n사회 뉴스 2\n교육부는 학교 지원 현황을 점검하고 있다고 밝혔습니다. 후속 일정은 공식 발표를 통해 확인하겠습니다."));
+        sample.setOnClickListener(v->editor.setText("광명시 정책 뉴스\n광명시 주요 정책을 안내드립니다. 이 내용은 앱의 작동 확인을 위한 예시 문장입니다. 실제 정책 내용은 광명시 공식 발표를 확인해 주세요.\n===\n광명시 교육 뉴스\n광명시 교육 지원 관련 소식입니다. 뉴스 내용이 확인된 뒤 실제 보도 내용으로 교체해 주세요."));
         body.addView(text("03  승인한 오프닝 음악 A안",17,true),lp(-1,-2,23));
         TextView openingHelp=text("최초 1회만 승인하신 6초 A안 WAV를 선택해 주세요. 이후 MP4의 첫 6초에 자동 삽입합니다.",12,false);
         openingHelp.setTextColor(0xff61778e);body.addView(openingHelp,lp(-1,-2,7));
@@ -250,7 +250,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
-        preview.setOnClickListener(v->speakNow("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.",true));
+        preview.setOnClickListener(v->speakNow("안녕하십니까. 광명시의 주요 뉴스를 전해드리겠습니다.",true));
         play.setOnClickListener(v->{
             String checked=reviewEditorScript();
             if(checked==null)return;
@@ -460,7 +460,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/NewsVoiceWAV/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/GwangmyeongNews/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -662,7 +662,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드에서는 원고를 수신하고 뉴스 카드 MP4와 WAV를 갤럭시 다운로드/NewsVoiceWAV에 저장합니다. WAV만 등록 서버로 전송되며, MP4는 휴대폰에 저장됩니다. 기존 승인 오프닝 음원은 별도 연결 전까지 영상 도입부 6초가 무음입니다.",12,false);
+        TextView caution=text("자동 모드에서는 원고를 수신하고 뉴스 카드 MP4와 WAV를 갤럭시 다운로드/GwangmyeongNews에 저장합니다. WAV만 등록 서버로 전송되며, MP4는 휴대폰에 저장됩니다. 기존 승인 오프닝 음원은 별도 연결 전까지 영상 도입부 6초가 무음입니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){

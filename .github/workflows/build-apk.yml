@@ -1,7 +1,7 @@
 name: Build NewsVoice WAV Automatic APK
 on:
   push:
-    branches: [main]
+    branches: [main, gwangmyeong-news]
   workflow_dispatch:
 permissions:
   contents: read
@@ -51,6 +51,8 @@ jobs:
         run: python3 tests/test_news_single_card.py
       - name: Verify screen-only headlines and body-only narration
         run: python3 tests/test_news_body_only_audio.py
+      - name: Verify Gwangmyeong edition isolation
+        run: python3 tests/test_gwangmyeong_edition.py
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
         run: |
@@ -66,6 +68,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.14-Body-Only-Narration-debug-apk
+          name: Gwangmyeong-News-v1.0-Body-Only-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

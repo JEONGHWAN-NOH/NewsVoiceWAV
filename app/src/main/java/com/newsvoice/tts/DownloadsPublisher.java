@@ -24,7 +24,7 @@ public final class DownloadsPublisher {
         ContentValues values=new ContentValues();
         values.put(MediaStore.Downloads.DISPLAY_NAME,filename);
         values.put(MediaStore.Downloads.MIME_TYPE,video?"video/mp4":"audio/wav");
-        values.put(MediaStore.Downloads.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/NewsVoiceWAV");
+        values.put(MediaStore.Downloads.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/GwangmyeongNews");
         values.put(MediaStore.Downloads.IS_PENDING,1);
         ContentResolver resolver=context.getContentResolver();
         Uri entry=resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);

@@ -5,9 +5,9 @@ import java.util.List;
 /** Arrange all spoken sections in the order the user requested. */
 public final class NewsBroadcastSegments {
     private NewsBroadcastSegments() {}
-    public static final String OPENING="안녕하십니까. 필리핀 뉴스·경제 종합 브리핑입니다. 지금부터 주요 소식을 전해드리겠습니다.";
+    public static final String OPENING="안녕하십니까. 광명시 종합 뉴스 브리핑입니다. 지금부터 광명시의 주요 소식을 전해드리겠습니다.";
     public static final String ANCHOR="마지막으로 앵커 한마디입니다. 오늘 전해드린 소식을 살펴보실 때에는 확정된 사실과 향후 전망을 구분하는 것이 중요하겠습니다. 주요 사안의 후속 소식도 계속 확인하겠습니다.";
-    public static final String CLOSING="이상으로 필리핀 뉴스·경제 종합 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
+    public static final String CLOSING="이상으로 광명시 종합 뉴스 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
     public static List<NewsStory> build(String raw,String preferredAnchor) {
         List<NewsStory> parsed=NewsStory.parse(raw);

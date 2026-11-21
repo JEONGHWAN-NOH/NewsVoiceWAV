@@ -110,13 +110,13 @@ public final class NewsVoiceWorker extends Worker {
                     saveDownloads(made.wav,"newsvoice_"+stamp+".wav");
                     AppPrefs.status(context,"MP4 다운로드 폴더에 저장 중...");
                     saveDownloads(made.mp4,"newsvoice_"+stamp+".mp4");
-                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → NewsVoiceWAV → newsvoice_"+stamp+".mp4");
+                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → GwangmyeongNews → newsvoice_"+stamp+".mp4");
                     made.wav.delete();made.mp4.delete();
                 }else{
                     List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
                     File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                     saveDownloads(wav,"newsvoice_"+stamp+".wav");
-                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → NewsVoiceWAV → newsvoice_"+stamp+".wav");
+                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → GwangmyeongNews → newsvoice_"+stamp+".wav");
                     wav.delete();
                 }
                 return Result.success();
