@@ -12,15 +12,15 @@ manual=(base/"ManualRenderService.java").read_text(encoding="utf-8")
 opening=(base/"OpeningMusicA.java").read_text(encoding="utf-8")
 cover=(base/"NewsCoverExporter.java").read_text(encoding="utf-8")
 
-assert "SCROLL_FONT=60f;" in paint, "font must be one step smaller than 64px"
-assert "SCROLL_STEP=88f;" in paint, "line leading must be one step smaller than 92px"
+assert "SCROLL_FONT=56f;" in paint, "font must be one step smaller than 64px"
+assert "SCROLL_STEP=84f;" in paint, "line leading must be one step smaller than 92px"
 assert "SCROLL_DELAY_US=700_000L;" in composer, "voice lead must be 700 milliseconds"
 assert "scrollCurve.delayedPosition(us,SCROLL_DELAY_US)" in composer, "delay must affect text scroll"
 assert "current.audioStartUs,current.sentenceEndUs" in composer, "preserve measured sentence WAV cues"
 assert "i==0?0L:SCROLL_DELAY_US" in composer, "preserve last sentence on screen"
 assert "public float delayedPosition(long playbackUs,long delayUs)" in curve
 assert "return position(queryUs);" in curve
-assert "60px·줄 간격 88px" in ui
+assert "56px·줄 간격 84px" in ui
 assert "0.7초(700ms)" in ui
 assert "FPS=30;" in composer
 assert "Paint highlight=" not in paint
@@ -32,9 +32,9 @@ for service in [worker,manual]:
     assert "NewsCoverExporter.coverFile(" in service
 assert "MUSIC_REVISION=2" in opening
 assert "shareLast(true)" in ui and "shareLast(false)" in ui
-assert "def releaseVersion = '5.23'" in gradle
-assert "applicationId 'com.newsvoice.tts.autovideo.v523'" in gradle
-assert "versionCode 29" in gradle
-assert "NewsVoiceWAV-v5.23-debug.apk" in actions
-assert "NewsVoiceWAV-v5.23-VoiceFirst700ms-debug-apk" in actions
-print("PASS: v5.23 font 60px, 88px leading, voice-first 700ms lag and retained existing features")
+assert "def releaseVersion = '5.24'" in gradle
+assert "applicationId 'com.newsvoice.tts.autovideo.v524'" in gradle
+assert "versionCode 30" in gradle
+assert "NewsVoiceWAV-v5.24-debug.apk" in actions
+assert "NewsVoiceWAV-v5.24-Centered700ms-debug-apk" in actions
+print("PASS: v5.24 font 56px, 84px leading, voice-first 700ms lag and retained existing features")
