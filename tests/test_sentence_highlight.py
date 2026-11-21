@@ -15,7 +15,7 @@ assert 'sentenceFrames.size()!=waves.size()' in composer
 assert 'totalFrames!=part.dataLength/frameBytes' in composer
 assert 'activeSentence(long presentationUs)' in composer
 assert 'NewsScrollMath.audioCurve(' in composer
-assert 'scrollCurve.position(us)' in composer
+assert 'scrollCurve.delayedPosition(us,SCROLL_DELAY_US)' in composer
 assert 'current.sentenceEndUs' in composer
 assert 'scrollPixels!=previousScroll' not in composer
 assert 'Math.abs(scrollPixels-previousScroll)>0.0001f' in composer
