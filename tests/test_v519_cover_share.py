@@ -42,5 +42,5 @@ assert '카카오톡이 결정하므로 100% 고정은 보장되지 않습니다
 assert "def releaseVersion = '5.24'" in gradle
 assert "applicationId 'com.newsvoice.tts.autovideo.v524'" in gradle
 assert 'android:label="@string/app_display_name"' in manifest
-assert 'NewsVoiceWAV-v5.24-Centered700ms-debug-apk' in workflow
+assert 'NewsVoiceWAV-v5.24-CenteredVoice700ms-debug-apk' in workflow
 print("PASS: v5.19 uses a full 6s first-frame cover, exact JPEG poster, native share and uninterrupted scroll")
