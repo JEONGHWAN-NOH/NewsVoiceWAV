@@ -92,6 +92,7 @@ public final class ManualRenderService extends Service {
         if(text.isEmpty()||text.length()>60000)throw new IOException("원고 길이를 확인해 주세요.");
         List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
         String stamp=String.valueOf(System.currentTimeMillis());
+        NewsOutputNaming.Names names=NewsOutputNaming.at(java.time.Instant.now());
         List<File> parts=new ArrayList<>();
         List<List<Long>> sentenceFrames=new ArrayList<>();
         List<NewsImageFetcher.Photo> photos=new ArrayList<>();
@@ -101,8 +102,8 @@ public final class ManualRenderService extends Service {
             if(!AppPrefs.videoEnabled(context)){
                 report("WAV 음성 생성 중");
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
-                DownloadsPublisher.publish(context,wav,"newsvoice_"+stamp+".wav");
-                report("저장 완료: 다운로드/1. 필리핀뉴스/newsvoice_"+stamp+".wav");
+                DownloadsPublisher.publish(context,wav,names.wav());
+                report("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+"/"+names.wav());
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
@@ -116,7 +117,7 @@ public final class ManualRenderService extends Service {
             }
             wav=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+"_combined.wav");
             WavTools.concatenate(parts,wav);
-            DownloadsPublisher.publish(context,wav,"newsvoice_"+stamp+".wav");
+            DownloadsPublisher.publish(context,wav,names.wav());
             report("WAV 저장 성공 · MP4 변환 준비");
             for(int i=0;i<pages.size();i++){
                 if(Thread.currentThread().isInterrupted())
@@ -132,19 +133,17 @@ public final class ManualRenderService extends Service {
                 report(step);
             },photos);
             report("MP4 다운로드 폴더에 기록하는 중");
-            Uri saved=DownloadsPublisher.publish(context,mp4,"newsvoice_"+stamp+".mp4");
+            Uri saved=DownloadsPublisher.publish(context,mp4,names.mp4());
             File cover=NewsCoverExporter.coverFile(mp4);
-            Uri savedCover=DownloadsPublisher.publish(context,cover,
-                "newsvoice_"+stamp+"_cover.jpg");
+            Uri savedCover=DownloadsPublisher.publish(context,cover,names.jpg());
             AppPrefs.get(context).edit().putString("last_mp4_uri",saved.toString())
-                .putString("last_mp4_name","newsvoice_"+stamp+".mp4")
+                .putString("last_mp4_name",names.mp4())
                 .putString("last_cover_uri",savedCover.toString())
-                .putString("last_cover_name","newsvoice_"+stamp+"_cover.jpg").apply();
+                .putString("last_cover_name",names.jpg()).apply();
             cover.delete();
             if(credits!=null)
-                DownloadsPublisher.publish(context,credits,
-                    "newsvoice_"+stamp+"_image_credits.txt");
-            report("저장 완료: 뉴스 MP4 및 카카오톡용 표지 JPG");
+                DownloadsPublisher.publish(context,credits,names.credits());
+            report("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+" → MP4 · WAV · JPG");
             success=true;
         }finally{
             for(File f:parts)f.delete();
