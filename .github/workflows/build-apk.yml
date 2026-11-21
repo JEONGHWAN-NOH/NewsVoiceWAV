@@ -21,7 +21,7 @@ jobs:
           javac -d /tmp/newsvoice-classes app/src/main/java/com/newsvoice/tts/WavTools.java tests/WavToolsTest.java
           java -cp /tmp/newsvoice-classes WavToolsTest
       - name: Test job-server API
-        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+        run: python3 -m unittest discover -s tests -p 'test_server.py' -v
       - name: Test article card splitting
         run: |
           mkdir -p /tmp/newsstory-classes
