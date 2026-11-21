@@ -40,7 +40,16 @@ public final class NewsImageFetcher {
         String slot=story.kind==NewsStory.OPENING?"opening":
             story.kind==NewsStory.ANCHOR?"anchor":"closing";
         java.io.File file=new java.io.File(context.getFilesDir(),"portrait_"+slot+".jpg");
-        if(!file.isFile())return null;
+        if(!file.isFile()){
+            // Bundled default is used on a clean install. Gallery selection remains an override.
+            try(InputStream in=context.getAssets().open("anchors/portrait_"+slot+".jpg")){
+                Bitmap bundled=BitmapFactory.decodeStream(in);
+                return bundled==null?null:new Photo(bundled,"기본 내장 아나운서 이미지","","앱 내장 이미지","");
+            }catch(IOException e){
+                Log.w(TAG,"Bundled anchor image unavailable: "+slot,e);
+                return null;
+            }
+        }
         BitmapFactory.Options opts=new BitmapFactory.Options();
         opts.inJustDecodeBounds=true;
         BitmapFactory.decodeFile(file.getAbsolutePath(),opts);
