@@ -4,7 +4,7 @@ on:
     branches: [main, gwangmyeong-news]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   android-apk:
     runs-on: ubuntu-latest
@@ -68,6 +68,23 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Gwangmyeong-News-v1.0-Body-Only-debug-apk
+          name: Gwangmyeong-News-v1.1-AutoPage-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Publish Gwangmyeong APK for direct download
+        if: github.ref == 'refs/heads/gwangmyeong-news'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cp app/build/outputs/apk/debug/*.apk Gwangmyeong_News_WAV_v1.1_AutoPage.apk
+          tag="gwangmyeong-news-v1.1"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" Gwangmyeong_News_WAV_v1.1_AutoPage.apk --clobber
+          else
+            gh release create "$tag" Gwangmyeong_News_WAV_v1.1_AutoPage.apk \
+              --target "$GITHUB_SHA" \
+              --title "광명시 뉴스 WAV v1.1 (자동 페이지)" \
+              --notes "광명시 전용. 9:16 남색·노란 제목, 본문만 낭독, 긴 뉴스 자동 페이지 분할, 한국시간 표기, WAV/MP4 저장. APK는 디버그 서명 빌드이며 갤럭시 실기기 검수는 별도 필요."
+          fi

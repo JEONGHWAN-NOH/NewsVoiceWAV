@@ -104,7 +104,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         ScrollView sc = new ScrollView(this);sc.setFillViewport(true);sc.setBackgroundColor(0xfff7fbff);
         LinearLayout body = new LinearLayout(this);body.setPadding(dp(this,20),dp(this,27),dp(this,20),dp(this,30));body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);
         TextView brand=text("●  광명시 뉴스보이스",19,true);brand.setTextColor(MINT);body.addView(brand);
-        TextView headline=text("광명시 뉴스 WAV · MP4 제작",24,true);body.addView(headline,lp(-1,-2,14));
+        TextView headline=text("광명시 뉴스 WAV · MP4 제작 v1.1",24,true);body.addView(headline,lp(-1,-2,14));
         TextView sub=text("광명시 뉴스 원고를 입력하고 한국어 아나운서 음성으로 낭독하세요.",13,false);sub.setTextColor(0xff61778e);body.addView(sub,lp(-1,-2,5));
         body.addView(text("01  TTS 엔진과 한국어 목소리 · 미리 듣기",17,true),lp(-1,-2,25));
         TextView enginesHelp=text("설치된 삼성·구글 등 TTS 엔진 중 선택합니다. 표시되는 엔진과 음성 개수는 휴대폰마다 다릅니다.",12,false);
@@ -200,7 +200,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("광명시 뉴스 첫 줄에는 화면에 표시할 제목을 쓰고, 다음 줄부터 읽을 본문을 입력하세요. 제목은 읽지 않습니다. 기사마다 한 장으로 표시하고, 앵커 한마디와 마감 인사는 끝에 낭독합니다.",12,false);
+        TextView note=text("광명시 뉴스 첫 줄에는 화면에 표시할 제목을 쓰고, 다음 줄부터 읽을 본문을 입력하세요. 제목은 읽지 않습니다. 기사별로 한 장에 표시하되 내용이 길면 여러 화면에 자동으로 나누며, 앵커 한마디와 마감 인사는 끝에 낭독합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));

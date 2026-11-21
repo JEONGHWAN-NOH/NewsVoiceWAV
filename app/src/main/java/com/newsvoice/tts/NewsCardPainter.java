@@ -109,11 +109,30 @@ public final class NewsCardPainter {
             c.drawLine(302,1295,789,1295,ghost);
         }
     }
-    /** One original news item including its entire narrated script = one video card. */
+    /**
+     * Keep one card per news item whenever the entire body fits.
+     * For long items, split only the visible and spoken BODY into as many
+     * full-width cards as needed. This prevents lost text and TTS cutoffs.
+     * Headline stays visual-only on every continuation card.
+     */
     public static List<NewsStory> paginate(NewsStory story,int newsNumber,int newsTotal){
-        fitStory(story); // Same text measurement as the final rendered card.
+        if(story==null)throw new IllegalArgumentException("뉴스 원고가 비어 있습니다.");
+        String body=story.spokenText();
+        if(body.isEmpty())throw new IllegalArgumentException("읽을 뉴스 본문이 없습니다: "+story.title);
+        List<String> sections=NewsPageSplitter.split(body, part->{
+            String script=story.kind==NewsStory.NEWS ? story.title+"\\n"+part : part;
+            NewsStory candidate=story.page(script,newsNumber,newsTotal,1,1);
+            try{ fitStory(candidate); return true; }
+            catch(IllegalArgumentException e){return false;}
+        });
         List<NewsStory> result=new ArrayList<>();
-        result.add(story.page(story.narration,newsNumber,newsTotal,1,1));
+        for(int i=0;i<sections.size();i++){
+            String segmentText=story.kind==NewsStory.NEWS ?
+                story.title+"\\n"+sections.get(i) : sections.get(i);
+            NewsStory page=story.page(segmentText,newsNumber,newsTotal,i+1,sections.size());
+            fitStory(page); // identical measurement to the final rendering
+            result.add(page);
+        }
         return result;
     }
     public static List<NewsStory> paginateBroadcast(List<NewsStory> sections){
@@ -217,7 +236,7 @@ public final class NewsCardPainter {
     }
     /**
      * The exact same text layout drives preflight and final rendering.
-     * Larger text is preferred. No summarization, ellipsis, or multi-page split.
+     * Larger text is preferred. No summarization or ellipsis; long scripts paginate.
      */
     private static ReadingFit fitStory(NewsStory story){
         String body=prose(story);
