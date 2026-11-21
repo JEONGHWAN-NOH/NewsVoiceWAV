@@ -10,7 +10,7 @@ public final class NewsBroadcastSegments {
     public static final String CLOSING="이상으로 필리핀 뉴스·경제 종합 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
     public static List<NewsStory> build(String raw,String preferredAnchor) {
-        List<NewsStory> parsed=NewsStory.parse(raw);
+        List<NewsStory> parsed=NewsStory.parse(NewsAutoScript.adapt(raw));
         List<NewsStory> news=new ArrayList<>();
         String opening=null,anchor=null,closing=null;
         for(NewsStory section:parsed) {
