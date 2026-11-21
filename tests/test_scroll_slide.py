@@ -17,16 +17,16 @@ assert 'public float offset(int sentence,float fraction,boolean narrationFinishe
 assert 'NewsScrollMath.offset(rowLengths,position,' in p
 assert 'SCROLL_FOCUS_ROWS=3.2f;' in p
 assert 'sentenceProgress(long presentationUs,int active)' in v
-assert 'current.sentenceProgress(us,activeSentence)' in v
-assert 'current.narrationFinished(us)' in v
-assert 'Math.abs(scrollPixels-previousScroll)>=0.05f' in v
+assert 'NewsScrollMath.continuousOffset(us,current.audioStartUs,' in v
+assert 'lastCueUs,scrollPlan.maxOffset)' in v
+assert 'Math.abs(scrollPixels-previousScroll)>0.0001f' in v
 assert 'NewsCardPainter.prepareScroll(current.story)' in v
 assert 'NewsCardPainter.renderScrolling(' in v
 assert 'return clamp((rowPosition(rows,spokenCharacters)-focusRows)*rowStep,0,maxOffset);' in geom
-assert '큰 글씨 자연스러운 자동 스크롤' in ui
-assert 'com.newsvoice.tts.autovideo.v518' in gradle
-assert "def releaseVersion = '5.18'" in gradle
+assert 'v5.19 끊김 없는 연속 스크롤' in ui
+assert 'com.newsvoice.tts.autovideo.v519' in gradle
+assert "def releaseVersion = '5.19'" in gradle
 assert 'versionName releaseVersion' in gradle
-assert 'FPS=24;' in v
+assert 'FPS=30;' in v
 assert 'float scrollPixels=scrollPlan==null?0f:' in v
 print("PASS: scroll slides preserve full narration, maintain large text and move with actual WAV sentence clock")
