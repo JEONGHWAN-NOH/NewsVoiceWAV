@@ -36,7 +36,7 @@ assert 'readAlready=' not in painter
 assert 'app_display_name' in gradle
 assert "def releaseVersion = '5.31'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert 'versionCode 36' in gradle
+assert 'versionCode 37' in gradle
 assert '56px·줄 간격 84px' in ui
 assert 'MUSIC_REVISION=2' in opening
 assert 'shareLast(true)' in ui and 'shareLast(false)' in ui
