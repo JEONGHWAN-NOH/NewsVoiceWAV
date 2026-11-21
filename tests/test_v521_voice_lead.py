@@ -12,8 +12,8 @@ worker=(root/"NewsVoiceWorker.java").read_text(encoding="utf-8")
 manual=(root/"ManualRenderService.java").read_text(encoding="utf-8")
 workflow=Path(".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
-assert 'private static final float SCROLL_FONT=60f;' in p
-assert 'private static final float SCROLL_STEP=88f;' in p
+assert 'private static final float SCROLL_FONT=56f;' in p
+assert 'private static final float SCROLL_STEP=84f;' in p
 assert 'NewsSentenceTimeline.visibleLength(script)' in p
 assert 'if(boundaries[boundaries.length-1]!=total)' in p
 assert 'private static final long SCROLL_DELAY_US=700_000L;' in video
@@ -25,7 +25,7 @@ assert 'i==0?0L:SCROLL_DELAY_US' in video
 assert 'current.audioStartUs,current.sentenceEndUs,' in video
 assert 'FPS=30;' in video
 assert 'if(us<6L*US_PER_S)which=-2;' in video
-assert '60px·줄 간격 88px' in ui
+assert '56px·줄 간격 84px' in ui
 assert '0.7초(700ms)' in ui
 assert 'Paint highlight=' not in p
 assert 'Paint underline=' not in p
@@ -35,8 +35,8 @@ assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
 assert 'shareLast(true)' in ui and 'shareLast(false)' in ui
 assert 'NewsCoverExporter.coverFile(' in worker
 assert 'NewsCoverExporter.coverFile(' in manual
-assert "def releaseVersion = '5.23'" in gradle
-assert "applicationId 'com.newsvoice.tts.autovideo.v523'" in gradle
-assert 'versionCode 29' in gradle
-assert 'NewsVoiceWAV-v5.23-VoiceFirst700ms-debug-apk' in workflow
-print("PASS: 60px body, 88px leading, measured WAV alignment with 700ms scroll lag and complete final card")
+assert "def releaseVersion = '5.24'" in gradle
+assert "applicationId 'com.newsvoice.tts.autovideo.v524'" in gradle
+assert 'versionCode 30' in gradle
+assert 'NewsVoiceWAV-v5.24-Centered700ms-debug-apk' in workflow
+print("PASS: 56px body, 84px leading, measured WAV alignment with 700ms scroll lag and complete final card")
