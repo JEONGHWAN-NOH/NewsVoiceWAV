@@ -14,7 +14,9 @@ for source in (manual,worker):
 assert 'sentenceFrames.size()!=waves.size()' in composer
 assert 'totalFrames!=part.dataLength/frameBytes' in composer
 assert 'activeSentence(long presentationUs)' in composer
-assert 'NewsScrollMath.continuousOffset(us,current.audioStartUs,' in composer
+assert 'NewsScrollMath.audioCurve(' in composer
+assert 'scrollCurve.position(us)' in composer
+assert 'current.sentenceEndUs' in composer
 assert 'scrollPixels!=previousScroll' not in composer
 assert 'Math.abs(scrollPixels-previousScroll)>0.0001f' in composer
 assert 'NewsCardPainter.renderScrolling(' in composer
@@ -25,4 +27,4 @@ assert 'readAlready=' not in painter
 assert 'Paint body=p(Color.WHITE,SCROLL_FONT,true)' in painter
 assert 'drawProseLine(c,text,92f,y,body);' in painter
 assert 'visibleRange(List<String> sentences,int activeIndex)' in sentences
-print("PASS: exact WAV overall duration drives unbroken scroll, with no highlight/underline/dimming")
+print("PASS: measured sentence WAV cues drive continuous sync, with no highlight/underline/dimming")
