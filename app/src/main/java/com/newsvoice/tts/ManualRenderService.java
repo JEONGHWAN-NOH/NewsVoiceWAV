@@ -143,7 +143,9 @@ public final class ManualRenderService extends Service {
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("이미지 검색 중 작업이 중단됐습니다.");
                 progress("관련 자료 이미지 검색 "+(i+1)+"/"+pages.size(),40+12*i/Math.max(1,pages.size()));
-                photos.add(NewsImageFetcher.fetch(pages.get(i)));
+                photos.add(pages.get(i).kind==NewsStory.NEWS?
+                    NewsImageFetcher.fetch(pages.get(i)):
+                    NewsImageFetcher.anchorPortrait(context,pages.get(i)));
             }
             credits=NewsVoiceWorker.makeImageCredits(pages,photos,context.getCacheDir(),"manual_"+stamp);
             mp4=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+".mp4");
