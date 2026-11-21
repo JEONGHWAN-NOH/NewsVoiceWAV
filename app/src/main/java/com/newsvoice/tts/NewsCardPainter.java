@@ -307,8 +307,33 @@ public final class NewsCardPainter {
         if(pos<row.length())c.drawText(row.substring(pos),drawX,baseline,white);
     }
 
-    /** Full TTS script inside ONE continuous full-width panel. */
-    private static Bitmap renderFullArticle(NewsStory story,int index,int count,NewsCoverMeta meta){
+    private static int indexForVisible(String row,int charOffset){
+        if(charOffset<=0)return 0;
+        int count=0;
+        for(int i=0;i<row.length();i++){
+            if(!Character.isWhitespace(row.charAt(i))){
+                if(count==charOffset)return i;
+                count++;
+            }
+        }
+        return row.length();
+    }
+    /** Highlight only the sentence whose own WAV samples are playing. */
+    private static void drawActiveSentence(Canvas c,String row,ReadingFit layout,float y,
+                                           int seen,int start,int end,Paint textPaint) {
+        int rowLength=NewsSentenceCues.countVisible(row);
+        int left=Math.max(0,start-seen),right=Math.min(rowLength,end-seen);
+        if(right<=left)return;
+        int charLeft=indexForVisible(row,left),charRight=indexForVisible(row,right);
+        float x0=layout.x+textPaint.measureText(row.substring(0,charLeft));
+        float x1=layout.x+textPaint.measureText(row.substring(0,charRight));
+        rounded(c,Color.argb(107,255,203,47),x0-8,y-layout.size*0.90f,x1+9,
+                y+layout.size*0.29f,10);
+        line(c,Color.rgb(255,219,89),x0-6,y+layout.size*0.32f,
+             x1+5,y+layout.size*0.32f,4);
+    }
+    /** Full TTS script, with per-sentence highlights derived from WAV durations. */
+    private static Bitmap renderFullArticle(NewsStory story,int index,int count,NewsCoverMeta meta,int activeSentence){
         ReadingFit layout=fitStory(story);
         Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bitmap);
@@ -370,11 +395,24 @@ public final class NewsCardPainter {
         line(c,Color.rgb(69,143,220),87,586,990,586,2);
         drawWatermark(c,story);
         Paint body=p(white,layout.size,true);
+        int[] sentenceEnds=NewsSentenceCues.endCharacterOffsets(prose(story));
+        int sentenceStart=activeSentence<=0?0:
+            activeSentence<sentenceEnds.length?sentenceEnds[activeSentence-1]:0;
+        int sentenceEnd=activeSentence>=0&&activeSentence<sentenceEnds.length?
+            sentenceEnds[activeSentence]:0;
         float y=layout.top;
+        int seen=0;
         for(String row:layout.lines){
-            if(!row.isEmpty())drawProseLine(c,row,layout.x,y,body);
+            if(!row.isEmpty()){
+                if(activeSentence>=0 && activeSentence<sentenceEnds.length)
+                    drawActiveSentence(c,row,layout,y,seen,sentenceStart,sentenceEnd,body);
+                drawProseLine(c,row,layout.x,y,body);
+            }
+            seen+=NewsSentenceCues.countVisible(row);
             y+=layout.step;
         }
+        if(seen!=NewsSentenceCues.countVisible(prose(story)))
+            throw new IllegalStateException("낭독 화면에서 글자가 유실되었습니다.");
         if(y-layout.step>1570)throw new IllegalStateException("기사 본문이 카드 경계를 넘었습니다.");
         int total=Math.max(1,story.articleCount);
         int completed=NewsBroadcastSegments.completedNews(story);
@@ -464,7 +502,11 @@ public final class NewsCardPainter {
     }
     public static Bitmap render(Context context,NewsStory story,int index,int count,
                                 int stage,NewsCoverMeta meta){
-        if(stage>=2&&story!=null)return renderFullArticle(story,index,count,meta);
+        return render(context,story,index,count,stage,meta,-1);
+    }
+    public static Bitmap render(Context context,NewsStory story,int index,int count,
+                                int stage,NewsCoverMeta meta,int activeSentence){
+        if(stage>=2&&story!=null)return renderFullArticle(story,index,count,meta,activeSentence);
         if(stage==0||stage==1)return renderCityCover(meta,count,stage);
         throw new IllegalArgumentException("지원하지 않는 뉴스 화면 단계: "+stage);
     }
