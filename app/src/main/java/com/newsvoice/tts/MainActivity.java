@@ -200,7 +200,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("제목은 화면에만 표시하고 읽지 않습니다. 뉴스 첫 줄에는 제목을 쓰고, 다음 줄부터 본문을 입력하세요. 화면당 뉴스 한 건을 전체 폭으로 표시하며, 시작 인사와 마지막 앵커 한마디·마감 인사는 낭독합니다.",12,false);
+        TextView note=text("뉴스 첫 줄은 화면용 제목이고, 둘째 줄부터 본문을 낭독합니다. === 줄로 뉴스를 구분하세요. 시작 인사·앵커 한마디·마감 인사는 한 번씩만 자동 구성합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
@@ -209,14 +209,21 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         reviewButton.setOnClickListener(v->reviewEditorScript());
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
         sample.setOnClickListener(v->editor.setText("경제 뉴스 1\n필리핀 정부는 오늘 산업 투자와 고용 관련 계획을 발표했습니다. 구체적인 집행 일정은 추가 발표를 통해 확인해야 합니다.\n===\n사회 뉴스 2\n교육부는 학교 지원 현황을 점검하고 있다고 밝혔습니다. 후속 일정은 공식 발표를 통해 확인하겠습니다."));
-        body.addView(text("03  승인한 오프닝 음악 A안",17,true),lp(-1,-2,23));
-        TextView openingHelp=text("최초 1회만 승인하신 6초 A안 WAV를 선택해 주세요. 이후 MP4의 첫 6초에 자동 삽입합니다.",12,false);
+        body.addView(text("03  오프닝 음악 A 타입 · 자동 적용",17,true),lp(-1,-2,23));
+        TextView openingHelp=text("6초짜리 자체 제작 A 타입 음악이 기본 등록됩니다. 기존에 승인한 정확한 원본 A안 WAV를 별도로 갖고 있다면 아래 버튼으로 교체할 수 있습니다.",12,false);
         openingHelp.setTextColor(0xff61778e);body.addView(openingHelp,lp(-1,-2,7));
-        openingAStatus=text(new File(getFilesDir(),"newsvoice_opening_A.wav").isFile()?
-            "A안 음원 등록 완료 · 영상 시작 음악에 자동 삽입됩니다.":
-            "A안 음악 미등록 · 영상 첫 6초는 무음입니다.",13,true);
+        String openingMessage;
+        try{
+            OpeningMusicA.ensureInstalled(this);
+            openingMessage=AppPrefs.get(this).getBoolean("opening_a_builtin",false)?
+                "내장 A 타입 음악 등록 완료 · MP4에 자동 적용":
+                "사용자 원본 A안 등록 완료 · MP4에 자동 적용";
+        }catch(IOException error){
+            openingMessage="음악 준비 오류 · "+error.getMessage();
+        }
+        openingAStatus=text(openingMessage,13,true);
         body.addView(openingAStatus,lp(-1,-2,7));
-        Button chooseOpening=btn("오프닝 음악 A안 WAV 선택",0xffe7f2f3,MINT);
+        Button chooseOpening=btn("원본 A안 WAV로 교체 (선택)",0xffe7f2f3,MINT);
         body.addView(chooseOpening,lp(-1,51,9));
         chooseOpening.setOnClickListener(v->{
             Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -237,7 +244,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("기사 구분은 === 한 줄을 입력하세요. 긴 기사는 파스텔톤 여러 페이지로 자동 분할하며, 페이지별 낭독을 별도로 합성해 다음 카드와 맞춥니다. 1080×1920 MP4로 저장됩니다.",12,false);
+        TextView formatHelp=text("본문이 들어가면 기사당 카드 한 장, 길면 같은 네이비 디자인의 다음 카드로 자동 이어집니다. 전체 원고를 누락 없이 화면과 음성에 맞춰 1080×1920 MP4로 저장합니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
@@ -603,7 +610,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 throw new IOException("5.5~6.3초 PCM 16-bit WAV 음원만 사용할 수 있습니다.");
             java.nio.file.Files.move(candidate.toPath(),target.toPath(),
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            openingAStatus.setText("A안 등록 완료 · "+String.format(Locale.KOREA,"%.1f",length)+"초");
+            AppPrefs.get(this).edit().putBoolean("opening_a_builtin",false).apply();
+            openingAStatus.setText("사용자 A안 원본 등록 완료 · "+String.format(Locale.KOREA,"%.1f",length)+"초 · 자동 적용");
             updateStatus("오프닝 음악이 등록됐습니다. 앞으로 MP4 첫 6초에 사용합니다.");
         }catch(Exception ex){
             openingAStatus.setText("음원 등록 실패 · 올바른 A안 WAV 파일을 확인하세요.");
@@ -662,7 +670,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드에서는 원고를 수신하고 뉴스 카드 MP4와 WAV를 갤럭시 다운로드/NewsVoiceWAV에 저장합니다. WAV만 등록 서버로 전송되며, MP4는 휴대폰에 저장됩니다. 기존 승인 오프닝 음원은 별도 연결 전까지 영상 도입부 6초가 무음입니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/NewsVoiceWAV에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){
