@@ -102,7 +102,7 @@ public final class ManualRenderService extends Service {
                 report("WAV 음성 생성 중");
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                 DownloadsPublisher.publish(context,wav,"newsvoice_"+stamp+".wav");
-                report("저장 완료: 다운로드/NewsVoiceWAV/newsvoice_"+stamp+".wav");
+                report("저장 완료: 다운로드/1. 필리핀뉴스/newsvoice_"+stamp+".wav");
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
