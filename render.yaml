@@ -1,0 +1,21 @@
+# Deploy via Render Blueprint only after approving the hosting service and pricing.
+# Starter compute and a persistent disk can incur charges.
+services:
+  - type: web
+    name: newsvoicewav-queue
+    runtime: python
+    plan: starter
+    buildCommand: python3 -m unittest discover -s tests -p 'test_*.py' -v
+    startCommand: python3 server/newsvoice_server.py
+    healthCheckPath: /healthz
+    envVars:
+      - key: NV_HOST
+        value: 0.0.0.0
+      - key: NV_QUEUE_DIR
+        value: /var/data/newsvoice_jobs
+      - key: NV_TOKEN
+        sync: false
+    disk:
+      name: newsvoicewav-data
+      mountPath: /var/data
+      sizeGB: 1

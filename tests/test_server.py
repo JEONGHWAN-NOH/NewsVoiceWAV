@@ -29,6 +29,15 @@ def request(url,method="GET",data=None,content_type=None,token=TOKEN):
     return urllib.request.urlopen(urllib.request.Request(url,method=method,data=data,headers=h),timeout=5)
 
 class ServerTest(unittest.TestCase):
+    def test_health_endpoint_and_private_queue(self):
+        with running() as base:
+            response = urllib.request.urlopen(base + "/healthz", timeout=5)
+            self.assertEqual(response.status, 200)
+            self.assertEqual(json.load(response), {"status": "ok"})
+            with self.assertRaises(urllib.error.HTTPError) as err:
+                urllib.request.urlopen(base + "/api/jobs/next", timeout=5)
+            self.assertEqual(err.exception.code, 401)
+
     def test_pipeline(self):
         with running() as base:
             with self.assertRaises(urllib.error.HTTPError) as e:request(base+"/api/jobs/next",token="bad")

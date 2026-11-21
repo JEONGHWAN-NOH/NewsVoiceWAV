@@ -50,6 +50,9 @@ def handler_factory(token, queue_dir):
             return True
 
         def do_GET(self):
+            # Public, non-sensitive health endpoint used by the hosting provider.
+            if self.path == "/healthz":
+                return self.send_json(200, {"status": "ok"})
             if not self.authorized():
                 return
             if self.path != "/api/jobs/next":
@@ -147,7 +150,8 @@ def handler_factory(token, queue_dir):
 def main():
     token, queue_dir = env_config()
     host = os.environ.get("NV_HOST", "127.0.0.1")
-    port = int(os.environ.get("NV_PORT", "8787"))
+    # Respect PORT supplied by Render or another platform, but retain local NV_PORT.
+    port = int(os.environ.get("NV_PORT") or os.environ.get("PORT", "8787"))
     print(f"Queue dir: {queue_dir}; listening on {host}:{port}")
     print("Security: use HTTPS reverse proxy for network exposure. Do not expose this HTTP port publicly.")
     ThreadingHTTPServer((host, port), handler_factory(token, queue_dir)).serve_forever()
