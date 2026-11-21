@@ -18,7 +18,7 @@ assert "resValue 'string', 'app_display_name'" in gradle
 assert 'outputFileName = "NewsVoiceWAV-v${releaseVersion}-${variant.buildType.name}.apk"' in gradle
 assert 'getString(R.string.app_display_name)' in ui
 assert 'FPS=30;' in composer
-assert 'float scrollPixels=scrollPlan==null?0f:' in composer
+assert 'float scrollPixels=scrollCurve==null?0f:scrollCurve.position(us);' in composer
 assert 'Math.round(scrollPlan.offset' not in composer
 assert 'float zoom=1.0f;' in composer
 assert 'Paint highlight=' not in painter
