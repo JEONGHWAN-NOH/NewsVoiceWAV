@@ -8,8 +8,8 @@ ui=Path("app/src/main/java/com/newsvoice/tts/MainActivity.java").read_text(encod
 assert "String spokenText()" in story
 assert "return pos<0?\"\":text.substring(pos+1).trim();" in story
 assert "result.append(s.spokenText());" in sections
-assert 'synthesize(pages.get(i).spokenText()' in manual
-assert 'synthesize(pages.get(i).spokenText()' in worker
+assert 'pages.get(i).spokenText()' in manual and 'SpeechCueBuilder.make(context' in manual
+assert 'pages.get(i).spokenText()' in worker and 'SpeechCueBuilder.make(context' in worker
 assert "return story.spokenText();" in painter
 assert "광명시 뉴스 첫 줄에는 화면에 표시할 제목을 쓰고" in ui
 assert 'synthesize(pages.get(i).narration' not in manual

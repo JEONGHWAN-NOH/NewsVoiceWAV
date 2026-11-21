@@ -20,6 +20,22 @@ jobs:
           mkdir -p /tmp/newsvoice-classes
           javac -d /tmp/newsvoice-classes app/src/main/java/com/newsvoice/tts/WavTools.java tests/WavToolsTest.java
           java -cp /tmp/newsvoice-classes WavToolsTest
+      - name: Check sentence cue text mapping
+        run: |
+          mkdir -p /tmp/gm-sentence-classes
+          javac -encoding UTF-8 -d /tmp/gm-sentence-classes app/src/main/java/com/newsvoice/tts/NewsSentenceCues.java tests/NewsSentenceCuesTest.java
+          java -cp /tmp/gm-sentence-classes NewsSentenceCuesTest
+      - name: Package approved A type opening music in APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          base64 --decode app/audio-assets/opening_A_original.opus.b64 > /tmp/gm_opening_A.opus
+          ffmpeg -hide_banner -loglevel error -y -i /tmp/gm_opening_A.opus -t 6 -ar 48000 -ac 2 -c:a pcm_s16le app/src/main/assets/opening_A.wav
+          test "$(stat -c%s app/src/main/assets/opening_A.wav)" -gt 1000000
       - name: Test job-server API
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - name: Test article card splitting
@@ -66,9 +82,11 @@ jobs:
           gradle-version: '8.9'
       - name: Build installable APK
         run: gradle --no-daemon :app:assembleDebug
+      - name: Verify included A opening WAV asset
+        run: unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'assets/opening_A.wav'
       - uses: actions/upload-artifact@v4
         with:
-          name: Gwangmyeong-News-v1.1-AutoPage-debug-apk
+          name: Gwangmyeong-News-v1.2-Highlight-A-Opening-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
@@ -78,13 +96,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          cp app/build/outputs/apk/debug/*.apk Gwangmyeong_News_WAV_v1.1_AutoPage.apk
-          tag="gwangmyeong-news-v1.1"
+          cp app/build/outputs/apk/debug/*.apk Gwangmyeong_News_WAV_v1.2_Highlight_A_Opening.apk
+          tag="gwangmyeong-news-v1.2"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" Gwangmyeong_News_WAV_v1.1_AutoPage.apk --clobber
+            gh release upload "$tag" Gwangmyeong_News_WAV_v1.2_Highlight_A_Opening.apk --clobber
           else
-            gh release create "$tag" Gwangmyeong_News_WAV_v1.1_AutoPage.apk \
+            gh release create "$tag" Gwangmyeong_News_WAV_v1.2_Highlight_A_Opening.apk \
               --target "$GITHUB_SHA" \
-              --title "광명시 뉴스 WAV v1.1 (자동 페이지)" \
-              --notes "광명시 전용. 9:16 남색·노란 제목, 본문만 낭독, 긴 뉴스 자동 페이지 분할, 한국시간 표기, WAV/MP4 저장. APK는 디버그 서명 빌드이며 갤럭시 실기기 검수는 별도 필요."
+              --title "광명시 뉴스 WAV v1.2 (문장 하이라이트 · A 오프닝)" \
+              --notes "광명시 전용. 9:16 남색·노란 제목, 본문만 낭독, 음성 샘플 길이 기반 문장별 노란 하이라이트, 승인 A형 6초 오프닝 음악 자동 삽입, 긴 기사 자동 페이지 분할, WAV/MP4 저장. 갤럭시 실기기 검수 필요."
           fi
