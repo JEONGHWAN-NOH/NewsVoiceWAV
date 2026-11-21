@@ -34,5 +34,5 @@ assert "shareLast(true)" in ui and "shareLast(false)" in ui
 assert "def releaseVersion = '5.24'" in gradle
 assert "applicationId 'com.newsvoice.tts.autovideo.v524'" in gradle
 assert "versionCode 30" in gradle
-assert "NewsVoiceWAV-v5.24-Centered700ms-debug-apk" in workflow
+assert "NewsVoiceWAV-v5.24-CenteredVoice700ms-debug-apk" in workflow
 print("PASS: v5.24 56px text, 84px line spacing and 700ms voice lead with safe scene transitions")
