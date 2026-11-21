@@ -32,6 +32,11 @@ jobs:
           mkdir -p /tmp/news-page-classes
           javac -encoding UTF-8 -d /tmp/news-page-classes app/src/main/java/com/newsvoice/tts/NewsPageSplitter.java tests/NewsPageSplitterTest.java
           java -cp /tmp/news-page-classes NewsPageSplitterTest
+      - name: Verify Manila news cover date and time formatting
+        run: |
+          mkdir -p /tmp/newscover-classes
+          javac -encoding UTF-8 -d /tmp/newscover-classes app/src/main/java/com/newsvoice/tts/NewsCoverMeta.java tests/NewsCoverMetaTest.java
+          java -cp /tmp/newscover-classes NewsCoverMetaTest
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
         run: |
@@ -47,6 +52,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.7-Samsung-TTS-Test-debug-apk
+          name: NewsVoiceWAV-v5.8-Cover-Auto-Date-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

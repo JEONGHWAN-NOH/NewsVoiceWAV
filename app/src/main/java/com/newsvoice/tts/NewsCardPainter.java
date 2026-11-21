@@ -1,6 +1,11 @@
 package com.newsvoice.tts;
 
+import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Rect;
+import java.io.InputStream;
+import java.io.IOException;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
@@ -123,7 +128,7 @@ public final class NewsCardPainter {
         if(q.contains("상원")||q.contains("예산")||q.contains("공공사업"))return Color.rgb(252,242,226);
         return Color.rgb(232,247,240);
     }
-    private static Bitmap renderFullArticle(NewsStory story,int index,int count){
+    private static Bitmap renderFullArticle(NewsStory story,int index,int count,NewsCoverMeta meta){
         Bitmap bmp=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bmp);
         final int ink=Color.rgb(20,43,64), blue=Color.rgb(40,98,124);
@@ -141,8 +146,7 @@ public final class NewsCardPainter {
         c.drawRoundRect(new RectF(45,45,1035,1873),36,36,border);
         rounded(c,Color.rgb(230,242,244),82,90,998,224,25);
         c.drawText("필리핀 뉴스 | NEWSVOICE WAV",116,157,p(ink,39,true));
-        String date=LocalDateTime.now(ZoneId.of("Asia/Manila"))
-            .format(DateTimeFormatter.ofPattern("yyyy. MM. dd"));
+        String date=meta.date;
         c.drawText(date,118,208,p(blue,27,false));
         int articleNumber=story.articleNumber>0?story.articleNumber:index+1;
         int articleCount=story.articleCount>0?story.articleCount:count;
@@ -195,8 +199,75 @@ public final class NewsCardPainter {
         return bmp;
     }
 
-    public static Bitmap render(NewsStory story,int index,int count,int stage,String timeLabel){
-        if(stage>=2 && story!=null)return renderFullArticle(story,index,count);
+
+    /** Pixel artwork is an original offline image; date/slot/count are live Android overlays. */
+    private static Bitmap renderBroadcastCover(Context context,NewsCoverMeta meta,int articleCount) {
+        Bitmap cover=null;
+        try(InputStream input=context.getAssets().open("philippines_cover.webp")){
+            cover=BitmapFactory.decodeStream(input);
+            if(cover==null)return null;
+            Bitmap output=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
+            Canvas canvas=new Canvas(output);
+            Paint image=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+            canvas.drawBitmap(cover,null,new Rect(0,0,WIDTH,HEIGHT),image);
+            cover.recycle();
+
+            // Date strip on top (drawn fresh for every video, never burned into the artwork).
+            rounded(canvas,Color.argb(209,7,30,60),215,142,987,217,15);
+            Paint date=p(WHITE,45,true);
+            date.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
+            String timestamp=meta.date+" | "+meta.clock;
+            while(date.getTextSize()>27&&date.measureText(timestamp)>730f)
+                date.setTextSize(date.getTextSize()-1f);
+            canvas.drawText(timestamp,234,197,date);
+
+            Paint country=p(Color.WHITE,150,true);
+            country.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
+            String line1="필리핀";
+            canvas.drawText(line1,195,539,country);
+
+            Paint main=p(Color.rgb(6,23,45),97,true);
+            main.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
+            String title="뉴스·경제 브리핑";
+            while(main.getTextSize()>49&&main.measureText(title)>915f)
+                main.setTextSize(main.getTextSize()-1f);
+            canvas.drawText(title,86,768,main);
+
+            Paint english=p(WHITE,39,true);
+            english.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
+            String en="Philippines Daily News Briefing";
+            while(english.getTextSize()>26&&english.measureText(en)>810)
+                english.setTextSize(english.getTextSize()-1f);
+            float enX=(WIDTH-english.measureText(en))/2f;
+            canvas.drawText(en,enX,879,english);
+
+            Paint headline=p(Color.rgb(7,26,46),79,true);
+            headline.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
+            String today="오늘의 핵심 뉴스";
+            while(headline.getTextSize()>48&&headline.measureText(today)>610)
+                headline.setTextSize(headline.getTextSize()-1f);
+            float hx=(WIDTH-headline.measureText(today))/2f;
+            canvas.drawText(today,hx,1025,headline);
+
+            rounded(canvas,Color.argb(221,5,28,55),96,1810,986,1896,21);
+            Paint footer=p(Color.WHITE,39,true);
+            String end="정치 · 경제 · 사회 · 사건사고   |   주요 뉴스 "+articleCount+"건";
+            while(footer.getTextSize()>25&&footer.measureText(end)>850)
+                footer.setTextSize(footer.getTextSize()-1f);
+            canvas.drawText(end,116,1866,footer);
+            return output;
+        }catch(IOException|RuntimeException e){
+            if(cover!=null&&!cover.isRecycled())cover.recycle();
+            return null; // Gracefully use the original vector cover if the asset cannot be read.
+        }
+    }
+
+    public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,NewsCoverMeta meta){
+        if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta);
+        if(stage==0){
+            Bitmap artwork=renderBroadcastCover(context,meta,count);
+            if(artwork!=null)return artwork;
+        }
         Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bitmap);
         Paint bg=p(NAVY,0,false);
@@ -211,7 +282,8 @@ public final class NewsCardPainter {
         rounded(c,YELLOW,102,116,164,127,6);
         c.drawText("PHILIPPINES  /  DAILY BRIEF",185,130,p(SUB,27,false));
         line(c,Color.rgb(65,115,130),101,166,978,166,2);
-        String date=LocalDateTime.now(ZoneId.of("Asia/Manila")).format(DateTimeFormatter.ofPattern("yyyy. MM. dd"));
+        String date=meta.date;
+        String timeLabel=meta.clock;
         if(stage==0){
             rounded(c,Color.rgb(28,71,84),100,212,532,273,18);
             c.drawText("PHILIPPINES",125,259,p(YELLOW,36,false));

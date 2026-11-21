@@ -92,8 +92,9 @@ public final class NewsVideoComposer {
             progress.message("WAV 음성을 AAC로 변환 중");
             encodeAudio(raw,aac,timeline.sampleRate,timeline.channels);
             progress.message("뉴스 카드 영상 렌더링 중");
-            encodeVideo(video,timeline,stories.get(0).articleCount>0?
-                stories.get(0).articleCount:stories.size(),progress);
+            NewsCoverMeta coverMeta=NewsCoverMeta.now();
+            encodeVideo(context,video,timeline,stories.get(0).articleCount>0?
+                stories.get(0).articleCount:stories.size(),coverMeta,progress);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
@@ -152,7 +153,7 @@ public final class NewsVideoComposer {
             if(mux!=null){if(muxStarted)mux.stop();mux.release();}
         }
     }
-    private static void encodeVideo(File output,Timeline t,int articleCount,Progress progress)throws Exception {
+    private static void encodeVideo(Context context,File output,Timeline t,int articleCount,NewsCoverMeta meta,Progress progress)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
         boolean started=false,muxStarted=false;
@@ -188,7 +189,7 @@ public final class NewsVideoComposer {
                         cardEnd=which+1<t.spans.size()?t.spans.get(which+1).startUs:t.endUs;
                     }
                     NewsStory story=which>=0?t.spans.get(which).story:null;
-                    Bitmap card=NewsCardPainter.render(story,Math.max(0,which),articleCount,which<0?which+2:2,"필리핀 현지 시간 기준");
+                    Bitmap card=NewsCardPainter.render(context,story,Math.max(0,which),articleCount,which<0?which+2:2,meta);
                     renderer.upload(card);card.recycle();previousCard=which;
                 }
                 float motion=cardEnd<=cardStart?1f:(float)(us-cardStart)/(cardEnd-cardStart);
