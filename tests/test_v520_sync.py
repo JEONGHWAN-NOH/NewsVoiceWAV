@@ -45,5 +45,5 @@ for source in (manual,worker):
     assert 'NewsCoverExporter.coverFile(' in source
     assert '_cover.jpg' in source
 assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
-assert 'NewsVoiceWAV-v5.24-Centered700ms-debug-apk' in pipeline
+assert 'NewsVoiceWAV-v5.24-CenteredVoice700ms-debug-apk' in pipeline
 print("PASS: 56px/84px and voice-first 700ms delayed scroll with existing cover sharing and music")
