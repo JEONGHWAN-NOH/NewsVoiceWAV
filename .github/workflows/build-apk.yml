@@ -37,6 +37,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-Auto-v5-debug-apk
+          name: NewsVoiceWAV-Auto-v5.1-announcer-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

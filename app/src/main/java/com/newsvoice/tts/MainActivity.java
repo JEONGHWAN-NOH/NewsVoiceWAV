@@ -49,10 +49,17 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private TextToSpeech tts;
     private boolean ready = false;
     private EditText editor;
-    private Spinner voicesSpinner;
+    private Spinner voicesSpinner, enginesSpinner, presetsSpinner;
     private TextView status, speedValue, pitchValue;
     private SeekBar speedBar, pitchBar;
     private final List<Voice> koreanVoices = new ArrayList<>();
+    private final List<TextToSpeech.EngineInfo> installedEngines = new ArrayList<>();
+    private static final String[] PRESET_NAMES = {"표준형 뉴스 앵커", "차분형 뉴스 앵커", "명료형 뉴스 앵커", "부드러운형 뉴스 앵커", "직접 조절"};
+    private static final float[] PRESET_RATES = {0.95f, 0.90f, 1.00f, 0.90f};
+    private static final float[] PRESET_PITCHES = {1.00f, 0.95f, 1.05f, 1.05f};
+    private String currentEngine = "";
+    private boolean engineUiReady = false;
+    private int selectedPreset = 0;
     private EditText serverEdit, tokenEdit;
     private CheckBox automaticCheck;
     private long taskToken = 0;
@@ -86,22 +93,60 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         TextView brand=text("●  뉴스보이스",19,true);brand.setTextColor(MINT);body.addView(brand);
         TextView headline=text("한국어 뉴스 음성 자동 생성",24,true);body.addView(headline,lp(-1,-2,14));
         TextView sub=text("원고를 입력하고 한국어 음성을 선택해 낭독하세요.",13,false);sub.setTextColor(0xff61778e);body.addView(sub,lp(-1,-2,5));
-        body.addView(text("01  한국어 목소리 선택 · 미리 듣기",17,true),lp(-1,-2,25));
+        body.addView(text("01  TTS 엔진과 한국어 목소리 · 미리 듣기",17,true),lp(-1,-2,25));
+        TextView enginesHelp=text("설치된 삼성·구글 등 TTS 엔진 중 선택합니다. 표시되는 엔진과 음성 개수는 휴대폰마다 다릅니다.",12,false);
+        enginesHelp.setTextColor(0xff61778e);body.addView(enginesHelp,lp(-1,-2,6));
+        enginesSpinner = new Spinner(this); enginesSpinner.setBackground(rounded(0xffe7f1f6,dp(this,12)));
+        body.addView(enginesSpinner,lp(-1,52,9));
         voicesSpinner = new Spinner(this); voicesSpinner.setBackground(rounded(0xffe7f1f6,dp(this,12)));
         body.addView(voicesSpinner,lp(-1,52,10));
-        speedValue=text("낭독 속도 0.95×",14,true);body.addView(speedValue,lp(-1,-2,16));
-        speedBar = new SeekBar(this);speedBar.setMax(13);speedBar.setProgress(6);body.addView(speedBar,lp(-1,-2,2));
-        pitchValue=text("음높이 1.00",14,true);body.addView(pitchValue,lp(-1,-2,10));
-        pitchBar = new SeekBar(this);pitchBar.setMax(8);pitchBar.setProgress(4);body.addView(pitchBar,lp(-1,-2,2));
+        body.addView(text("아나운서 낭독 스타일",14,true),lp(-1,-2,14));
+        presetsSpinner = new Spinner(this);presetsSpinner.setBackground(rounded(0xffe7f1f6,dp(this,12)));
+        body.addView(presetsSpinner,lp(-1,52,8));
+        TextView presetNote=text("스타일 4종은 같은 목소리의 속도·음높이를 조정합니다. 서로 다른 성우 4명이 아닙니다.",12,false);
+        presetNote.setTextColor(0xff61778e);body.addView(presetNote,lp(-1,-2,5));
+        android.content.SharedPreferences voicePrefs=AppPrefs.get(this);
+        selectedPreset=Math.max(0,Math.min(PRESET_NAMES.length-1,voicePrefs.getInt("preset",0)));
+        ArrayAdapter<String> presetAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,PRESET_NAMES);
+        presetsSpinner.setAdapter(presetAdapter);
+        presetsSpinner.setSelection(selectedPreset);
+        speedValue=text("낭독 속도",14,true);body.addView(speedValue,lp(-1,-2,16));
+        speedBar = new SeekBar(this);speedBar.setMax(13);
+        speedBar.setProgress(Math.max(0,Math.min(13,Math.round((AppPrefs.speed(this)-0.65f)/0.05f))));
+        body.addView(speedBar,lp(-1,-2,2));
+        pitchValue=text("음높이",14,true);body.addView(pitchValue,lp(-1,-2,10));
+        pitchBar = new SeekBar(this);pitchBar.setMax(8);
+        pitchBar.setProgress(Math.max(0,Math.min(8,Math.round((AppPrefs.pitch(this)-0.80f)/0.05f))));
+        body.addView(pitchBar,lp(-1,-2,2));
         SeekBar.OnSeekBarChangeListener change=new SeekBar.OnSeekBarChangeListener(){
             @Override public void onProgressChanged(SeekBar s,int progress,boolean user){
                 speedValue.setText(String.format(Locale.KOREA,"낭독 속도 %.2f×",rate()));
                 pitchValue.setText(String.format(Locale.KOREA,"음높이 %.2f",pitch()));
+                if(user){
+                    selectedPreset=4;
+                    presetsSpinner.setSelection(4);
+                    if(ready)persistVoiceSettings();
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar s){}
             @Override public void onStopTrackingTouch(SeekBar s){}
         };
         speedBar.setOnSeekBarChangeListener(change);pitchBar.setOnSeekBarChangeListener(change);
+        speedValue.setText(String.format(Locale.KOREA,"낭독 속도 %.2f×",rate()));
+        pitchValue.setText(String.format(Locale.KOREA,"음높이 %.2f",pitch()));
+        presetsSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                if(position!=selectedPreset){
+                    selectedPreset=position;
+                    if(position>=0 && position<4){
+                        speedBar.setProgress(Math.round((PRESET_RATES[position]-0.65f)/0.05f));
+                        pitchBar.setProgress(Math.round((PRESET_PITCHES[position]-0.80f)/0.05f));
+                    }
+                    if(ready)persistVoiceSettings();
+                }
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent){}
+        });
         body.addView(text("02  뉴스 원고",17,true),lp(-1,-2,21));
         editor = new EditText(this);editor.setTextSize(16);editor.setTextColor(DARK);editor.setGravity(Gravity.TOP);editor.setPadding(dp(this,14),dp(this,14),dp(this,14),dp(this,14));
         editor.setHint("여기에 한국어 뉴스 원고를 붙여 넣으세요.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
@@ -116,7 +161,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button stop=btn("정지",0xffe3eff2,DARK);LinearLayout.LayoutParams stopP=new LinearLayout.LayoutParams(0,-1,1);stopP.leftMargin=dp(this,6);controls.addView(stop,stopP);
         Button play=btn("읽기 시작",0xff63ddbd,0xff0b2936);LinearLayout.LayoutParams playP=new LinearLayout.LayoutParams(0,-1,1);playP.leftMargin=dp(this,6);controls.addView(play,playP);
         Button save=btn("긴 원고 WAV 자동 생성 및 다운로드 저장",MINT,Color.WHITE);body.addView(save,lp(-1,55,12));
-        TextView foot=text("선택한 갤럭시 한국어 TTS 음성을 사용합니다. 여성 음성 여부는 미리 들어 확인해야 합니다. 긴 원고는 자동 분할·합성하여 WAV로 결합합니다.",12,false);
+        TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
         preview.setOnClickListener(v->speakNow("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.",true));
         play.setOnClickListener(v->speakNow(editor.getText().toString(),false));
@@ -125,7 +170,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         buildAutomationControls(body);
         setContentView(sc);
         try {
-            tts = new TextToSpeech(this, this);
+            currentEngine=AppPrefs.enginePackage(this);
+            tts = new TextToSpeech(this, this, currentEngine.isEmpty()?null:currentEngine);
         } catch (RuntimeException e) {
             updateStatus("TTS 시작 오류: " + e.getClass().getSimpleName());
         }
@@ -161,6 +207,43 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                     updateStatus("음성 합성 오류. 다른 한국어 음성을 선택해 주세요.");
                 }
             });
+            String active=tts.getCurrentEngine();
+            if(active==null||active.isEmpty()){
+                updateStatus("현재 TTS 엔진을 확인하지 못했습니다.");
+                return;
+            }
+            if(!currentEngine.isEmpty()&&!currentEngine.equals(active)){
+                updateStatus("선택한 TTS 엔진이 실행되지 않았습니다. 설치 여부를 확인하세요.");
+                return;
+            }
+            currentEngine=active;
+            if(!engineUiReady){
+                installedEngines.clear();
+                try{if(tts.getEngines()!=null)installedEngines.addAll(tts.getEngines());}
+                catch(RuntimeException ignored){}
+                List<String> descriptions=new ArrayList<>();
+                int which=-1;
+                for(int i=0;i<installedEngines.size();i++){
+                    TextToSpeech.EngineInfo e=installedEngines.get(i);
+                    descriptions.add(String.valueOf(e.label)+" · "+e.name);
+                    if(e.name.equals(currentEngine))which=i;
+                }
+                if(installedEngines.isEmpty()){
+                    descriptions.add("기본 TTS 엔진 · "+currentEngine);
+                }
+                ArrayAdapter<String> enginesAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,descriptions);
+                enginesSpinner.setAdapter(enginesAdapter);
+                if(which>=0)enginesSpinner.setSelection(which);
+                engineUiReady=true;
+                enginesSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+                    @Override public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                        if(!engineUiReady||position<0||position>=installedEngines.size())return;
+                        String packageName=installedEngines.get(position).name;
+                        if(!packageName.equals(currentEngine))restartWithEngine(packageName);
+                    }
+                    @Override public void onNothingSelected(android.widget.AdapterView<?> parent){}
+                });
+            }
             List<Voice> voices = new ArrayList<>();
             try {
                 if(tts.getVoices() != null) {
@@ -174,14 +257,17 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             koreanVoices.clear();
             koreanVoices.addAll(voices);
             List<String> names = new ArrayList<>();
-            for(Voice v : koreanVoices) names.add(v.getName() + " · " + v.getLocale().toLanguageTag());
+            for(Voice v : koreanVoices) names.add(v.getName() + " · " + v.getLocale().toLanguageTag() +
+                (v.isNetworkConnectionRequired()?" · 인터넷 음성":" · 오프라인 음성"));
             if(names.isEmpty()) names.add("기본 한국어 목소리");
             ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names);
             voicesSpinner.setAdapter(adapter);
             voicesSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
                 @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) {
                     if(pos < koreanVoices.size() && tts != null) {
-                        try { tts.setVoice(koreanVoices.get(pos)); } catch(RuntimeException ignored) {}
+                        try {
+                            if(tts.setVoice(koreanVoices.get(pos))==TextToSpeech.SUCCESS&&ready)persistVoiceSettings();
+                        } catch(RuntimeException ignored) {}
                     }
                 }
                 @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
@@ -191,10 +277,27 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 if(savedVoice.equals(koreanVoices.get(v).getName())) {voicesSpinner.setSelection(v);break;}
             }
             ready = true;
-            updateStatus("준비 완료 · 한국어 목소리 " + koreanVoices.size() + "개 확인");
+            updateStatus("준비 완료 · TTS 엔진 "+currentEngine+" · 한국어 목소리 "+koreanVoices.size()+"개");
         } catch(RuntimeException e) {
             ready = false;
             updateStatus("TTS 초기화 오류: " + e.getClass().getSimpleName());
+        }
+    }
+    private void restartWithEngine(String packageName){
+        try{
+            ready=false;
+            taskToken++;
+            updateStatus("TTS 엔진을 전환하는 중: "+packageName);
+            if(tts!=null){tts.stop();tts.shutdown();}
+            currentEngine=packageName;
+            AppPrefs.get(this).edit().putString("engine",packageName).remove("voice").apply();
+            koreanVoices.clear();
+            voicesSpinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"새 엔진에서 한국어 목소리를 확인하는 중..."}));
+            tts=new TextToSpeech(this,this,packageName);
+        }catch(RuntimeException e){
+            ready=false;
+            updateStatus("TTS 엔진 전환 실패: "+e.getClass().getSimpleName());
         }
     }
     private int scoreVoice(Voice v){
@@ -228,6 +331,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             taskToken++;
             tts.stop();
             configure();
+            persistVoiceSettings();
             List<String> segments = chunks(src);
             lastQueuedIndex = segments.size()-1;
             for(int i=0;i<segments.size();i++) {
@@ -242,7 +346,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private void persistVoiceSettings(){
         int selected=voicesSpinner.getSelectedItemPosition();
         String voice=(selected>=0 && selected<koreanVoices.size())?koreanVoices.get(selected).getName():"";
-        AppPrefs.get(this).edit().putString("voice",voice).putFloat("speed",rate()).putFloat("pitch",pitch()).apply();
+        AppPrefs.get(this).edit().putString("engine",currentEngine).putString("voice",voice)
+            .putFloat("speed",rate()).putFloat("pitch",pitch()).putInt("preset",selectedPreset).apply();
     }
     private void queueManualSave(){
         if(!ready){updateStatus("한국어 TTS 엔진이 준비되지 않았습니다.");return;}

@@ -125,10 +125,15 @@ public final class NewsVoiceWorker extends Worker {
     }
     private File synthesize(String script,String jobId) throws Exception {
         CountDownLatch init=new CountDownLatch(1);AtomicInteger initStatus=new AtomicInteger(TextToSpeech.ERROR);
-        TextToSpeech tts=new TextToSpeech(context, s->{initStatus.set(s);init.countDown();});
+        String selectedEngine=AppPrefs.enginePackage(context);
+        TextToSpeech tts=new TextToSpeech(context, s->{initStatus.set(s);init.countDown();},
+            selectedEngine.isEmpty()?null:selectedEngine);
         List<File> chunks=new ArrayList<>();
         try {
             if(!init.await(25,TimeUnit.SECONDS)||initStatus.get()!=TextToSpeech.SUCCESS)throw new IOException("TTS engine initialization failed");
+            if(!selectedEngine.isEmpty()&&!selectedEngine.equals(tts.getCurrentEngine())){
+                throw new IOException("Locked TTS engine unavailable: "+selectedEngine);
+            }
             int lang=tts.setLanguage(Locale.KOREAN);
             if(lang==TextToSpeech.LANG_MISSING_DATA||lang==TextToSpeech.LANG_NOT_SUPPORTED)throw new IOException("Korean TTS voice not installed");
             String preferred=AppPrefs.voiceName(context);

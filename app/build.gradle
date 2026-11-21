@@ -7,8 +7,8 @@ android {
         applicationId 'com.newsvoice.tts.stable'
         minSdk 29
         targetSdk 35
-        versionCode 5
-        versionName '5.0-auto-beta'
+        versionCode 6
+        versionName '5.1-announcer-beta'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
