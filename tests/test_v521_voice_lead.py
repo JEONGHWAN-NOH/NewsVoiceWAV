@@ -22,7 +22,7 @@ assert 'public float delayedPosition(long playbackUs,long delayUs)' in math
 assert 'return position(queryUs);' in math
 assert 'if(delayUs<0)' in math
 assert 'i==0?0L:SCROLL_DELAY_US' in video
-assert 'current.audioStartUs,current.sentenceEndUs,' in video
+assert 'current.audioStartUs,current.sentenceEndUs):null;' in video
 assert 'FPS=30;' in video
 assert 'if(us<6L*US_PER_S)which=-2;' in video
 assert '56px·줄 간격 84px' in ui
