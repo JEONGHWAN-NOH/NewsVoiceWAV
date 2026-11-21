@@ -389,22 +389,27 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         }
     }
     private void queueManualSave(){
-        if(!ready){updateStatus("한국어 TTS 엔진이 준비되지 않았습니다.");return;}
-        String src=editor.getText().toString().trim();
-        if(src.isEmpty()){updateStatus("저장할 뉴스 원고를 입력하세요.");return;}
-        if(src.length()>60000){updateStatus("원고는 60,000자 이내로 입력하세요.");return;}
+        if(!ready){updateStatus("한국어 음성 엔진이 준비되지 않았습니다.");return;}
+        String text=editor.getText().toString().trim();
+        if(text.isEmpty()){updateStatus("원고를 입력하세요.");return;}
+        if(text.length()>60000){updateStatus("원고는 60,000자 이하로 입력하세요.");return;}
         try {
             persistVoiceSettings();
             File inbox=new File(getFilesDir(),"inbox");
-            if(!inbox.exists()&&!inbox.mkdirs())throw new Exception("inbox 저장 실패");
-            String name="news_"+UUID.randomUUID().toString().replace("-","")+".txt";
-            try(FileOutputStream out=new FileOutputStream(new File(inbox,name))){out.write(src.getBytes(StandardCharsets.UTF_8));}
-            Data data=new Data.Builder().putString(NewsVoiceWorker.INPUT_LOCAL_FILE,name).build();
-            OneTimeWorkRequest task=new OneTimeWorkRequest.Builder(NewsVoiceWorker.class).setInputData(data).build();
-            WorkManager.getInstance(this).enqueueUniqueWork("newsvoice_manual",ExistingWorkPolicy.REPLACE,task);
-            AppPrefs.status(this,"작업 요청 완료 · 음성 합성 및 MP4 제작 준비 중");
-            updateStatus("제작 작업을 시작했습니다. 아래 제작 상태에서 진행 과정을 확인하세요.");
-        }catch(Exception e){updateStatus("수동 저장 요청 실패: "+e.getMessage());}
+            if(!inbox.exists()&&!inbox.mkdirs())throw new IOException("원고 저장 폴더 오류");
+            String filename="news_"+UUID.randomUUID().toString().replace("-","")+".txt";
+            try(FileOutputStream stream=new FileOutputStream(new File(inbox,filename))){
+                stream.write(text.getBytes(StandardCharsets.UTF_8));
+            }
+            Intent intent=new Intent(this,ManualRenderService.class);
+            intent.putExtra(ManualRenderService.EXTRA_FILE,filename);
+            AppPrefs.status(this,"사용자 요청 · 영상 제작 서비스 실행 중");
+            startForegroundService(intent);
+            updateStatus("영상 제작을 시작했습니다. 제작 상태와 알림에서 진행 과정을 확인하세요.");
+        }catch(Exception e){
+            AppPrefs.status(this,"영상 제작 시작 실패: "+e.getClass().getSimpleName()+" - "+e.getMessage());
+            updateStatus("영상 제작 시작 실패: "+e.getMessage());
+        }
     }
     private void buildAutomationControls(LinearLayout body){
         body.addView(text("04  자동 뉴스 수신 · WAV 변환",17,true),lp(-1,-2,28));

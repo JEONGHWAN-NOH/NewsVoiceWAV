@@ -53,8 +53,12 @@ public final class NewsVoiceWorker extends Worker {
         setForegroundAsync(new ForegroundInfo(NOTIFY_ID,n,ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
             .get(20,TimeUnit.SECONDS);
     }
+    private String stopDetail(){
+        int reason=android.os.Build.VERSION.SDK_INT>=31?getStopReason():-999;
+        return "시스템 또는 작업 관리자가 영상 작업을 중단했습니다 (원인 코드 "+reason+").";
+    }
     @Override public void onStopped() {
-        AppPrefs.status(context,"작업이 중지됐습니다. 긴 뉴스는 조금 짧게 시험하고 최근 오류를 확인해 주세요.");
+        AppPrefs.status(context,stopDetail());
         super.onStopped();
     }
     private static final class VideoResult {
@@ -71,7 +75,7 @@ public final class NewsVoiceWorker extends Worker {
         List<File> waveFiles=new ArrayList<>();
         try {
             for(int i=0;i<pages.size();i++) {
-                if(isStopped())throw new IOException("사용자가 작업을 중지했습니다.");
+                if(isStopped())throw new IOException(stopDetail());
                 AppPrefs.status(context,"화면별 음성 합성: "+(i+1)+"/"+pages.size());
                 waveFiles.add(synthesize(pages.get(i).narration,jobId+"_page"+(i+1)));
             }
@@ -79,7 +83,7 @@ public final class NewsVoiceWorker extends Worker {
             WavTools.concatenate(waveFiles,audio);
             File video=new File(context.getCacheDir(),"newsvoice_"+jobId+".mp4");
             NewsVideoComposer.create(context,pages,waveFiles,video,message->{
-                if(isStopped())throw new IOException("사용자가 영상 제작을 중지했습니다.");
+                if(isStopped())throw new IOException(stopDetail());
                 AppPrefs.status(context,message);
             });
             return new VideoResult(audio,video);

@@ -1,0 +1,1 @@
+v5.6: Manual MP4 synthesis runs as direct user-started foreground service instead of WorkManager quota job. User cancellation message corrected for server automation. WAV saved before MP4 stage. Old apps remain installed. Galaxy encoder device test still needed.
