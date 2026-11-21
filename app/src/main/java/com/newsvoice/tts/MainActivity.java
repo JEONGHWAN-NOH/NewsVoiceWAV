@@ -50,13 +50,15 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private static final int DARK = 0xff0e2942;
     private static final int OPENING_PICKER=5110;
     private static final int SCRIPT_PICKER=5111;
+    private static final int PORTRAIT_PICKER_OPENING=5121, PORTRAIT_PICKER_ANCHOR=5122, PORTRAIT_PICKER_CLOSING=5123;
     private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
     private TextToSpeech tts;
     private boolean ready = false;
     private EditText editor;
     private Spinner voicesSpinner, enginesSpinner, presetsSpinner;
-    private TextView status, jobStatus, speedValue, pitchValue;
+    private TextView status, jobStatus, etaText, speedValue, pitchValue;
+    private android.widget.ProgressBar renderProgress;
     private SharedPreferences.OnSharedPreferenceChangeListener jobListener;
     private SeekBar speedBar, pitchBar;
     private static final String SAMSUNG_PACKAGE="com.samsung.SMT";
@@ -95,6 +97,21 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private Button btn(String label, int bg, int foreground) {
         Button b = new Button(this); b.setAllCaps(false);b.setText(label);b.setTextSize(14);
         b.setTextColor(foreground);b.setBackground(rounded(bg,dp(this,13)));return b;
+    }
+    private void refreshRenderProgress(){
+        android.content.SharedPreferences p=AppPrefs.get(this);
+        int percent=p.getInt("render_percent",0);
+        boolean active=p.getBoolean("render_active",false);
+        String stage=p.getString("render_stage",p.getString("status","작업 기록 없음"));
+        if(renderProgress!=null)renderProgress.setProgress(percent);
+        if(jobStatus!=null)jobStatus.setText((active?"영상 제작 진행 중: ":"제작 상태: ")+stage);
+        if(etaText!=null){
+            long ms=p.getLong("render_eta_ms",-1);
+            String remaining=active?(ms<0?"남은 시간 계산 중":
+                String.format(Locale.KOREA,"예상 남은 시간: 약 %02d분 %02d초",ms/60000,(ms/1000)%60)):
+                (percent==100?"제작 완료 · 100%":"대기 중");
+            etaText.setText("제작 진행률 "+percent+"%    |    "+remaining);
+        }
     }
     private void updateStatus(String message) { main.post(() -> { if(status != null) status.setText(message); }); }
 
@@ -240,10 +257,38 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             pick.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(pick,OPENING_PICKER);
         });
+        body.addView(text("아나운서 이미지 · 갤러리 등록",17,true),lp(-1,-2,22));
+        LinearLayout portraitButtons=new LinearLayout(this);
+        portraitButtons.setOrientation(LinearLayout.HORIZONTAL);
+        body.addView(portraitButtons,lp(-1,49,8));
+        String[] portraitNames={"1 시작 인사","2 앵커 한마디","3 마감 인사"};
+        int[] portraitCodes={PORTRAIT_PICKER_OPENING,PORTRAIT_PICKER_ANCHOR,PORTRAIT_PICKER_CLOSING};
+        for(int k=0;k<3;k++){
+            final int request=portraitCodes[k];
+            Button pick=btn(portraitNames[k],0xffdfeef4,DARK);
+            LinearLayout.LayoutParams param=new LinearLayout.LayoutParams(0,-1,1);
+            if(k>0)param.leftMargin=dp(this,5);
+            portraitButtons.addView(pick,param);
+            pick.setOnClickListener(v->{
+                Intent gallery=new Intent(Intent.ACTION_GET_CONTENT);
+                gallery.setType("image/*");
+                gallery.addCategory(Intent.CATEGORY_OPENABLE);
+                startActivityForResult(gallery,request);
+            });
+        }
         body.addView(text("04  재생 · 저장",17,true),lp(-1,-2,25));
         status=text("음성 엔진을 준비하고 있습니다.",13,false);status.setTextColor(0xff61778e);body.addView(status,lp(-1,-2,8));
         jobStatus=text("제작 상태: "+AppPrefs.get(this).getString("status","작업 기록 없음"),14,true);
-        jobStatus.setTextColor(0xff157e71);body.addView(jobStatus,lp(-1,-2,10));
+        jobStatus.setTextColor(0xffe01616);
+        jobStatus.setBackground(rounded(0xffffeded,dp(this,12)));
+        jobStatus.setPadding(dp(this,12),dp(this,13),dp(this,12),dp(this,13));
+        body.addView(jobStatus,lp(-1,-2,10));
+        renderProgress=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        renderProgress.setMax(100);renderProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xff12a45a));
+        body.addView(renderProgress,lp(-1,15,9));
+        etaText=text("남은 시간 계산 중",14,true);
+        etaText.setTextColor(0xffe01616);body.addView(etaText,lp(-1,-2,8));
+        refreshRenderProgress();
         LinearLayout controls=new LinearLayout(this);controls.setOrientation(LinearLayout.HORIZONTAL);body.addView(controls,lp(-1,53,15));
         Button preview=btn("미리 듣기",0xffe3eff2,DARK);controls.addView(preview,new LinearLayout.LayoutParams(0,-1,1));
         Button stop=btn("정지",0xffe3eff2,DARK);LinearLayout.LayoutParams stopP=new LinearLayout.LayoutParams(0,-1,1);stopP.leftMargin=dp(this,6);controls.addView(stop,stopP);
@@ -253,7 +298,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("v5.29 날짜별 자동 저장·이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 6초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 음성·영상·표지·자료출처 파일은 필리핀 현지 날짜별 하위 폴더에 같은 회차명과 제작시각으로 저장됩니다.",12,false);
+        TextView formatHelp=text("v5.30 날짜별 자동 저장·이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 6초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 음성·영상·표지·자료출처 파일은 필리핀 현지 날짜별 하위 폴더에 같은 회차명과 제작시각으로 저장됩니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
@@ -289,10 +334,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         buildAutomationControls(body);
         setContentView(sc);
         jobListener=(prefs,key)->{
-            if("status".equals(key))main.post(()->{
-                if(jobStatus!=null)jobStatus.setText("제작 상태: "+
-                    prefs.getString("status","작업 기록 없음"));
-            });
+            if("status".equals(key)||"render_percent".equals(key)||"render_eta_ms".equals(key)||"render_stage".equals(key)||"render_active".equals(key))
+                main.post(this::refreshRenderProgress);
         };
         AppPrefs.get(this).registerOnSharedPreferenceChangeListener(jobListener);
         try {
@@ -623,6 +666,25 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode>=PORTRAIT_PICKER_OPENING&&requestCode<=PORTRAIT_PICKER_CLOSING){
+            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+            String slot=requestCode==PORTRAIT_PICKER_OPENING?"opening":
+                requestCode==PORTRAIT_PICKER_ANCHOR?"anchor":"closing";
+            try(InputStream in=getContentResolver().openInputStream(data.getData())){
+                if(in==null)throw new IOException("갤러리 사진을 읽을 수 없습니다.");
+                android.graphics.BitmapFactory.Options opt=new android.graphics.BitmapFactory.Options();
+                opt.inSampleSize=2;
+                android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in,null,opt);
+                if(bitmap==null)throw new IOException("지원되지 않는 사진 형식입니다.");
+                File dest=new File(getFilesDir(),"portrait_"+slot+".jpg");
+                try(FileOutputStream out=new FileOutputStream(dest)){
+                    if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,87,out))
+                        throw new IOException("사진 저장 실패");
+                }finally{bitmap.recycle();}
+                updateStatus("아나운서 사진 등록 완료: "+slot+" · 다음 MP4부터 적용");
+            }catch(Exception ex){updateStatus("아나운서 이미지 오류: "+ex.getMessage());}
+            return;
+        }
         if(requestCode==SCRIPT_PICKER){
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
             try(InputStream input=getContentResolver().openInputStream(data.getData())){

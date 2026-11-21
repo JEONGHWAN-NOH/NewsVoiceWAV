@@ -29,6 +29,21 @@ public final class ManualRenderService extends Service {
     private final AtomicBoolean busy=new AtomicBoolean(false);
     private final ExecutorService executor=Executors.newSingleThreadExecutor();
     private Context context;
+    private long startedAt;
+    private int percent;
+    private int renderedPercent;
+    private int pageCount;
+    private void progress(String stage,int value){
+        int bounded=Math.max(0,Math.min(100,value));
+        percent=Math.max(percent,bounded);
+        long elapsed=Math.max(0,System.currentTimeMillis()-startedAt);
+        long eta=percent>=100?0:percent<8?-1:Math.max(0,elapsed*(100L-percent)/Math.max(1,percent));
+        AppPrefs.get(context).edit().putInt("render_percent",percent)
+            .putLong("render_eta_ms",eta).putString("render_stage",stage)
+            .putBoolean("render_active",percent<100).apply();
+        report(stage);
+    }
+
     private NotificationManager notices;
 
     @Override public void onCreate(){
@@ -59,7 +74,8 @@ public final class ManualRenderService extends Service {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
             startForeground(NOTIFY_ID,notification("영상 제작을 준비하고 있습니다."),type);
-            report("전경 영상 제작 시작");
+            startedAt=System.currentTimeMillis();percent=0;renderedPercent=0;
+            progress("영상 제작 시작됨",1);
         }catch(Exception e){
             AppPrefs.status(context,"전경 제작 시작 실패: "+e.getClass().getSimpleName()+" - "+e.getMessage());
             busy.set(false);stopSelfResult(startId);return START_NOT_STICKY;
@@ -68,6 +84,7 @@ public final class ManualRenderService extends Service {
             try{render(file);}
             catch(Exception e){
                 String last=AppPrefs.get(context).getString("status","시작");
+                AppPrefs.get(context).edit().putBoolean("render_active",false).putLong("render_eta_ms",-1).apply();
                 AppPrefs.status(context,"영상 제작 실패 | 마지막 단계: "+last+" | "+
                     e.getClass().getSimpleName()+" : "+e.getMessage()+
                     " | WAV는 먼저 저장됐을 수 있습니다.");
@@ -100,17 +117,20 @@ public final class ManualRenderService extends Service {
         boolean success=false;
         try{
             if(!AppPrefs.videoEnabled(context)){
-                report("WAV 음성 생성 중");
+                progress("WAV 음성 생성 중",10);
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                 DownloadsPublisher.publish(context,wav,names.wav());
+                progress("WAV 저장 완료",100);
                 report("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+"/"+names.wav());
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
+            pageCount=pages.size();
+            progress("음성 생성 준비",5);
             for(int i=0;i<pages.size();i++){
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 처리 스레드가 시스템에서 중단됐습니다.");
-                report("화면별 WAV 생성: "+(i+1)+"/"+pages.size());
+                progress("화면별 WAV 생성: "+(i+1)+"/"+pages.size(),5+35*i/Math.max(1,pages.size()));
                 List<Long> cues=new ArrayList<>();
                 parts.add(synthesize(pages.get(i).spokenText(),"manual_"+stamp+"_p"+(i+1),cues));
                 sentenceFrames.add(cues);
@@ -118,21 +138,31 @@ public final class ManualRenderService extends Service {
             wav=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+"_combined.wav");
             WavTools.concatenate(parts,wav);
             DownloadsPublisher.publish(context,wav,names.wav());
-            report("WAV 저장 성공 · MP4 변환 준비");
+            progress("WAV 저장 성공 · MP4 변환 준비",40);
             for(int i=0;i<pages.size();i++){
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("이미지 검색 중 작업이 중단됐습니다.");
-                report("관련 자료 이미지 검색 "+(i+1)+"/"+pages.size());
-                photos.add(NewsImageFetcher.fetch(pages.get(i)));
+                progress("관련 자료 이미지 검색 "+(i+1)+"/"+pages.size(),40+12*i/Math.max(1,pages.size()));
+                photos.add(pages.get(i).kind==NewsStory.NEWS?
+                    NewsImageFetcher.fetch(pages.get(i)):
+                    NewsImageFetcher.anchorPortrait(context,pages.get(i)));
             }
             credits=NewsVoiceWorker.makeImageCredits(pages,photos,context.getCacheDir(),"manual_"+stamp);
             mp4=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+".mp4");
+            progress("영상 렌더링 준비",52);
             NewsVideoComposer.create(context,pages,parts,sentenceFrames,mp4,step->{
                 if(Thread.currentThread().isInterrupted())
                     throw new IOException("영상 작업 스레드가 시스템에서 중단됐습니다.");
-                report(step);
+                if(step.startsWith("뉴스 화면 렌더링 ")){
+                    try{
+                        int x=Integer.parseInt(step.replaceAll("[^0-9]",""));
+                        progress(step,56+Math.min(36,36*x/100));
+                    }catch(NumberFormatException ignored){report(step);}
+                }else if(step.contains("AAC"))progress(step,54);
+                else if(step.contains("결합"))progress(step,93);
+                else progress(step,Math.max(52,percent));
             },photos);
-            report("MP4 다운로드 폴더에 기록하는 중");
+            progress("MP4 다운로드 폴더에 기록하는 중",95);
             Uri saved=DownloadsPublisher.publish(context,mp4,names.mp4());
             File cover=NewsCoverExporter.coverFile(mp4);
             Uri savedCover=DownloadsPublisher.publish(context,cover,names.jpg());
@@ -143,7 +173,7 @@ public final class ManualRenderService extends Service {
             cover.delete();
             if(credits!=null)
                 DownloadsPublisher.publish(context,credits,names.credits());
-            report("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+" → MP4 · WAV · JPG");
+            progress("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+" → MP4 · WAV · JPG",100);
             success=true;
         }finally{
             for(File f:parts)f.delete();

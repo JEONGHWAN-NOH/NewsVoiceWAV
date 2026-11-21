@@ -109,7 +109,9 @@ public final class NewsVoiceWorker extends Worker {
             for(int i=0;i<pages.size();i++){
                 if(isStopped())throw new IOException(stopDetail());
                 AppPrefs.status(context,"기사 관련 이미지 검색: "+(i+1)+"/"+pages.size());
-                photos.add(NewsImageFetcher.fetch(pages.get(i)));
+                photos.add(pages.get(i).kind==NewsStory.NEWS?
+                    NewsImageFetcher.fetch(pages.get(i)):
+                    NewsImageFetcher.anchorPortrait(context,pages.get(i)));
             }
             File credits=makeImageCredits(pages,photos,context.getCacheDir(),jobId);
             File audio=new File(context.getCacheDir(),"newsvoice_"+jobId+"_combined.wav");
