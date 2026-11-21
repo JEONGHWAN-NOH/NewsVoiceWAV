@@ -105,7 +105,9 @@ public final class NewsVoiceWorker extends Worker {
                 runAsForeground();
                 input=new File(new File(context.getFilesDir(),"inbox"),localFile);
                 String text=readString(input);
-                if(text.isEmpty())throw new IOException("Empty local script");
+                BroadcastScriptReview.Result checked=BroadcastScriptReview.review(text);
+                if(!checked.approved())throw new IOException("방송체 사전 검수 실패: "+checked.summary());
+                text=checked.reviewed;
                 String stamp=String.valueOf(System.currentTimeMillis());
                 if(AppPrefs.videoEnabled(context)){
                     VideoResult made=makeVideo(text,"manual_"+stamp);
@@ -128,16 +130,19 @@ public final class NewsVoiceWorker extends Worker {
             validateServer(base,token);
             Job job=fetch(base,token);
             if(job==null){AppPrefs.status(context,"새 뉴스 원고 없음");return Result.success();}
+            BroadcastScriptReview.Result checkedJob=BroadcastScriptReview.review(job.text);
+            if(!checkedJob.approved())throw new IOException("서버 원고 방송체 사전 검수 실패: "+checkedJob.summary());
+            String broadcast=checkedJob.reviewed;
             AppPrefs.status(context,"자동 음성 생성: "+job.id);
             if(AppPrefs.videoEnabled(context)){
-                VideoResult made=makeVideo(job.text,job.id);
+                VideoResult made=makeVideo(broadcast,job.id);
                 saveDownloads(made.wav,"newsvoice_"+job.id+".wav");
                 saveDownloads(made.mp4,"newsvoice_"+job.id+".mp4");
                 upload(base,token,job.id,made.wav);
                 made.wav.delete();made.mp4.delete();
                 AppPrefs.status(context,"WAV + MP4 생성 및 WAV 전송 완료: "+job.id);
             }else{
-                File wav=synthesize(job.text,job.id);
+                File wav=synthesize(broadcast,job.id);
                 saveDownloads(wav,"newsvoice_"+job.id+".wav");
                 upload(base,token,job.id,wav);
                 wav.delete();

@@ -187,6 +187,11 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         editor.setHint("여기에 한국어 뉴스 원고를 붙여 넣으세요.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         body.addView(editor,lp(-1,-2,10));
+        Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
+        body.addView(reviewButton,lp(-1,52,7));
+        TextView reviewHint=text("쉼표·마침표·일부 명백한 종결어미만 자동 보정합니다. 뜻이 불분명한 반말·하대 표현은 검토 후 수정하셔야 합니다.",12,false);
+        reviewHint.setTextColor(0xff61778e);body.addView(reviewHint,lp(-1,-2,7));
+        reviewButton.setOnClickListener(v->reviewEditorScript());
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
         sample.setOnClickListener(v->editor.setText("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.\n첫 번째 소식입니다. 주요 경제 동향과 기업 투자 현황을 살펴보겠습니다.\n이상으로 뉴스를 마치겠습니다. 감사합니다."));
         body.addView(text("03  재생 · 저장",17,true),lp(-1,-2,25));
@@ -216,7 +221,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
         preview.setOnClickListener(v->speakNow("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.",true));
-        play.setOnClickListener(v->speakNow(editor.getText().toString(),false));
+        play.setOnClickListener(v->{String check=reviewEditorScript();if(check!=null)speakNow(check,false);});
         stop.setOnClickListener(v->{taskToken++;if(tts!=null)tts.stop();updateStatus("낭독 정지됨");});
         save.setOnClickListener(v->queueManualSave());
         buildAutomationControls(body);
@@ -525,11 +530,19 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 ". 내 파일 → 다운로드 → NewsVoiceWAV에서 확인하세요.");
         }
     }
+    private String reviewEditorScript(){
+        BroadcastScriptReview.Result result=BroadcastScriptReview.review(editor.getText().toString());
+        if(!result.reviewed.equals(editor.getText().toString().trim())){
+            editor.setText(result.reviewed);
+            editor.setSelection(editor.length());
+        }
+        updateStatus(result.summary());
+        return result.approved()?result.reviewed:null;
+    }
     private void queueManualSave(){
         if(!ready){updateStatus("한국어 음성 엔진이 준비되지 않았습니다.");return;}
-        String text=editor.getText().toString().trim();
-        if(text.isEmpty()){updateStatus("원고를 입력하세요.");return;}
-        if(text.length()>60000){updateStatus("원고는 60,000자 이하로 입력하세요.");return;}
+        String text=reviewEditorScript();
+        if(text==null)return;
         try {
             persistVoiceSettings();
             File inbox=new File(getFilesDir(),"inbox");

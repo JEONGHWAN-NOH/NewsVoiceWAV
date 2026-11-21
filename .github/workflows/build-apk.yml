@@ -37,6 +37,11 @@ jobs:
           mkdir -p /tmp/newscover-classes
           javac -encoding UTF-8 -d /tmp/newscover-classes app/src/main/java/com/newsvoice/tts/NewsCoverMeta.java tests/NewsCoverMetaTest.java
           java -cp /tmp/newscover-classes NewsCoverMetaTest
+      - name: Test Korean broadcaster script preflight
+        run: |
+          mkdir -p /tmp/broadcastreview-classes
+          javac -encoding UTF-8 -d /tmp/broadcastreview-classes app/src/main/java/com/newsvoice/tts/BroadcastScriptReview.java tests/BroadcastScriptReviewTest.java
+          java -cp /tmp/broadcastreview-classes BroadcastScriptReviewTest
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
         run: |
@@ -52,6 +57,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.8-Cover-Auto-Date-debug-apk
+          name: NewsVoiceWAV-v5.9-Formal-Broadcast-Review-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

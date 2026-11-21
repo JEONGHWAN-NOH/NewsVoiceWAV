@@ -86,6 +86,9 @@ public final class ManualRenderService extends Service {
         if(!input.isFile()||input.length()>240000)
             throw new IOException("원고를 읽을 수 없습니다.");
         String text=new String(Files.readAllBytes(input.toPath()),StandardCharsets.UTF_8).trim();
+        BroadcastScriptReview.Result check=BroadcastScriptReview.review(text);
+        if(!check.approved())throw new IOException("방송체 사전 검수 실패: "+check.summary());
+        text=check.reviewed;
         if(text.isEmpty()||text.length()>60000)throw new IOException("원고 길이를 확인해 주세요.");
         String stamp=String.valueOf(System.currentTimeMillis());
         List<File> parts=new ArrayList<>();
