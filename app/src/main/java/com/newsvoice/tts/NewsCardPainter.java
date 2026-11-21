@@ -109,18 +109,13 @@ public final class NewsCardPainter {
             c.drawLine(302,1295,789,1295,ghost);
         }
     }
-    /** A short article remains one card; long articles continue without losing a word. */
+    /** A whole news item is one large-print vertically scrolling slide, not a tiny card. */
     public static List<NewsStory> paginate(NewsStory story,int newsNumber,int newsTotal){
-        List<String> chunks=NewsPageSplitter.split(story.spokenText(),
-            text->tryFitNarration(text)!=null);
+        if(story.spokenText().trim().isEmpty())
+            throw new IllegalArgumentException("낭독할 본문이 없습니다.");
+        // The original title remains screen-only; scrolling uses the complete unabridged body.
         List<NewsStory> result=new ArrayList<>();
-        for(int i=0;i<chunks.size();i++){
-            // NewsStory.spokenText excludes the heading before the first newline.
-            // Never synthesize the title; preserve the full narration on each page.
-            String text=story.kind==NewsStory.NEWS?
-                story.title+"\n"+chunks.get(i):chunks.get(i);
-            result.add(story.page(text,newsNumber,newsTotal,i+1,chunks.size()));
-        }
+        result.add(story.page(story.narration,newsNumber,newsTotal,1,1));
         return result;
     }
     public static List<NewsStory> paginateBroadcast(List<NewsStory> sections){
@@ -240,6 +235,67 @@ public final class NewsCardPainter {
         throw new IllegalArgumentException("자동 분할 후에도 배치할 수 없습니다: "+story.title);
     }
 
+    private static final float SCROLL_FONT=82f;
+    private static final float SCROLL_STEP=115f;
+    private static final float SCROLL_TOP=710f;
+    private static final float SCROLL_BOTTOM=1568f;
+    private static final float SCROLL_FOCUS_ROWS=3.2f;
+
+    /** Prepared once per article: the voice script is never ellipsized or shrunk. */
+    public static final class ScrollPlan {
+        final NewsStory story;
+        final List<String> lines;
+        final int[] rowLengths,rowStarts,sentenceStarts;
+        final int totalCharacters;
+        final float maxOffset;
+        private ScrollPlan(NewsStory story,List<String> lines,int[] lengths,
+                           int[] starts,int[] sentenceStarts,int characters,float maxOffset){
+            this.story=story;this.lines=lines;this.rowLengths=lengths;
+            this.rowStarts=starts;this.sentenceStarts=sentenceStarts;
+            this.totalCharacters=characters;this.maxOffset=maxOffset;
+        }
+        public float offset(int sentence,float fraction,boolean narrationFinished){
+            if(sentence<0){
+                if(!narrationFinished)return 0f;
+                return NewsScrollMath.offset(rowLengths,totalCharacters,
+                    SCROLL_STEP,SCROLL_FOCUS_ROWS,maxOffset);
+            }
+            if(sentence+1>=sentenceStarts.length)
+                throw new IllegalArgumentException("문장 인덱스가 잘못됐습니다.");
+            float position=sentenceStarts[sentence]+
+                NewsScrollMath.clamp(fraction,0f,1f)*
+                (sentenceStarts[sentence+1]-sentenceStarts[sentence]);
+            return NewsScrollMath.offset(rowLengths,position,
+                SCROLL_STEP,SCROLL_FOCUS_ROWS,maxOffset);
+        }
+    }
+
+    /** Compute wrapping only once, not for each encoded video frame. */
+    public static ScrollPlan prepareScroll(NewsStory story){
+        if(story==null)throw new IllegalArgumentException("뉴스 내용이 없습니다.");
+        String script=story.spokenText();
+        List<String> rows=wrapComplete(script,p(Color.WHITE,SCROLL_FONT,true),880f);
+        if(rows.isEmpty())throw new IllegalArgumentException("뉴스 본문이 비어 있습니다.");
+        int[] lengths=new int[rows.size()];
+        int[] starts=new int[rows.size()];
+        int total=0;
+        for(int i=0;i<rows.size();i++){
+            starts[i]=total;
+            lengths[i]=NewsSentenceTimeline.visibleLength(rows.get(i));
+            total+=lengths[i];
+        }
+        if(total!=NewsSentenceTimeline.visibleLength(script))
+            throw new IllegalStateException("스크롤 화면에 모든 원고 글자가 배치되지 않았습니다.");
+        List<String> sentences=NewsSentenceTimeline.split(script);
+        int[] boundaries=new int[sentences.size()+1];
+        for(int i=0;i<sentences.size();i++)
+            boundaries[i+1]=boundaries[i]+NewsSentenceTimeline.visibleLength(sentences.get(i));
+        if(boundaries[boundaries.length-1]!=total)
+            throw new IllegalStateException("본문과 음성 문장 구간이 일치하지 않습니다.");
+        float maxOffset=Math.max(0f,SCROLL_TOP+(rows.size()-1)*SCROLL_STEP-1517f);
+        return new ScrollPlan(story,rows,lengths,starts,boundaries,total,maxOffset);
+    }
+
     private static void stroke(Canvas c,float x1,float y1,float x2,float y2,int color,float width,float radius){
         Paint pen=p(color,0,false);pen.setStyle(Paint.Style.STROKE);pen.setStrokeWidth(width);
         c.drawRoundRect(new RectF(x1,y1,x2,y2),radius,radius,pen);
@@ -295,10 +351,10 @@ public final class NewsCardPainter {
         if(pos<row.length())c.drawText(row.substring(pos),drawX,baseline,white);
     }
 
-    /** Entire current-page narrated body inside one full-width panel. */
+    /** Large-print news slide: voice-synchronized upward movement within a clipped viewport. */
     private static Bitmap renderFullArticle(NewsStory story,int index,int count,
-                                            NewsCoverMeta meta,int activeSentence){
-        ReadingFit layout=fitStory(story);
+                                            NewsCoverMeta meta,int activeSentence,
+                                            ScrollPlan scroll,int scrollPixels){
         Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bitmap);
         int white=Color.WHITE,yellow=Color.rgb(255,210,46),blue=Color.rgb(11,48,101);
@@ -353,45 +409,56 @@ public final class NewsCardPainter {
             story.kind==NewsStory.CLOSING?"마감 인사":
             economy?"경제·산업":"필리핀 주요 뉴스";
         c.drawText(category,89,557,p(yellow,43,true));
-        if(story.pageCount>1){
-            String pageLabel="본문 "+story.pageNumber+" / "+story.pageCount;
-            Paint pageFont=p(white,31,true);
-            c.drawText(pageLabel,990-pageFont.measureText(pageLabel),555,pageFont);
-        }
+        String scrollLabel="큰 글씨 · 자동 스크롤";
+        Paint scrollLabelPaint=p(Color.rgb(182,214,242),29,true);
+        c.drawText(scrollLabel,991-scrollLabelPaint.measureText(scrollLabel),
+            555,scrollLabelPaint);
         line(c,Color.rgb(69,143,220),87,586,990,586,2);
         drawWatermark(c,story);
-        Paint body=p(white,layout.size,true);
         int[] visibleRange=NewsSentenceTimeline.visibleRange(
             NewsSentenceTimeline.split(story.spokenText()),activeSentence);
-        int nonWhitespaceOffset=0;
-        float y=layout.top;
-        for(String row:layout.lines){
-            int from=-1,to=-1;
-            for(int at=0;at<row.length();at++){
-                if(Character.isWhitespace(row.charAt(at)))continue;
-                if(nonWhitespaceOffset>=visibleRange[0] &&
-                   nonWhitespaceOffset<visibleRange[1] && visibleRange[0]>=0){
+        c.save();
+        c.clipRect(75f,611f,1002f,SCROLL_BOTTOM);
+        Paint highlight=p(Color.rgb(16,119,129),0,false);
+        highlight.setAlpha(225);
+        Paint underline=p(Color.rgb(255,210,46),0,false);
+        underline.setStrokeWidth(4f);
+        for(int row=0;row<scroll.lines.size();row++){
+            float y=SCROLL_TOP+row*SCROLL_STEP-scrollPixels;
+            if(y<611f-SCROLL_STEP || y>SCROLL_BOTTOM+SCROLL_STEP)continue;
+            String text=scroll.lines.get(row);
+            if(text.isEmpty())continue;
+            int offset=scroll.rowStarts[row];
+            boolean readAlready=activeSentence>=0&&offset+scroll.rowLengths[row]<=visibleRange[0];
+            Paint body=p(readAlready?Color.rgb(163,184,211):Color.WHITE,SCROLL_FONT,true);
+            int from=-1,to=-1,nonWhitespaceOffset=offset;
+            for(int at=0;at<text.length();at++){
+                if(Character.isWhitespace(text.charAt(at)))continue;
+                if(visibleRange[0]>=0 && nonWhitespaceOffset>=visibleRange[0] &&
+                   nonWhitespaceOffset<visibleRange[1]){
                     if(from<0)from=at;
                     to=at+1;
                 }
                 nonWhitespaceOffset++;
             }
-            if(from>=0 && to>from){
-                float left=layout.x+body.measureText(row.substring(0,from));
-                float right=left+body.measureText(row.substring(from,to));
-                // Highlight only the sentence being narrated, never the headline.
-                Paint highlight=p(Color.rgb(17,119,129),0,false);
-                highlight.setAlpha(215);
-                c.drawRoundRect(new RectF(left-8,y-layout.size*0.98f,
-                    right+9,y+layout.size*0.20f),11,11,highlight);
-                Paint underline=p(Color.rgb(255,210,46),0,false);
-                underline.setStrokeWidth(3.5f);
-                c.drawLine(left,y+layout.size*0.24f,right,y+layout.size*0.24f,underline);
+            if(from>=0&&to>from){
+                float left=92f+body.measureText(text.substring(0,from));
+                float right=left+body.measureText(text.substring(from,to));
+                c.drawRoundRect(new RectF(left-7,y-SCROLL_FONT*0.98f,
+                    right+8,y+SCROLL_FONT*0.20f),12,12,highlight);
+                c.drawLine(left,y+SCROLL_FONT*0.23f,right,
+                    y+SCROLL_FONT*0.23f,underline);
             }
-            if(!row.isEmpty())drawProseLine(c,row,layout.x,y,body);
-            y+=layout.step;
+            drawProseLine(c,text,92f,y,body);
         }
-        if(y-layout.step>1570)throw new IllegalStateException("기사 본문이 카드 경계를 넘었습니다.");
+        c.restore();
+        // A quiet progress rail makes the scroll position visible without subtitles.
+        if(scroll.maxOffset>0){
+            rounded(c,Color.rgb(48,79,128),1014,637,1020,1542,3);
+            float scrollRatio=NewsScrollMath.clamp(scrollPixels/scroll.maxOffset,0f,1f);
+            float thumbTop=637+806f*scrollRatio;
+            rounded(c,Color.rgb(255,210,46),1012,thumbTop,1022,thumbTop+98f,5);
+        }
         int total=Math.max(1,story.articleCount);
         int completed=NewsBroadcastSegments.completedNews(story);
         int remain=NewsBroadcastSegments.remainingNews(story);
@@ -482,9 +549,16 @@ public final class NewsCardPainter {
                                 NewsCoverMeta meta){
         return render(context,story,index,count,stage,meta,-1);
     }
+    /** Called by the video encoder with a cached plan and a per-frame scroll offset. */
+    public static Bitmap renderScrolling(NewsStory story,int index,int count,NewsCoverMeta meta,
+                                         int activeSentence,ScrollPlan plan,int scrollPixels){
+        if(plan.story!=story)throw new IllegalArgumentException("기사와 스크롤 레이아웃이 다릅니다.");
+        return renderFullArticle(story,index,count,meta,activeSentence,plan,scrollPixels);
+    }
     public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,
                                 NewsCoverMeta meta,int activeSentence){
-        if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta,activeSentence);
+        if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta,
+            activeSentence,prepareScroll(story),0);
         if(stage==0){
             Bitmap artwork=renderBroadcastCover(context,meta,count);
             if(artwork!=null)return artwork;
