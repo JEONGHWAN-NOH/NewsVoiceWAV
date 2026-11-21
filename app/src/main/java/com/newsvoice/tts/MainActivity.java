@@ -244,7 +244,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("v5.19 끊김 없는 연속 스크롤: 82px 큰 글씨가 전체 음성 시간에 맞춰 30fps로 일정하게 위로 흐릅니다. 문장 사이 공백에서도 멈추지 않으며, 하이라이트·밑줄은 없습니다. MP4 시작 6초 동안 뉴스 표지를 고정하고 동일한 JPG를 자동 저장합니다.",12,false);
+        TextView formatHelp=text("v5.20 음성 동기화 스크롤: 본문 76px·줄 간격 104px, 30fps. 실제 문장별 WAV 길이와 본문 위치를 이용하여 아나운서 낭독 속도에 맞춰 화면을 부드럽게 이동합니다. 문장 경계의 끊김·하이라이트·밑줄 없이, 기존 6초 뉴스 표지·JPG 저장·음악·카카오톡 공유를 유지합니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
