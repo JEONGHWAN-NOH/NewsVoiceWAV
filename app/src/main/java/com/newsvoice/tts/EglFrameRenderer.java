@@ -22,6 +22,7 @@ final class EglFrameRenderer implements AutoCloseable {
     private EGLSurface window=EGL14.EGL_NO_SURFACE;
     private final Surface target;
     private final int program,texture,posSlot,texSlot,zoomSlot;
+    private int textureWidth=-1,textureHeight=-1;
     private final FloatBuffer positions,texCoords;
     private static final String VERTEX="attribute vec4 aPos; attribute vec2 aTex; varying vec2 vTex; void main(){gl_Position=aPos;vTex=aTex;}";
     private static final String FRAGMENT="precision mediump float; varying vec2 vTex; uniform sampler2D uTex; uniform float uZoom;void main(){vec2 uv=(vTex-vec2(0.5))/uZoom+vec2(0.5);gl_FragColor=texture2D(uTex,uv);}";
@@ -65,7 +66,12 @@ final class EglFrameRenderer implements AutoCloseable {
     }
     void upload(Bitmap image){
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D,texture);
-        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D,0,image,0);
+        if(textureWidth==image.getWidth()&&textureHeight==image.getHeight()){
+            GLUtils.texSubImage2D(GLES20.GL_TEXTURE_2D,0,0,0,image);
+        } else {
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D,0,image,0);
+            textureWidth=image.getWidth();textureHeight=image.getHeight();
+        }
     }
     void draw(long timestampNs,float zoom)throws IOException {
         GLES20.glUseProgram(program);
