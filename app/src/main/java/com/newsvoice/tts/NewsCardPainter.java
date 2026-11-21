@@ -357,10 +357,55 @@ public final class NewsCardPainter {
         if(pos<row.length())c.drawText(row.substring(pos),drawX,baseline,white);
     }
 
+    /** News-specific photo; the label is always "reference image", never an event photograph claim. */
+    private static void drawReferenceThumbnail(Canvas c,NewsImageFetcher.Photo photo,
+                                                String title){
+        final float l=68,t=263,r=423,b=426;
+        Path clip=new Path();
+        clip.addRoundRect(new RectF(l,t,r,b),16,16,Path.Direction.CW);
+        c.save();c.clipPath(clip);
+        if(photo!=null&&photo.bitmap!=null&&!photo.bitmap.isRecycled()){
+            Bitmap bmp=photo.bitmap;
+            float srcRatio=(float)bmp.getWidth()/bmp.getHeight();
+            float dstRatio=(r-l)/(b-t);
+            int w=bmp.getWidth(),h=bmp.getHeight();
+            Rect source;
+            if(srcRatio>dstRatio){
+                int crop=Math.max(1,Math.round(h*dstRatio));
+                source=new Rect((w-crop)/2,0,(w+crop)/2,h);
+            }else{
+                int crop=Math.max(1,Math.round(w/dstRatio));
+                source=new Rect(0,(h-crop)/2,w,(h+crop)/2);
+            }
+            Paint bitmapPaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+            c.drawBitmap(bmp,source,new RectF(l,t,r,b),bitmapPaint);
+        }else{
+            Paint fill=new Paint(Paint.ANTI_ALIAS_FLAG);
+            fill.setShader(new LinearGradient(l,t,r,b,
+                Color.rgb(16,80,151),Color.rgb(7,37,77),Shader.TileMode.CLAMP));
+            c.drawRect(l,t,r,b,fill);
+            Paint map=p(Color.rgb(127,193,255),0,false);
+            map.setStrokeWidth(3);map.setStyle(Paint.Style.STROKE);
+            c.drawCircle(240,336,64,map);
+            c.drawOval(new RectF(215,273,265,399),map);
+            c.drawLine(176,336,304,336,map);
+            c.drawLine(240,272,240,400,map);
+            c.drawText("PHILIPPINES",147,416,p(Color.WHITE,25,true));
+        }
+        rounded(c,Color.argb(195,3,20,43),l,b-32,r,b,0);
+        String credit=photo==null?"뉴스 관련 중립 이미지":"자료 이미지 · Wikimedia Commons";
+        c.drawText(credit,l+12,b-10,p(Color.WHITE,19,true));
+        c.restore();
+        Paint border=p(Color.rgb(88,183,255),0,false);
+        border.setStrokeWidth(3);border.setStyle(Paint.Style.STROKE);
+        c.drawRoundRect(new RectF(l,t,r,b),16,16,border);
+    }
+
     /** Large-print news slide: voice-synchronized upward movement within a clipped viewport. */
     private static Bitmap renderFullArticle(NewsStory story,int index,int count,
                                             NewsCoverMeta meta,int activeSentence,
                                             ScrollPlan scroll,float scrollPixels,
+                                            NewsImageFetcher.Photo photo,float broadcastProgress,
                                             Bitmap reusable){
         Bitmap bitmap=reusable==null?
             Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888):reusable;
@@ -384,34 +429,28 @@ public final class NewsCardPainter {
         rounded(c,yellow,51,196,1031,204,3);
         rounded(c,blue,43,233,1037,453,30);
         stroke(c,43,233,1037,453,Color.rgb(41,157,241),4,30);
-        // Approved design: yellow news-category tab on the left, headline on right.
-        rounded(c,yellow,62,280,309,395,22);
+        // Approved A-mode design: illustrative news image on left, text on right.
+        // The former yellow '주요 뉴스 1' plaque is deliberately removed.
         String title=story.title;
         boolean economy=title.contains("경제")||title.contains("예산")||
             title.contains("공공사업")||title.contains("투자")||
             title.contains("유가")||title.contains("휘발유")||
             title.contains("경유")||title.contains("산업")||
             title.contains("수출")||title.contains("기업");
-        String label=story.kind==NewsStory.OPENING?"시작 인사":
-            story.kind==NewsStory.ANCHOR?"앵커 한마디":
-            story.kind==NewsStory.CLOSING?"마감 인사":
-            (economy?"경제 뉴스 ":"주요 뉴스 ")+story.articleNumber;
-        Paint labelPaint=p(Color.rgb(6,23,47),30,true);
-        while(labelPaint.getTextSize()>23&&labelPaint.measureText(label)>226)
-            labelPaint.setTextSize(labelPaint.getTextSize()-1);
-        c.drawText(label,77,350,labelPaint);
-        line(c,Color.rgb(131,190,245),325,268,325,414,3);
+        drawReferenceThumbnail(c,photo,title);
+        line(c,Color.rgb(131,190,245),437,268,437,413,3);
         Paint headline=null;List<String> headlines=null;
-        for(int size=58;size>=30;size--){
+        for(int size=55;size>=27;size--){
             headline=p(white,size,true);
-            headlines=wrapComplete(title,headline,673f);
-            if(headlines.size()<=3 && headlines.size()*size*1.22f<=177)break;
+            headlines=wrapComplete(title,headline,550f);
+            if(headlines.size()<=3 &&
+               headlines.size()*size*1.18f<=178)break;
         }
         if(headlines==null||headlines.size()>3)
-            throw new IllegalArgumentException("제목이 한 화면을 초과합니다: "+title);
-        float lineHeight=headline.getTextSize()*1.22f;
-        float titleY=325+(2-headlines.size())*lineHeight/2f;
-        for(String t:headlines){c.drawText(t,348,titleY,headline);titleY+=lineHeight;}
+            throw new IllegalArgumentException("제목이 상단 이미지 옆 공간을 초과합니다: "+title);
+        float lineHeight=headline.getTextSize()*1.18f;
+        float titleY=326+(2-headlines.size())*lineHeight/2f;
+        for(String row:headlines){c.drawText(row,458,titleY,headline);titleY+=lineHeight;}
         rounded(c,Color.rgb(8,43,94),44,469,1036,1598,29);
         stroke(c,44,469,1036,1598,Color.rgb(40,153,237),4,29);
         // Entire width is now available for the complete announcer script.
@@ -448,13 +487,19 @@ public final class NewsCardPainter {
         int total=Math.max(1,story.articleCount);
         int completed=NewsBroadcastSegments.completedNews(story);
         int remain=NewsBroadcastSegments.remainingNews(story);
-        rounded(c,yellow,46,1632,257,1700,14);
-        c.drawText("뉴스 진행",65,1679,p(Color.rgb(9,24,45),41,true));
-        c.drawText(completed+" / "+total,283,1678,p(white,46,true));
-        rounded(c,Color.rgb(96,113,147),485,1648,896,1688,20);
-        if(completed>0)
-            rounded(c,yellow,485,1648,485+411f*completed/total,1688,20);
-        c.drawText(Math.round(completed*100f/total)+"%",919,1679,p(white,37,true));
+        // Count shows the current article, while the yellow rail measures
+        // continuous elapsed broadcast time, not just completed article count.
+        float overall=broadcastProgress<0f?
+            (float)completed/total:NewsScrollMath.clamp(broadcastProgress,0f,1f);
+        int shown=story.kind==NewsStory.OPENING?0:
+            story.kind==NewsStory.NEWS?Math.min(total,Math.max(1,story.articleNumber)):total;
+        rounded(c,yellow,46,1632,330,1700,14);
+        c.drawText("전체 뉴스 진행",59,1679,p(Color.rgb(9,24,45),33,true));
+        c.drawText(shown+" / "+total,353,1678,p(white,42,true));
+        rounded(c,Color.rgb(96,113,147),535,1648,895,1688,20);
+        if(overall>0f)
+            rounded(c,yellow,535,1648,535+360f*overall,1688,20);
+        c.drawText(Math.round(overall*100f)+"%",917,1679,p(white,37,true));
         String remaining=story.kind==NewsStory.OPENING?
             "뉴스 시작 전 · 남은 뉴스 "+remain+"건":
             story.kind==NewsStory.NEWS?
@@ -539,13 +584,21 @@ public final class NewsCardPainter {
     public static Bitmap renderScrolling(NewsStory story,int index,int count,NewsCoverMeta meta,
                                          int activeSentence,ScrollPlan plan,float scrollPixels,
                                          Bitmap reusable){
+        return renderScrolling(story,index,count,meta,activeSentence,
+            plan,scrollPixels,null,-1f,reusable);
+    }
+    public static Bitmap renderScrolling(NewsStory story,int index,int count,NewsCoverMeta meta,
+                                         int activeSentence,ScrollPlan plan,float scrollPixels,
+                                         NewsImageFetcher.Photo photo,float broadcastProgress,
+                                         Bitmap reusable){
         if(plan.story!=story)throw new IllegalArgumentException("기사와 스크롤 레이아웃이 다릅니다.");
-        return renderFullArticle(story,index,count,meta,activeSentence,plan,scrollPixels,reusable);
+        return renderFullArticle(story,index,count,meta,activeSentence,plan,
+            scrollPixels,photo,broadcastProgress,reusable);
     }
     public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,
                                 NewsCoverMeta meta,int activeSentence){
         if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta,
-            activeSentence,prepareScroll(story),0,null);
+            activeSentence,prepareScroll(story),0,null,-1f,null);
         if(stage==0){
             Bitmap artwork=renderBroadcastCover(context,meta,count);
             if(artwork!=null)return artwork;
