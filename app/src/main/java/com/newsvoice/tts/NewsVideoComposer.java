@@ -289,13 +289,12 @@ public final class NewsVideoComposer {
                     }
                     // Prepare text layout and voice-aligned smoothing once per article.
                     scrollPlan=current!=null?NewsCardPainter.prepareScroll(current.story):null;
-                    scrollCurve=current!=null?NewsScrollMath.audioCurve(
-                        current.audioStartUs,current.sentenceEndUs,
-                        scrollPlan.sentenceStarts,scrollPlan.totalCharacters,
-                        scrollPlan.maxOffset):null;
+                    scrollCurve=current!=null?scrollPlan.centeredAudioCurve(
+                        current.audioStartUs,current.sentenceEndUs):null;
                 }
-                // Each sentence endpoint matches actual WAV length and prose position.
-                // C1-continuous interpolation follows the voice with a 700ms lag.
+                // Measured sentence WAV lengths plus actual wrapped-row positions
+                // drive variable scroll speeds; the focused spoken row stays near center.
+                // Preserve the approved 700ms voice-first lag and smooth transitions.
                 float scrollPixels=scrollCurve==null?0f:
                     scrollCurve.delayedPosition(us,SCROLL_DELAY_US);
                 if(which!=previousCard || Float.isNaN(previousScroll) ||
