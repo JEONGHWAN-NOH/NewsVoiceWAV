@@ -113,8 +113,10 @@ public final class NewsVoiceWorker extends Worker {
                     saveDownloads(made.wav,"newsvoice_"+stamp+".wav");
                     AppPrefs.status(context,"MP4 다운로드 폴더에 저장 중...");
                     saveDownloads(made.mp4,"newsvoice_"+stamp+".mp4");
-                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → NewsVoiceWAV → newsvoice_"+stamp+".mp4");
-                    made.wav.delete();made.mp4.delete();
+                    saveDownloads(NewsCoverExporter.coverFile(made.mp4),
+                        "newsvoice_"+stamp+"_cover.jpg");
+                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → NewsVoiceWAV → MP4 및 표지 JPG");
+                    made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
                 }else{
                     List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
                     File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
@@ -138,8 +140,10 @@ public final class NewsVoiceWorker extends Worker {
                 VideoResult made=makeVideo(broadcast,job.id);
                 saveDownloads(made.wav,"newsvoice_"+job.id+".wav");
                 saveDownloads(made.mp4,"newsvoice_"+job.id+".mp4");
+                saveDownloads(NewsCoverExporter.coverFile(made.mp4),
+                    "newsvoice_"+job.id+"_cover.jpg");
                 upload(base,token,job.id,made.wav);
-                made.wav.delete();made.mp4.delete();
+                made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
                 AppPrefs.status(context,"WAV + MP4 생성 및 WAV 전송 완료: "+job.id);
             }else{
                 List<NewsStory> sections=NewsBroadcastSegments.build(broadcast,AppPrefs.anchorComment(context));
@@ -296,6 +300,9 @@ public final class NewsVoiceWorker extends Worker {
         if(filename.endsWith(".mp4"))
             AppPrefs.get(context).edit().putString("last_mp4_uri",uri.toString())
                 .putString("last_mp4_name",filename).apply();
+        if(filename.endsWith(".jpg"))
+            AppPrefs.get(context).edit().putString("last_cover_uri",uri.toString())
+                .putString("last_cover_name",filename).apply();
         AppPrefs.status(context,"다운로드에 저장됨: "+filename);
         return uri;
     }
