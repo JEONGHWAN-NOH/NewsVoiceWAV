@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-/** One news item = one video card. Split by a line containing only === or ---.
+/** Each item has a visual-only title and a complete spoken body; long items paginate.
  * The parser does not invent headlines, facts, dates, or source attribution.
  */
 public final class NewsStory {
