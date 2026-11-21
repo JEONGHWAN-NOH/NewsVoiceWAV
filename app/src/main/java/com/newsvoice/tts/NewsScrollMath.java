@@ -136,4 +136,100 @@ public final class NewsScrollMath {
         }
         return new AudioCurve(x,y,m,maxOffset);
     }
+    /**
+     * v5.24: translate the spoken character position into the vertical location
+     * of its actually wrapped line. This is different from simply distributing
+     * the total scroll distance over the whole WAV duration.
+     *
+     * The painter starts its first line at the visual focus baseline. When the
+     * cumulative scroll reaches rowIndex*rowStep, that row is centered.
+     */
+    public static float centeredRowOffset(int[] rows,float spokenCharacters,
+                                          float rowStep,float maxOffset){
+        if(rows==null||rows.length==0||rowStep<=0||maxOffset<0)
+            throw new IllegalArgumentException("본문 행 또는 중앙 스크롤 좌표가 올바르지 않습니다.");
+        float focusedRow=Math.min(rows.length-1,
+            rowPosition(rows,spokenCharacters));
+        return clamp(focusedRow*rowStep,0f,maxOffset);
+    }
+
+    /**
+     * Create a variable-speed scrolling curve from exact PCM sentence durations
+     * PLUS wrapped-line boundaries inside the sentences. Thus each line reaches
+     * the vertical reading focus approximately when its characters are spoken.
+     * Every output anchor is monotone; the cubic interpolation has a continuous
+     * first derivative (no abrupt jumps between sentences or lines).
+     */
+    public static AudioCurve centeredAudioCurve(long voiceStartUs,
+        long[] sentenceEndsUs,int[] sentenceBoundaries,int[] rowLengths,
+        float rowStep,float maxOffset){
+        if(sentenceEndsUs==null||sentenceBoundaries==null||rowLengths==null||
+           sentenceEndsUs.length==0||
+           sentenceBoundaries.length!=sentenceEndsUs.length+1||
+           rowLengths.length==0||rowStep<=0||!Float.isFinite(maxOffset)||
+           maxOffset<0||sentenceBoundaries[0]!=0)
+            throw new IllegalArgumentException("중앙 맞춤 음성·본문 정보가 잘못됐습니다.");
+        int total=0;
+        int[] rowStarts=new int[rowLengths.length];
+        for(int i=0;i<rowLengths.length;i++){
+            if(rowLengths[i]<0)throw new IllegalArgumentException("행 길이가 잘못됐습니다.");
+            rowStarts[i]=total;
+            total+=rowLengths[i];
+        }
+        if(total==0||sentenceBoundaries[sentenceEndsUs.length]!=total)
+            throw new IllegalArgumentException("전체 음성 원고와 화면 행이 일치하지 않습니다.");
+        java.util.ArrayList<Long> times=new java.util.ArrayList<>();
+        java.util.ArrayList<Double> positions=new java.util.ArrayList<>();
+        times.add(voiceStartUs);positions.add(0d);
+        long precedingUs=voiceStartUs;
+        int row=1;
+        for(int i=0;i<sentenceEndsUs.length;i++){
+            int startChar=sentenceBoundaries[i],endChar=sentenceBoundaries[i+1];
+            long sentenceEndUs=sentenceEndsUs[i];
+            if(sentenceEndUs<=precedingUs||endChar<=startChar||endChar>total)
+                throw new IllegalArgumentException("문장 WAV 시각과 글자 수가 올바르지 않습니다.");
+            while(row<rowStarts.length&&rowStarts[row]<=startChar)row++;
+            while(row<rowStarts.length&&rowStarts[row]<endChar){
+                int splitChar=rowStarts[row];
+                long splitUs=precedingUs+Math.round(
+                    (double)(sentenceEndUs-precedingUs)*(splitChar-startChar)/
+                    (endChar-startChar));
+                if(splitUs>times.get(times.size()-1)&&splitUs<sentenceEndUs){
+                    times.add(splitUs);
+                    positions.add((double)centeredRowOffset(
+                        rowLengths,splitChar,rowStep,maxOffset));
+                }
+                row++;
+            }
+            times.add(sentenceEndUs);
+            positions.add((double)centeredRowOffset(
+                rowLengths,endChar,rowStep,maxOffset));
+            precedingUs=sentenceEndUs;
+        }
+
+        int n=times.size()-1;
+        long[] x=new long[n+1];
+        double[] y=new double[n+1],slopes=new double[n],speeds=new double[n+1];
+        for(int i=0;i<=n;i++){
+            x[i]=times.get(i);y[i]=positions.get(i);
+            if(i>0){
+                if(x[i]<=x[i-1]||y[i]+0.000001d<y[i-1])
+                    throw new IllegalArgumentException("중앙 스크롤 순서가 올바르지 않습니다.");
+                slopes[i-1]=(y[i]-y[i-1])/(x[i]-x[i-1]);
+            }
+        }
+        speeds[0]=slopes[0];speeds[n]=slopes[n-1];
+        for(int i=1;i<n;i++){
+            double leftDuration=x[i]-x[i-1],rightDuration=x[i+1]-x[i];
+            double leftSpeed=slopes[i-1],rightSpeed=slopes[i];
+            if(leftSpeed<=0d||rightSpeed<=0d)speeds[i]=0d;
+            else {
+                double w1=2d*rightDuration+leftDuration;
+                double w2=rightDuration+2d*leftDuration;
+                speeds[i]=(w1+w2)/(w1/leftSpeed+w2/rightSpeed);
+            }
+        }
+        return new AudioCurve(x,y,speeds,maxOffset);
+    }
+
 }
