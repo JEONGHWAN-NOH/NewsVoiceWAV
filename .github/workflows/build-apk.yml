@@ -1,10 +1,10 @@
 name: Build NewsVoice WAV Automatic APK
 on:
   push:
-    branches: [main, feature/auto-script-thumbnails-progress, feature/download-1-philippines-news-v526]
+    branches: [main, feature/v527-dated-folders-direct-apk]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   android-apk:
     runs-on: ubuntu-latest
@@ -37,6 +37,11 @@ jobs:
           mkdir -p /tmp/newscover-classes
           javac -encoding UTF-8 -d /tmp/newscover-classes app/src/main/java/com/newsvoice/tts/NewsCoverMeta.java tests/NewsCoverMetaTest.java
           java -cp /tmp/newscover-classes NewsCoverMetaTest
+      - name: Test Manila date folders and same-session media names
+        run: |
+          mkdir -p /tmp/news-names
+          javac -encoding UTF-8 -d /tmp/news-names app/src/main/java/com/newsvoice/tts/NewsOutputNaming.java tests/NewsOutputNamingTest.java
+          java -cp /tmp/news-names NewsOutputNamingTest
       - name: Test Korean broadcaster script preflight
         run: |
           mkdir -p /tmp/broadcastreview-classes
@@ -84,11 +89,11 @@ jobs:
         run: python3 tests/test_v520_sync.py
       - name: Verify 56px typography and 700ms voice-first narration lead
         run: python3 tests/test_v521_voice_lead.py
-      - name: Verify v5.26 voice lead and typography
+      - name: Verify v5.27 voice lead and typography
         run: python3 tests/test_v522_voice_lead.py
-      - name: Verify v5.26 voice-first 700ms and clean final card transition
+      - name: Verify v5.27 voice-first 700ms and clean final card transition
         run: python3 tests/test_v523_voice_delay.py
-      - name: Verify row-centered variable-speed v5.26 news scroll
+      - name: Verify row-centered variable-speed v5.27 news scroll
         run: python3 tests/test_v524_centered_scroll.py
       - name: Install Android SDK 35 from runner SDK tools
         shell: bash
@@ -104,9 +109,25 @@ jobs:
       - name: Build installable APK
         run: |
           gradle --no-daemon :app:assembleDebug
-          test -f app/build/outputs/apk/debug/NewsVoiceWAV-v5.26-debug.apk
+          test -f app/build/outputs/apk/debug/NewsVoiceWAV-v5.27-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.26-CenteredVoice700ms-debug-apk
+          name: NewsVoiceWAV-v5.27-CenteredVoice700ms-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+      - name: Publish installable APK as public direct download
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/NewsVoiceWAV-v5.27-debug.apk"
+          test -s "$APK"
+          if gh release view v5.27 >/dev/null 2>&1; then
+            gh release upload v5.27 "$APK" --clobber
+          else
+            gh release create v5.27 "$APK" \
+              --title "뉴스보이스 WAV v5.27 · 날짜별 저장" \
+              --notes "APK 직접 다운로드. 뉴스 파일은 Download/1. 필리핀뉴스/날짜별 폴더에 저장됩니다. 이전 버전과 서명이 다르면 삭제 후 재설치가 필요할 수 있습니다." \
+              --latest
+          fi

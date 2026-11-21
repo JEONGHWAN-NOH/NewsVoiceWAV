@@ -145,24 +145,24 @@ public final class NewsVoiceWorker extends Worker {
                 if(!checked.approved())throw new IOException("방송체 사전 검수 실패: "+checked.summary());
                 text=checked.reviewed;
                 String stamp=String.valueOf(System.currentTimeMillis());
+                NewsOutputNaming.Names names=NewsOutputNaming.at(java.time.Instant.now());
                 if(AppPrefs.videoEnabled(context)){
                     VideoResult made=makeVideo(text,"manual_"+stamp);
-                    saveDownloads(made.wav,"newsvoice_"+stamp+".wav");
+                    saveDownloads(made.wav,names.wav());
                     AppPrefs.status(context,"MP4 다운로드 폴더에 저장 중...");
-                    saveDownloads(made.mp4,"newsvoice_"+stamp+".mp4");
-                    saveDownloads(NewsCoverExporter.coverFile(made.mp4),
-                        "newsvoice_"+stamp+"_cover.jpg");
+                    saveDownloads(made.mp4,names.mp4());
+                    saveDownloads(NewsCoverExporter.coverFile(made.mp4),names.jpg());
                     if(made.credits!=null){
-                        saveDownloads(made.credits,"newsvoice_"+stamp+"_image_credits.txt");
+                        saveDownloads(made.credits,names.credits());
                         made.credits.delete();
                     }
-                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → 1. 필리핀뉴스 → MP4 및 표지 JPG");
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 → "+names.dateFolder+" → WAV · MP4 · JPG");
                     made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
                 }else{
                     List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
                     File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
-                    saveDownloads(wav,"newsvoice_"+stamp+".wav");
-                    AppPrefs.status(context,"저장 완료: 내 파일 → 다운로드 → 1. 필리핀뉴스 → newsvoice_"+stamp+".wav");
+                    saveDownloads(wav,names.wav());
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 → "+names.dateFolder+" → "+names.wav());
                     wav.delete();
                 }
                 return Result.success();
@@ -176,15 +176,15 @@ public final class NewsVoiceWorker extends Worker {
             BroadcastScriptReview.Result checkedJob=BroadcastScriptReview.review(job.text);
             if(!checkedJob.approved())throw new IOException("서버 원고 방송체 사전 검수 실패: "+checkedJob.summary());
             String broadcast=checkedJob.reviewed;
+            NewsOutputNaming.Names names=NewsOutputNaming.at(java.time.Instant.now());
             AppPrefs.status(context,"자동 음성 생성: "+job.id);
             if(AppPrefs.videoEnabled(context)){
                 VideoResult made=makeVideo(broadcast,job.id);
-                saveDownloads(made.wav,"newsvoice_"+job.id+".wav");
-                saveDownloads(made.mp4,"newsvoice_"+job.id+".mp4");
-                saveDownloads(NewsCoverExporter.coverFile(made.mp4),
-                    "newsvoice_"+job.id+"_cover.jpg");
+                saveDownloads(made.wav,names.wav());
+                saveDownloads(made.mp4,names.mp4());
+                saveDownloads(NewsCoverExporter.coverFile(made.mp4),names.jpg());
                 if(made.credits!=null){
-                    saveDownloads(made.credits,"newsvoice_"+job.id+"_image_credits.txt");
+                    saveDownloads(made.credits,names.credits());
                     made.credits.delete();
                 }
                 upload(base,token,job.id,made.wav);
@@ -193,7 +193,7 @@ public final class NewsVoiceWorker extends Worker {
             }else{
                 List<NewsStory> sections=NewsBroadcastSegments.build(broadcast,AppPrefs.anchorComment(context));
                 File wav=synthesize(NewsBroadcastSegments.audioScript(sections),job.id);
-                saveDownloads(wav,"newsvoice_"+job.id+".wav");
+                saveDownloads(wav,names.wav());
                 upload(base,token,job.id,wav);
                 wav.delete();
                 AppPrefs.status(context,"WAV 자동 생성·전송 완료: "+job.id);

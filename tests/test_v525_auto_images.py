@@ -15,9 +15,9 @@ assert '전체 뉴스 진행' in card
 assert 'broadcastProgress' in card and 'totalProgress' in video
 assert 'firstNews' in video and 'lastNews' in video
 assert 'NewsImageFetcher.fetch(pages.get(i))' in worker
-assert 'newsvoice_"+stamp+"_image_credits.txt"' in worker
+assert 'saveDownloads(made.credits,names.credits())' in worker
 assert 'https://commons.wikimedia.org/w/api.php' in fetcher
 assert 'allowedLicense' in fetcher
 assert '자료 이미지 · Wikimedia Commons' in card
 assert '0.7초(700ms)' in ui
-print("PASS: v5.26 script-only narration, reference images, credits and full-video progress")
+print("PASS: v5.27 script-only narration, reference images, credits and full-video progress")
