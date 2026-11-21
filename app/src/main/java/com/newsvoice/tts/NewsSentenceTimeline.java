@@ -23,7 +23,12 @@ public final class NewsSentenceTimeline {
             if(ch!='.' && ch!='!' && ch!='?' && ch!='。' && ch!='！' && ch!='？')continue;
             int end=i+1;
             // A sentence may end with a closing quotation or parenthesis.
-            while(end<text.length() && "\\"'”’)]}".indexOf(text.charAt(end))>=0)end++;
+            while(end<text.length()){
+                char closing=text.charAt(end);
+                if(closing!='"' && closing!='”' && closing!='’' &&
+                   closing!=')' && closing!=']' && closing!='}')break;
+                end++;
+            }
             if(end<text.length()&&!Character.isWhitespace(text.charAt(end)))continue;
             String sentence=text.substring(start,end).trim();
             if(!sentence.isEmpty())result.add(sentence);
