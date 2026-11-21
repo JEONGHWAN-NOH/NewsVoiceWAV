@@ -25,6 +25,7 @@ public final class NewsVideoComposer {
     private NewsVideoComposer() { }
     public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=30;
     private static final long US_PER_S=1_000_000L;
+    private static final long SCROLL_DELAY_US=100_000L; // narration leads the text by 0.1 seconds
     private static final int PCM_CHUNK=16384;
 
     public interface Progress { void message(String message) throws IOException; }
@@ -289,8 +290,9 @@ public final class NewsVideoComposer {
                         scrollPlan.maxOffset):null;
                 }
                 // Each sentence endpoint matches actual WAV length and prose position.
-                // C1-continuous interpolation prevents stops or speed jumps at punctuation.
-                float scrollPixels=scrollCurve==null?0f:scrollCurve.position(us);
+                // C1-continuous interpolation follows the voice with a 100ms lag.
+                float scrollPixels=scrollCurve==null?0f:
+                    scrollCurve.delayedPosition(us,SCROLL_DELAY_US);
                 if(which!=previousCard || Float.isNaN(previousScroll) ||
                    Math.abs(scrollPixels-previousScroll)>0.0001f){
                     Bitmap card=current!=null?
