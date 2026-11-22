@@ -42,10 +42,10 @@ public final class NewsVoiceWorker extends Worker {
     private void runAsForeground() throws Exception {
         NotificationManager manager=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
         if(manager==null)throw new IOException("알림 서비스를 열 수 없습니다.");
-        NotificationChannel channel=new NotificationChannel(CHANNEL_ID,"뉴스보이스 영상 제작",NotificationManager.IMPORTANCE_LOW);
+        NotificationChannel channel=new NotificationChannel(CHANNEL_ID,"광명시 뉴스 영상 제작",NotificationManager.IMPORTANCE_LOW);
         manager.createNotificationChannel(channel);
         Notification n=new Notification.Builder(context,CHANNEL_ID)
-            .setContentTitle("뉴스보이스 WAV 영상 제작")
+            .setContentTitle("광명시 뉴스 WAV 영상 제작")
             .setContentText("원고를 합성하고 MP4를 저장하는 중입니다.")
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setOngoing(true)
@@ -70,7 +70,7 @@ public final class NewsVoiceWorker extends Worker {
     static File makeImageCredits(List<NewsStory> pages,
                                          List<NewsImageFetcher.Photo> photos,
                                          File folder,String jobId)throws IOException{
-        StringBuilder b=new StringBuilder("뉴스보이스 WAV · 영상 이미지 출처 및 저작권 표시\n"
+        StringBuilder b=new StringBuilder("광명시 뉴스 WAV · 영상 이미지 출처 및 저작권 표시\n"
             +"실제 사건의 현장 사진임을 의미하지 않는 Wikimedia Commons 자료 이미지입니다.\n\n");
         for(int i=0;i<pages.size();i++){
             NewsImageFetcher.Photo photo=photos.get(i);
@@ -157,13 +157,13 @@ public final class NewsVoiceWorker extends Worker {
                         saveDownloads(made.credits,names.credits());
                         made.credits.delete();
                     }
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 → "+names.dateFolder+" → WAV · MP4 · JPG");
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 광명시 뉴스 → "+names.dateFolder+" → WAV · MP4 · JPG");
                     made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
                 }else{
                     List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
                     File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                     saveDownloads(wav,names.wav());
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 → "+names.dateFolder+" → "+names.wav());
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 광명시 뉴스 → "+names.dateFolder+" → "+names.wav());
                     wav.delete();
                 }
                 return Result.success();
