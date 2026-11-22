@@ -10,7 +10,7 @@
         <package android:name="com.samsung.SMT"/>
     </queries>
     <application android:allowBackup="false"
-        android:label="@string/app_display_name"
+        android:label="@string/app_display_name" android:icon="@drawable/gm_news_icon"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <service android:name="com.newsvoice.tts.ManualRenderService"
