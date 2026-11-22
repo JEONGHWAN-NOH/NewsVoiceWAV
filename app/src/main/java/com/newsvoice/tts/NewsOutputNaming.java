@@ -10,7 +10,9 @@ import java.util.Locale;
 /** Korea-local news date, 6AM/6PM session and one common name per generated media set. */
 public final class NewsOutputNaming {
     private NewsOutputNaming() { }
-    public static final ZoneId MANILA=ZoneId.of("Asia/Seoul");
+    public static final ZoneId KOREA=ZoneId.of("Asia/Seoul");
+    /** Compatibility alias for existing 5.38 helpers. */
+    @Deprecated public static final ZoneId MANILA=KOREA;
     private static final DateTimeFormatter DATE=DateTimeFormatter.ofPattern("yyyy-MM-dd",Locale.ROOT);
     // Seconds avoid most duplicate filenames while keeping the clock readable.
     private static final DateTimeFormatter TIME=DateTimeFormatter.ofPattern("HHmmss",Locale.ROOT);
@@ -28,7 +30,7 @@ public final class NewsOutputNaming {
     }
 
     public static Names at(Instant timestamp) {
-        ZonedDateTime local=timestamp.atZone(MANILA);
+        ZonedDateTime local=timestamp.atZone(KOREA);
         String date=DATE.format(local);
         String session=local.getHour()<12?"오전7시":"오후7시";
         String base=date+"_"+session+"_광명시뉴스_"+TIME.format(local);
@@ -43,6 +45,6 @@ public final class NewsOutputNaming {
             try{return DATE.format(LocalDate.parse(date,DATE));}
             catch(java.time.DateTimeException ignored){ }
         }
-        return DATE.format(fallback.atZone(MANILA));
+        return DATE.format(fallback.atZone(KOREA));
     }
 }
