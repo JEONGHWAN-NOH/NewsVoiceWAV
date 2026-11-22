@@ -389,10 +389,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                     main.post(() -> {
                         if(utteranceId.startsWith("play_")) {
                             if(!isCurrentPlayback(utteranceId))return;
-                            playbackSegments.clear();
-                            playbackIndex=-1;
-                            playbackToken=-1;
-                            updateStatus("음성 낭독 오류: "+utteranceId);
+                            recoverPlaybackChunk("TTS 엔진 오류");
                         }else updateStatus("음성 합성 오류. 다른 한국어 음성을 선택해 주세요.");
                     });
                 }
@@ -631,6 +628,28 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             speakPlaybackChunk();
         }
     }
+    // Read the supplied script verbatim. Splitting is only a TTS engine transport detail.
+    // On a rejected segment, retry smaller fragments without rewriting the user's words.
+    private void recoverPlaybackChunk(String reason){
+        if(playbackIndex<0||playbackIndex>=playbackSegments.size())return;
+        String failed=playbackSegments.get(playbackIndex);
+        if(failed.length()>1){
+            int midpoint=failed.length()/2;
+            int cut=midpoint;
+            for(int d=0;d<Math.min(80,midpoint);d++){
+                if(midpoint+d<failed.length() && Character.isWhitespace(failed.charAt(midpoint+d))){cut=midpoint+d+1;break;}
+                if(midpoint-d>0 && Character.isWhitespace(failed.charAt(midpoint-d))){cut=midpoint-d+1;break;}
+            }
+            if(cut<=0||cut>=failed.length())cut=midpoint;
+            playbackSegments.set(playbackIndex,failed.substring(0,cut));
+            playbackSegments.add(playbackIndex+1,failed.substring(cut));
+            speakPlaybackChunk();
+        }else{
+            // A single unsupported character cannot block the rest of the script.
+            updateStatus("읽을 수 없는 문자 1개를 건너뛰고 낭독을 계속합니다.");
+            advancePlayback("play_"+playbackToken+"_"+playbackIndex);
+        }
+    }
     private void speakPlaybackChunk(){
         if(playbackToken!=taskToken||playbackIndex<0||playbackIndex>=playbackSegments.size())return;
         int result;
@@ -638,18 +657,11 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             result=tts.speak(playbackSegments.get(playbackIndex),TextToSpeech.QUEUE_ADD,
                 new Bundle(),"play_"+playbackToken+"_"+playbackIndex);
         }catch(RuntimeException ex){
-            playbackSegments.clear();
-            playbackIndex=-1;
-            playbackToken=-1;
-            updateStatus("낭독 구간 처리 오류: "+ex.getClass().getSimpleName());
+            recoverPlaybackChunk("TTS 실행 오류");
             return;
         }
         if(result!=TextToSpeech.SUCCESS){
-            int failed=playbackIndex+1;
-            playbackSegments.clear();
-            playbackIndex=-1;
-            playbackToken=-1;
-            updateStatus("낭독 "+failed+"번째 구간을 실행하지 못했습니다.");
+            recoverPlaybackChunk("TTS 요청 거절");
         }else updateStatus("뉴스 낭독 중: "+(playbackIndex+1)+"/"+playbackSegments.size()+" 구간");
     }
     private void speakNow(String src,boolean preview){
