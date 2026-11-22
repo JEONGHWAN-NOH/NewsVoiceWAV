@@ -71,7 +71,7 @@ public final class BroadcastScriptReview {
                 continue;
             }
             // A one-line article is spoken text, not automatically a noun-ending title.
-            boolean title=articleStart && hasFollowingBodyLine(lines,i) && !line.matches(".*[.!?]$");
+            boolean title=articleStart && hasFollowingBodyLine(lines,i) && (!line.matches(".*[.!?]$") || line.matches("(?s).{1,80}(?:뉴스|소식)[.!?]"));
             articleStart=false;
             if(!title){
                 line=line.replaceAll(" +([,，。!?])","$1")
