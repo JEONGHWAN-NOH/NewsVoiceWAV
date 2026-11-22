@@ -5,7 +5,7 @@ on:
       - feature/gwangmyeong-news-v1.1
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   android-apk:
     runs-on: ubuntu-latest
@@ -51,3 +51,21 @@ jobs:
           name: GwangmyeongNews-v1.1-debug-apk
           path: app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk
           if-no-files-found: error
+      - name: Publish direct-download preview APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk"
+          TAG="gwangmyeong-news-v1.1-preview"
+          test -s "$APK"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            gh release create "$TAG" "$APK" \
+              --target "$GITHUB_SHA" \
+              --title "광명시 종합 뉴스 V1.1 · 테스트 APK" \
+              --notes "필리핀 뉴스 5.37/5.38과 별도 설치되는 광명시 전용 테스트 앱입니다. Galaxy에서 실제 TTS·영상 출력 검증 후 사용하세요." \
+              --prerelease
+          fi
