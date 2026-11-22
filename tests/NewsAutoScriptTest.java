@@ -40,6 +40,6 @@ public final class NewsAutoScriptTest {
             +"다음은 한국과 필리핀 관련 특별뉴스입니다.\n양국은 협력했습니다.";
         check(NewsBroadcastSegments.newsCount(
             NewsBroadcastSegments.build(special,""))==3,"special Korean news counts in progress");
-        System.out.println("NewsAutoScript PASS");
+        String one="안녕하십니까. 오늘의 주요 뉴스를 전해드립니다.\n첫 번째 소식입니다.\n필리핀 금융시장에서 경기 둔화 우려가 이어지고 있습니다.";\n        check(NewsAutoScript.isAutoFormat(one),"single story auto detected");\n        List<NewsStory> oneSections=NewsBroadcastSegments.build(one,"");\n        check(NewsBroadcastSegments.newsCount(oneSections)==1,"single story recognized");\n        check(oneSections.get(1).title.contains("필리핀 금융시장"),"single story headline from news, not greeting");\n        check(!oneSections.get(1).title.contains("안녕하십니까"),"greeting excluded from headline");\n        System.out.println("NewsAutoScript PASS");
     }
 }
