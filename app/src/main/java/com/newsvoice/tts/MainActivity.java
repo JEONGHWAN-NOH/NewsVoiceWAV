@@ -276,6 +276,29 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 startActivityForResult(gallery,request);
             });
         }
+        body.addView(text("03-A  v5.33 뉴스 카드 구성 미리보기 (시험 기능)",17,true),lp(-1,-2,22));
+        TextView draftHint=text("원고의 지역·날짜·분야별 카드 초안을 확인합니다. 사진은 자동 게시하지 않으며 실제 이미지 선택과 최종 MP4 반영은 후속 구현 대상입니다.",12,false);
+        draftHint.setTextColor(0xff61778e);body.addView(draftHint,lp(-1,-2,6));
+        Button draftPreview=btn("뉴스 종류 · 기사 카드 초안 미리보기",0xffffe78b,DARK);
+        body.addView(draftPreview,lp(-1,50,8));
+        draftPreview.setOnClickListener(v->{
+            String script=editor==null?"":editor.getText().toString();
+            if(script.trim().isEmpty()){updateStatus("먼저 아나운서 대본을 입력하세요.");return;}
+            NewsDraftAnalyzer.Draft draft=NewsDraftAnalyzer.analyze(script);
+            StringBuilder message=new StringBuilder();
+            message.append("방송: ").append(draft.broadcast).append("\\n날짜: ").append(draft.date)
+                .append("\\n분류된 카드: ").append(draft.cards.size()).append("장\\n\\n");
+            for(int i=0;i<draft.cards.size();i++){
+                NewsDraftAnalyzer.Card c=draft.cards.get(i);
+                message.append(i+1).append(". [").append(c.category).append("] ").append(c.title)
+                    .append("\\n이미지: ").append(c.imageSearchHint).append("\\n\\n");
+            }
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("v5.33 카드 초안 · 검토 전용")
+                .setMessage(message.toString().replace("\\\\n","\\n"))
+                .setPositiveButton("확인", (dialog,which)->{})
+                .show();
+        });
         body.addView(text("04  재생 · 저장",17,true),lp(-1,-2,25));
         status=text("음성 엔진을 준비하고 있습니다.",13,false);status.setTextColor(0xff61778e);body.addView(status,lp(-1,-2,8));
         jobStatus=text("제작 상태: "+AppPrefs.get(this).getString("status","작업 기록 없음"),14,true);
