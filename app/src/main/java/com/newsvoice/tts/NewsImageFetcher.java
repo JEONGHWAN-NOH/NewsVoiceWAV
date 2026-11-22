@@ -78,7 +78,10 @@ public final class NewsImageFetcher {
         if(title.contains("학교")||title.contains("교육"))return "Philippines public school";
         if(title.contains("태풍")||title.contains("기상"))return "Philippines weather";
         if(title.contains("전력")||title.contains("발전"))return "Philippines electric power";
-        if(title.contains("산업")||title.contains("기업")||title.contains("제조"))
+        if(title.contains("금리")||title.contains("중앙은행")||title.contains("BSP"))return "Bangko Sentral ng Pilipinas";
+        if(title.contains("환율")||title.contains("페소")||title.contains("금융")||title.contains("은행"))return "Philippine peso currency";
+        if(title.contains("물가")||title.contains("인플레이션")||title.contains("소비자"))return "Philippines public market";
+        if(title.contains("투자")||title.contains("산업")||title.contains("기업")||title.contains("제조"))
             return "Philippines factory";
         if(title.contains("철도"))return "Philippines railway";
         if(title.contains("국회")||title.contains("상원")||title.contains("탄핵"))
@@ -124,7 +127,7 @@ public final class NewsImageFetcher {
         if(story==null||story.kind!=NewsStory.NEWS)return null;
         HttpURLConnection api=null;
         try{
-            String q=URLEncoder.encode("filetype:bitmap "+searchTerm(story.title),"UTF-8");
+            String q=URLEncoder.encode("filetype:bitmap "+searchTerm(story.title+" "+story.preview),"UTF-8");
             String endpoint="https://commons.wikimedia.org/w/api.php?action=query"
                 +"&generator=search&gsrnamespace=6&gsrlimit=8&gsrsearch="+q
                 +"&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=600"
