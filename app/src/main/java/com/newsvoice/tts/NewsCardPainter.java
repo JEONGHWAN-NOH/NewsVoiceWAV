@@ -90,7 +90,7 @@ public final class NewsCardPainter {
             c.drawLine(266,1290,835,1290,ghost);
             for(int x=304;x<=748;x+=111) c.drawRoundRect(new RectF(x,1310,x+45,1517),6,6,ghost);
             c.drawLine(254,1541,862,1541,ghost);
-        } else if(content.contains("중국")||content.contains("외교")||content.contains("서광명시해")||content.contains("해양")) {
+        } else if(content.contains("교통")||content.contains("철도")||content.contains("하천")||content.contains("해양")) {
             c.drawCircle(546,1295,244,ghost);
             c.drawOval(new RectF(430,1051,664,1539),ghost);
             c.drawLine(305,1295,790,1295,ghost);
@@ -131,7 +131,7 @@ public final class NewsCardPainter {
     }
     private static int pastelColor(NewsStory s){
         String q=s.title+" "+s.narration;
-        if(q.contains("외교")||q.contains("해양")||q.contains("서광명시해")||q.contains("중국"))return Color.rgb(230,244,251);
+        if(q.contains("교통")||q.contains("철도")||q.contains("하천")||q.contains("해양"))return Color.rgb(230,244,251);
         if(q.contains("탄핵")||q.contains("재판")||q.contains("법원")||q.contains("소명"))return Color.rgb(244,238,251);
         if(q.contains("상원")||q.contains("예산")||q.contains("공공사업"))return Color.rgb(252,242,226);
         return Color.rgb(232,247,240);
@@ -523,7 +523,7 @@ public final class NewsCardPainter {
     /**
      * Gwangmyeong V1.1 native cover: original navy/red broadcast design.
      * All titles and dates are rendered live to avoid burned-in dates and
-     * prevent displaying Philippines artwork from the upstream application.
+     * prevent displaying artwork from the upstream application.
      */
     private static Bitmap renderBroadcastCover(Context context,NewsCoverMeta meta,int articleCount) {
         Bitmap output=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
