@@ -26,7 +26,7 @@ assert 'NewsCardPainter.renderScrolling(' in v
 assert 'return clamp((rowPosition(rows,spokenCharacters)-focusRows)*rowStep,0,maxOffset);' in geom
 assert 'v5.30 날짜별 자동 저장·이미지·진행률' in ui
 assert 'com.newsvoice.tts.stable' in gradle
-assert "def releaseVersion = '5.32'" in gradle, 'Expected NewsVoiceWAV v5.32 in app/build.gradle; update version tests together with releases'
+assert "def releaseVersion = '5.34'" in gradle, 'Expected NewsVoiceWAV v5.34 in app/build.gradle; update version tests together with releases'
 assert 'versionName releaseVersion' in gradle
 assert 'FPS=30;' in v
 assert 'SCROLL_DELAY_US=700_000L;' in v
