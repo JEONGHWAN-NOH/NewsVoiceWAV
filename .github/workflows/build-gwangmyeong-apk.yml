@@ -18,6 +18,16 @@ jobs:
           java-version: '17'
       - name: Verify Gwangmyeong app isolation
         run: python3 tests/test_gwangmyeong_v11.py
+      - name: Regression test broadcast opening before news one
+        run: |
+          mkdir -p /tmp/gm-broadcast-test
+          javac -encoding UTF-8 -d /tmp/gm-broadcast-test \
+            app/src/main/java/com/newsvoice/tts/NewsStory.java \
+            app/src/main/java/com/newsvoice/tts/BroadcastScriptReview.java \
+            app/src/main/java/com/newsvoice/tts/NewsAutoScript.java \
+            app/src/main/java/com/newsvoice/tts/NewsBroadcastSegments.java \
+            tests/NewsBroadcastSegmentsTest.java
+          java -cp /tmp/gm-broadcast-test NewsBroadcastSegmentsTest
       - name: Test WAV merger
         run: |
           mkdir -p /tmp/gm-wav-test
