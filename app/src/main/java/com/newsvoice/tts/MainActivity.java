@@ -51,6 +51,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private static final int OPENING_PICKER=5110;
     private static final int SCRIPT_PICKER=5111;
     private static final int NEWS_IMAGES_PICKER=5130;
+    private static final int NEWS_SINGLE_IMAGE_BASE=5200;
     private static final int PORTRAIT_PICKER_OPENING=5121, PORTRAIT_PICKER_ANCHOR=5122, PORTRAIT_PICKER_CLOSING=5123;
     private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
@@ -266,6 +267,29 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             File[] images=dir.listFiles((d,name)->name.startsWith("news_") && name.endsWith(".jpg"));
             int count=images==null?0:images.length;
             updateStatus("사전 저장된 뉴스 사진: "+count+"장 · 등록 순서를 확인하세요.");
+        });
+        body.addView(text("v5.37 · 뉴스별 사진 개별 등록",16,true),lp(-1,-2,14));
+        TextView photoHelp=text("뉴스 번호를 선택하여 갤러리 사진을 등록하거나 교체하세요. 선택한 사진은 앱에 보관되며 해당 번호의 영상에 사용됩니다.",12,false);
+        body.addView(photoHelp,lp(-1,-2,5));
+        Spinner imageSlot=new Spinner(this);
+        String[] slots=new String[12];
+        for(int i=0;i<slots.length;i++)slots[i]=(i+1)+"번째 뉴스";
+        imageSlot.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,slots));
+        body.addView(imageSlot,lp(-1,50,7));
+        Button pickSingle=btn("선택한 뉴스 사진 추가 · 갤러리",0xffe3eff2,DARK);
+        body.addView(pickSingle,lp(-1,52,7));
+        pickSingle.setOnClickListener(v->{
+            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            pick.setType("image/*");
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(pick,NEWS_SINGLE_IMAGE_BASE+imageSlot.getSelectedItemPosition());
+        });
+        Button removeSingle=btn("선택한 뉴스 사진 삭제",0xffffeeee,0xff90252b);
+        body.addView(removeSingle,lp(-1,48,5));
+        removeSingle.setOnClickListener(v->{
+            File target=new File(new File(getFilesDir(),"news_images"),String.format(Locale.US,"news_%03d.jpg",imageSlot.getSelectedItemPosition()+1));
+            boolean removed=target.exists()&&target.delete();
+            updateStatus(removed?"선택한 뉴스 사진을 삭제했습니다.":"선택한 뉴스에 등록된 사진이 없습니다.");
         });
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
         anchorEdit=new EditText(this);
@@ -773,6 +797,26 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode>=NEWS_SINGLE_IMAGE_BASE&&requestCode<NEWS_SINGLE_IMAGE_BASE+12){
+            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+            int slot=requestCode-NEWS_SINGLE_IMAGE_BASE+1;
+            File dir=new File(getFilesDir(),"news_images");
+            if(!dir.exists()&&!dir.mkdirs()){updateStatus("사진 폴더 생성 실패");return;}
+            try(InputStream in=getContentResolver().openInputStream(data.getData())){
+                if(in==null)throw new IOException("사진을 읽을 수 없습니다.");
+                android.graphics.BitmapFactory.Options options=new android.graphics.BitmapFactory.Options();
+                options.inSampleSize=2;
+                android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in,null,options);
+                if(bitmap==null)throw new IOException("지원하지 않는 사진 형식");
+                File output=new File(dir,String.format(Locale.US,"news_%03d.jpg",slot));
+                try(FileOutputStream out=new FileOutputStream(output)){
+                    if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,88,out))
+                        throw new IOException("JPEG 저장 실패");
+                }finally{bitmap.recycle();}
+                updateStatus(slot+"번째 뉴스 사진 등록 완료 · 다음 영상에 적용");
+            }catch(Exception ex){updateStatus("사진 등록 오류: "+ex.getMessage());}
+            return;
+        }
         if(requestCode==NEWS_IMAGES_PICKER){
             if(resultCode!=RESULT_OK||data==null)return;
             ArrayList<Uri> uris=new ArrayList<>();
