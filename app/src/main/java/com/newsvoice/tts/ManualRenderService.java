@@ -51,10 +51,10 @@ public final class ManualRenderService extends Service {
         context=getApplicationContext();
         notices=(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
         if(notices!=null)notices.createNotificationChannel(
-            new NotificationChannel(CHANNEL,"뉴스보이스 MP4 제작",NotificationManager.IMPORTANCE_LOW));
+            new NotificationChannel(CHANNEL,"광명시 뉴스 MP4 제작",NotificationManager.IMPORTANCE_LOW));
     }
     private Notification notification(String status){
-        return new Notification.Builder(this,CHANNEL).setContentTitle("뉴스보이스 영상 제작")
+        return new Notification.Builder(this,CHANNEL).setContentTitle("광명시 뉴스 영상 제작")
             .setContentText(status).setSmallIcon(android.R.drawable.stat_sys_download)
             .setOngoing(true).build();
     }
@@ -118,7 +118,7 @@ public final class ManualRenderService extends Service {
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                 DownloadsPublisher.publish(context,wav,names.wav());
                 progress("WAV 저장 완료",100);
-                report("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+"/"+names.wav());
+                report("저장 완료: 다운로드/광명시 뉴스/"+names.dateFolder+"/"+names.wav());
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
@@ -172,7 +172,7 @@ public final class ManualRenderService extends Service {
             cover.delete();
             if(credits!=null)
                 DownloadsPublisher.publish(context,credits,names.credits());
-            progress("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+" → MP4 · WAV · JPG",100);
+            progress("저장 완료: 다운로드/광명시 뉴스/"+names.dateFolder+" → MP4 · WAV · JPG",100);
             success=true;
         }finally{
             for(File f:parts)f.delete();
