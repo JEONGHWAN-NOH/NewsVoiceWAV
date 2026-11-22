@@ -51,6 +51,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private static final int OPENING_PICKER=5110;
     private static final int SCRIPT_PICKER=5111;
     private static final int NEWS_IMAGES_PICKER=5130;
+    private static final int NEWS_SINGLE_PICKER_BASE=5200;
     private static final int PORTRAIT_PICKER_OPENING=5121, PORTRAIT_PICKER_ANCHOR=5122, PORTRAIT_PICKER_CLOSING=5123;
     private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
@@ -267,6 +268,20 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             int count=images==null?0:images.length;
             updateStatus("사전 저장된 뉴스 사진: "+count+"장 · 등록 순서를 확인하세요.");
         });
+        body.addView(text("v5.37 · 뉴스별 사진 직접 선택 (1~12번)",16,true),lp(-1,-2,14));
+        TextView photoHelp=text("뉴스 번호마다 갤러리 사진을 1장씩 지정하세요. 등록한 사진은 앱 내부에 보관되며 다음 뉴스 영상 제작에 사용됩니다.",12,false);
+        body.addView(photoHelp,lp(-1,-2,5));
+        for(int slot=1;slot<=12;slot++){
+            final int selectedSlot=slot;
+            Button choose=btn(String.format(Locale.KOREA,"뉴스 %02d 사진 선택 / 교체",slot),0xffe3eff2,DARK);
+            body.addView(choose,lp(-1,44,5));
+            choose.setOnClickListener(v->{
+                Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                pick.setType("image/*");
+                pick.addCategory(Intent.CATEGORY_OPENABLE);
+                startActivityForResult(pick,NEWS_SINGLE_PICKER_BASE+selectedSlot);
+            });
+        }
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
         anchorEdit=new EditText(this);
         anchorEdit.setHint("비워 두면 정중한 기본 멘트가 자동 삽입됩니다. 필요하면 오늘 뉴스에 맞는 앵커 멘트를 작성하세요.");
@@ -773,6 +788,29 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode>NEWS_SINGLE_PICKER_BASE && requestCode<=NEWS_SINGLE_PICKER_BASE+12){
+            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+            int slot=requestCode-NEWS_SINGLE_PICKER_BASE;
+            File dir=new File(getFilesDir(),"news_images");
+            if(!dir.exists()&&!dir.mkdirs()){updateStatus("사진 저장 폴더 생성 실패");return;}
+            try(InputStream in=getContentResolver().openInputStream(data.getData())){
+                if(in==null)throw new IOException("선택한 사진을 열 수 없습니다.");
+                android.graphics.BitmapFactory.Options options=new android.graphics.BitmapFactory.Options();
+                options.inSampleSize=2;
+                android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in,null,options);
+                if(bitmap==null)throw new IOException("이미지 형식을 읽을 수 없습니다.");
+                File output=new File(dir,String.format(Locale.US,"news_%03d.jpg",slot));
+                try(FileOutputStream out=new FileOutputStream(output)){
+                    if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,88,out))
+                        throw new IOException("이미지 저장 실패");
+                }finally{bitmap.recycle();}
+                updateStatus(String.format(Locale.KOREA,"뉴스 %02d 사진 저장 완료",slot));
+            }catch(Exception error){
+                android.util.Log.e("NewsVoiceImages","사진 등록 실패",error);
+                updateStatus("뉴스 "+slot+" 사진 저장 실패: "+error.getMessage());
+            }
+            return;
+        }
         if(requestCode==NEWS_IMAGES_PICKER){
             if(resultCode!=RESULT_OK||data==null)return;
             ArrayList<Uri> uris=new ArrayList<>();
