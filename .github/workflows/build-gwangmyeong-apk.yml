@@ -1,0 +1,53 @@
+name: Build Gwangmyeong News V1.1 APK
+on:
+  push:
+    branches:
+      - feature/gwangmyeong-news-v1.1
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify Gwangmyeong app isolation
+        run: python3 tests/test_gwangmyeong_v11.py
+      - name: Test WAV merger
+        run: |
+          mkdir -p /tmp/gm-wav-test
+          javac -encoding UTF-8 -d /tmp/gm-wav-test app/src/main/java/com/newsvoice/tts/WavTools.java tests/WavToolsTest.java
+          java -cp /tmp/gm-wav-test WavToolsTest
+      - name: Prepare Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -1)"
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compile separately installable Gwangmyeong V1.1 APK
+        run: |
+          gradle --no-daemon :app:assembleDebug
+          test -s app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk
+      - name: Verify package ID and version
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk
+          "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/aapt" dump badging "$APK" | tee /tmp/gm-apk-info.txt
+          grep -F "name='com.gwangmyeong.news'" /tmp/gm-apk-info.txt
+          grep -F "versionName='1.1'" /tmp/gm-apk-info.txt
+      - name: Upload installable Gwangmyeong APK for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: GwangmyeongNews-v1.1-debug-apk
+          path: app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk
+          if-no-files-found: error
