@@ -128,7 +128,7 @@ jobs:
       - name: Sign and verify official installable APK with pinned certificate
         id: sign
         env:
-          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 || secrets.SIGNING_KEY_BASE64 }}
           NEWSVOICE_SIGNING_STORE_PASSWORD: ${{ secrets.NEWSVOICE_SIGNING_STORE_PASSWORD }}
           NEWSVOICE_SIGNING_KEY_ALIAS: ${{ secrets.NEWSVOICE_SIGNING_KEY_ALIAS }}
           NEWSVOICE_SIGNING_KEY_PASSWORD: ${{ secrets.NEWSVOICE_SIGNING_KEY_PASSWORD }}
