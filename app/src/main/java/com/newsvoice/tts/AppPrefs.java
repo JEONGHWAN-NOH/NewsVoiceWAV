@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 /** Local-only configuration; no default URL or credential is provisioned. */
 public final class AppPrefs {
     private AppPrefs() { }
-    private static final String NAME = "newsvoice_v5";
+    private static final String NAME = "gwangmyeong_news_v11";
     public static SharedPreferences get(Context c) {
         return c.getApplicationContext().getSharedPreferences(NAME, Context.MODE_PRIVATE);
     }
