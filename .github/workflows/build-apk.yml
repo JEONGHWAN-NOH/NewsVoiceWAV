@@ -1,7 +1,7 @@
 name: Build NewsVoice WAV Automatic APK
 on:
   push:
-    branches: [main, feature/v530-progress-eta-anchor]
+    branches: [main, feature/v530-progress-eta-anchor, feature/news-auto-cards-preview]
   workflow_dispatch:
 permissions:
   contents: write
