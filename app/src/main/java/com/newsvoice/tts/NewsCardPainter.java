@@ -90,7 +90,7 @@ public final class NewsCardPainter {
             c.drawLine(266,1290,835,1290,ghost);
             for(int x=304;x<=748;x+=111) c.drawRoundRect(new RectF(x,1310,x+45,1517),6,6,ghost);
             c.drawLine(254,1541,862,1541,ghost);
-        } else if(content.contains("중국")||content.contains("외교")||content.contains("서필리핀해")||content.contains("해양")) {
+        } else if(content.contains("중국")||content.contains("외교")||content.contains("서광명시해")||content.contains("해양")) {
             c.drawCircle(546,1295,244,ghost);
             c.drawOval(new RectF(430,1051,664,1539),ghost);
             c.drawLine(305,1295,790,1295,ghost);
@@ -131,7 +131,7 @@ public final class NewsCardPainter {
     }
     private static int pastelColor(NewsStory s){
         String q=s.title+" "+s.narration;
-        if(q.contains("외교")||q.contains("해양")||q.contains("서필리핀해")||q.contains("중국"))return Color.rgb(230,244,251);
+        if(q.contains("외교")||q.contains("해양")||q.contains("서광명시해")||q.contains("중국"))return Color.rgb(230,244,251);
         if(q.contains("탄핵")||q.contains("재판")||q.contains("법원")||q.contains("소명"))return Color.rgb(244,238,251);
         if(q.contains("상원")||q.contains("예산")||q.contains("공공사업"))return Color.rgb(252,242,226);
         return Color.rgb(232,247,240);
@@ -170,7 +170,7 @@ public final class NewsCardPainter {
         boolean health=lower.contains("교육")||lower.contains("학교")||
             lower.contains("복지")||lower.contains("보건");
         String category=fuel?"유류·생활경제":economy?"경제·산업":
-            health?"사회·교육":"필리핀 주요 현안";
+            health?"사회·교육":"광명시 주요 현안";
         c.drawText(category,105,685,p(YELLOW,34,true));
         if(fuel){
             rounded(c,Color.rgb(23,114,215),355,729,575,908,25);
@@ -394,7 +394,7 @@ public final class NewsCardPainter {
             c.drawOval(new RectF(215,375,265,501),map);
             c.drawLine(176,438,304,438,map);
             c.drawLine(240,374,240,502,map);
-            c.drawText("PHILIPPINES",147,607,p(Color.WHITE,25,true));
+            c.drawText("GWANGMYEONG",147,607,p(Color.WHITE,25,true));
         }
         rounded(c,Color.argb(195,3,20,43),l,b-32,r,b,0);
         String credit=photo==null?"뉴스 관련 중립 이미지":
@@ -425,10 +425,10 @@ public final class NewsCardPainter {
         c.drawRect(0,0,WIDTH,HEIGHT,background);
         rounded(c,yellow,0,0,WIDTH,14,0);
         String english=meta.clock.startsWith("오전")?
-            "PHILIPPINES  |  MORNING NEWS":
+            "GWANGMYEONG  |  MORNING NEWS":
             meta.clock.startsWith("오후")?
-            "PHILIPPINES  |  AFTERNOON NEWS":
-            "PHILIPPINES  |  NEWS BRIEF";
+            "GWANGMYEONG  |  AFTERNOON NEWS":
+            "GWANGMYEONG  |  NEWS BRIEF";
         c.drawText(english,51,93,p(white,33,true));
         c.drawText("오늘의 주요 뉴스",50,178,p(yellow,69,true));
         rounded(c,yellow,51,196,1031,204,3);
@@ -462,7 +462,7 @@ public final class NewsCardPainter {
         String category=story.kind==NewsStory.OPENING?"시작 인사":
             story.kind==NewsStory.ANCHOR?"앵커 한마디":
             story.kind==NewsStory.CLOSING?"마감 인사":
-            economy?"경제·산업":"필리핀 주요 뉴스";
+            economy?"경제·산업":"광명시 주요 뉴스";
         c.drawText(category,89,906,p(yellow,43,true));
         String scrollLabel="큰 글씨 · 자동 스크롤";
         Paint scrollLabelPaint=p(Color.rgb(182,214,242),29,true);
@@ -520,65 +520,57 @@ public final class NewsCardPainter {
         return bitmap;
     }
     /** Pixel artwork is an original offline image; date/slot/count are live Android overlays. */
+    /**
+     * Gwangmyeong V1.1 native cover: original navy/red broadcast design.
+     * All titles and dates are rendered live to avoid burned-in dates and
+     * prevent displaying Philippines artwork from the upstream application.
+     */
     private static Bitmap renderBroadcastCover(Context context,NewsCoverMeta meta,int articleCount) {
-        Bitmap cover=null;
-        try(InputStream input=context.getAssets().open("philippines_cover.webp")){
-            cover=BitmapFactory.decodeStream(input);
-            if(cover==null)return null;
-            Bitmap output=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
-            Canvas canvas=new Canvas(output);
-            Paint image=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-            canvas.drawBitmap(cover,null,new Rect(0,0,WIDTH,HEIGHT),image);
-            cover.recycle();
+        Bitmap output=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(output);
+        Paint sky=p(Color.rgb(6,25,71),0,false);
+        sky.setShader(new LinearGradient(0,0,WIDTH,HEIGHT,
+            Color.rgb(13,63,146),Color.rgb(2,12,42),Shader.TileMode.CLAMP));
+        c.drawRect(0,0,WIDTH,HEIGHT,sky);
+        // Broadcast red and blue accents, like the approved city-news visual.
+        Paint ribbon=p(Color.rgb(197,16,40),0,false);
+        Path top=new Path();top.moveTo(0,0);top.lineTo(0,102);top.lineTo(950,0);top.close();
+        c.drawPath(top,ribbon);
+        Paint glow=p(Color.rgb(30,117,239),0,false);
+        glow.setStrokeWidth(12f);c.drawLine(0,122,WIDTH,122,glow);
+        c.drawText("GWANGMYEONG CITY NEWS",75,278,p(Color.WHITE,53,true));
 
-            // Date strip on top (drawn fresh for every video, never burned into the artwork).
-            rounded(canvas,Color.argb(209,7,30,60),215,142,987,217,15);
-            Paint date=p(WHITE,45,true);
-            date.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
-            String timestamp=meta.date+" | "+meta.clock;
-            while(date.getTextSize()>27&&date.measureText(timestamp)>730f)
-                date.setTextSize(date.getTextSize()-1f);
-            canvas.drawText(timestamp,234,197,date);
+        rounded(c,Color.argb(232,4,18,59),40,367,1041,974,34);
+        rounded(c,Color.rgb(223,23,49),66,683,510,835,10);
+        c.drawText("광명시",110,589,p(Color.WHITE,150,true));
+        c.drawText("종합 뉴스",79,804,p(Color.WHITE,142,true));
+        rounded(c,Color.rgb(246,210,46),67,996,1014,1009,3);
+        c.drawText("광명시 전역 · 주요 뉴스 브리핑",69,1092,p(Color.WHITE,48,true));
 
-            Paint country=p(Color.WHITE,150,true);
-            country.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
-            String line1="필리핀";
-            canvas.drawText(line1,195,539,country);
+        rounded(c,Color.WHITE,234,1161,849,1243,18);
+        Paint date=p(Color.rgb(10,39,96),61,true);
+        while(date.getTextSize()>38&&date.measureText(meta.date)>555f)
+            date.setTextSize(date.getTextSize()-1f);
+        c.drawText(meta.date,284,1220,date);
 
-            Paint main=p(Color.rgb(6,23,45),97,true);
-            main.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
-            String title="뉴스·경제 브리핑";
-            while(main.getTextSize()>49&&main.measureText(title)>915f)
-                main.setTextSize(main.getTextSize()-1f);
-            canvas.drawText(title,86,768,main);
-
-            Paint english=p(WHITE,39,true);
-            english.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
-            String en="Philippines Daily News Briefing";
-            while(english.getTextSize()>26&&english.measureText(en)>810)
-                english.setTextSize(english.getTextSize()-1f);
-            float enX=(WIDTH-english.measureText(en))/2f;
-            canvas.drawText(en,enX,879,english);
-
-            Paint headline=p(Color.rgb(7,26,46),79,true);
-            headline.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
-            String today="오늘의 핵심 뉴스";
-            while(headline.getTextSize()>48&&headline.measureText(today)>610)
-                headline.setTextSize(headline.getTextSize()-1f);
-            float hx=(WIDTH-headline.measureText(today))/2f;
-            canvas.drawText(today,hx,1025,headline);
-
-            rounded(canvas,Color.argb(221,5,28,55),96,1810,986,1896,21);
-            Paint footer=p(Color.WHITE,39,true);
-            String end="정치 · 경제 · 사회 · 사건사고   |   주요 뉴스 "+articleCount+"건";
-            while(footer.getTextSize()>25&&footer.measureText(end)>850)
-                footer.setTextSize(footer.getTextSize()-1f);
-            canvas.drawText(end,116,1866,footer);
-            return output;
-        }catch(IOException|RuntimeException e){
-            if(cover!=null&&!cover.isRecycled())cover.recycle();
-            return null; // Gracefully use the original vector cover if the asset cannot be read.
+        // Schematic KTX station roof: graphic illustration, not a photo of an event.
+        Paint glass=p(Color.rgb(19,68,131),0,false);
+        glass.setShader(new LinearGradient(0,1305,0,1847,
+            Color.rgb(62,137,207),Color.rgb(3,23,54),Shader.TileMode.CLAMP));
+        c.drawRect(0,1370,WIDTH,1830,glass);
+        Paint beams=p(Color.rgb(175,221,251),0,false);
+        beams.setStrokeWidth(7f);beams.setStyle(Paint.Style.STROKE);
+        c.drawArc(new RectF(-125,1213,1260,1720),190,160,false,beams);
+        c.drawLine(15,1580,1065,1580,beams);
+        for(int x=66;x<1100;x+=132){
+            c.drawLine(x,1530,x+95,1722,beams);
+            c.drawLine(x+105,1530,x+15,1722,beams);
         }
+        Paint station=p(Color.WHITE,70,true);
+        c.drawText("KTX  광명역",296,1748,station);
+        rounded(c,Color.argb(237,3,15,49),0,1811,WIDTH,1920,0);
+        c.drawText("GWANGMYEONG  |  NEWS  "+articleCount,59,1874,p(Color.WHITE,36,true));
+        return output;
     }
 
     public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,
@@ -620,18 +612,18 @@ public final class NewsCardPainter {
         c.drawCircle(560,1170,225,outline);
         c.drawCircle(1150,40,270,outline);
         rounded(c,YELLOW,102,116,164,127,6);
-        c.drawText("PHILIPPINES  /  DAILY BRIEF",185,130,p(SUB,27,false));
+        c.drawText("GWANGMYEONG  /  DAILY BRIEF",185,130,p(SUB,27,false));
         line(c,Color.rgb(65,115,130),101,166,978,166,2);
         String date=meta.date;
         String timeLabel=meta.clock;
         if(stage==0){
             rounded(c,Color.rgb(28,71,84),100,212,532,273,18);
-            c.drawText("PHILIPPINES",125,259,p(YELLOW,36,false));
-            wrapped(c,"필리핀 뉴스\n경제 종합 브리핑",103,467,860,105,Color.rgb(20,43,64),85,3,true);
+            c.drawText("GWANGMYEONG",125,259,p(YELLOW,36,false));
+            wrapped(c,"광명시\n종합 뉴스 브리핑",103,467,860,105,Color.rgb(20,43,64),85,3,true);
             rounded(c,YELLOW,103,705,270,716,1);
             c.drawText(date,105,865,p(Color.rgb(31,74,102),66,true));
             c.drawText(timeLabel,106,940,p(Color.rgb(45,90,115),30,false));
-            c.drawText("NEWSVOICE WAV",248,1225,p(Color.rgb(18,100,103),70,true));
+            c.drawText("광명시 종합 뉴스",248,1225,p(Color.rgb(18,100,103),70,true));
             rounded(c,Color.rgb(21,49,66),100,1430,982,1685,30);
             wrapped(c,"뉴스 보이스 자동 음성 · 기사별 카드 · MP4",135,1525,808,59,WHITE,39,3,false);
         } else if(stage==1){
