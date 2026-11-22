@@ -5,6 +5,7 @@ import java.util.List;
 /** Arrange all spoken sections in the order the user requested. */
 public final class NewsBroadcastSegments {
     private NewsBroadcastSegments() {}
+    public static final String DEFAULT_OPENING="안녕하십니까. 광명시 종합 뉴스입니다. 광명시의 주요 소식을 전해드립니다.";
     public static final String ANCHOR="마지막으로 앵커 한마디입니다. 오늘 전해드린 소식을 살펴보실 때에는 확정된 사실과 향후 전망을 구분하는 것이 중요하겠습니다. 주요 사안의 후속 소식도 계속 확인하겠습니다.";
     public static final String CLOSING="이상으로 광명시 종합 뉴스 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
@@ -71,7 +72,8 @@ public final class NewsBroadcastSegments {
             preferredAnchor!=null&&!preferredAnchor.trim().isEmpty()?preferredAnchor:ANCHOR;
         String last=closing==null?CLOSING:closing;
         List<NewsStory> result=new ArrayList<>();
-        if(opening!=null)result.add(NewsStory.segment(NewsStory.OPENING,"시작 인사",opening,count));
+        result.add(NewsStory.segment(NewsStory.OPENING,"시작 인사",
+            opening==null?DEFAULT_OPENING:opening,count));
         for(int i=0;i<count;i++){
             NewsStory item=news.get(i);
             String text=item.spokenText();
