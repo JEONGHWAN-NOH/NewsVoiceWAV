@@ -58,6 +58,20 @@ public final class NewsImageFetcher {
         Bitmap bmp=BitmapFactory.decodeFile(file.getAbsolutePath(),opts);
         return bmp==null?null:new Photo(bmp,"사용자 지정 아나운서 이미지","","개인 등록 이미지","");
     }
+    /** Offline gallery image takes precedence over online lookup, indexed by news article. */
+    public static Photo localNewsPhoto(android.content.Context context,int articleNumber){
+        if(articleNumber<1)return null;
+        java.io.File file=new java.io.File(new java.io.File(context.getFilesDir(),"news_images"),
+            String.format(Locale.US,"news_%03d.jpg",articleNumber));
+        if(!file.isFile())return null;
+        BitmapFactory.Options opts=new BitmapFactory.Options();
+        opts.inJustDecodeBounds=true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(),opts);
+        opts.inSampleSize=Math.max(1,Math.max(opts.outWidth,opts.outHeight)/1400);
+        opts.inJustDecodeBounds=false;
+        Bitmap bmp=BitmapFactory.decodeFile(file.getAbsolutePath(),opts);
+        return bmp==null?null:new Photo(bmp,"사용자 등록 뉴스 사진","","사용자 제공 이미지","");
+    }
     private static String searchTerm(String title){
         // Geographic or subject reference images are preferable to falsely
         // representing current-day accident or protest photos as genuine.
