@@ -2,7 +2,7 @@ name: Build Gwangmyeong News V1.1.1 APK
 on:
   push:
     branches:
-      - feature/gwangmyeong-news-v1.1.1
+      - feature/gwangmyeong-news-v1.1
   workflow_dispatch:
 permissions:
   contents: write
