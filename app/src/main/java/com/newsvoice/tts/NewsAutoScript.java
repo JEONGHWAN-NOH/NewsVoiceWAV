@@ -29,7 +29,7 @@ public final class NewsAutoScript {
         Matcher match=SECTION.matcher(raw);
         int news=0;
         while(match.find())if(isArticle(match.group(1)))news++;
-        return news>=2;
+        return news>=1;
     }
     private static boolean isArticle(String cue) {
         return !ANCHOR.matcher(cue).matches()&&!CLOSING.matcher(cue).matches();
@@ -37,7 +37,7 @@ public final class NewsAutoScript {
     private static String titleFrom(String segment,String cue,int ordinal) {
         String text=segment.substring(Math.min(segment.length(),cue.length())).trim();
         // The title is a literal excerpt of the user's own first news sentence.
-        text=text.replaceAll("(?m)^(?:먼저|이어서|다음은)\\s*(?:정치|경제|사회|사건사고)\\s*분야입니다[.!]?\\s*","");
+        text=text.replaceAll("(?m)^(?:먼저|이어서|다음은)\\s*(?:정치|경제|사회|사건사고|금융|산업)\\s*분야입니다[.!]?\\s*","");
         int end=text.indexOf('。');
         int dot=text.indexOf('.');
         if(end<0||dot>=0&&dot<end)end=dot;

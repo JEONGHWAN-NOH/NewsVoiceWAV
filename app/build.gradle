@@ -1,5 +1,5 @@
 plugins { id 'com.android.application' }
-def releaseVersion = '5.31'
+def releaseVersion = '5.32'
 
 android {
     namespace 'com.newsvoice.tts'
@@ -8,13 +8,13 @@ android {
         applicationId 'com.newsvoice.tts.stable'
         minSdk 29
         targetSdk 35
-        versionCode 37
+        versionCode 38
         versionName releaseVersion
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
     }
     // Debug testing installs alongside the existing stable app.
     buildTypes {
-        debug { applicationIdSuffix '.preview531' }
+        debug { applicationIdSuffix '.preview532' }
     }
     // Keep the raw APK filename, Android app label, and release version consistent.
     applicationVariants.all { variant ->

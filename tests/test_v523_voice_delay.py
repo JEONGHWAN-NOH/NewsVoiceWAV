@@ -31,8 +31,8 @@ assert "MUSIC_REVISION=2" in opening
 assert "NewsCoverExporter.save(context,coverMeta," in video
 assert "Bitmap.CompressFormat.JPEG,95,stream" in poster
 assert "shareLast(true)" in ui and "shareLast(false)" in ui
-assert "def releaseVersion = '5.31'" in gradle
+assert "def releaseVersion = '5.32'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert "versionCode 37" in gradle
-assert "NewsVoiceWAV-v5.31-release-unsigned" in workflow
-print("PASS: v5.31 56px text, 84px line spacing and 700ms voice lead with safe scene transitions")
+assert "versionCode 38" in gradle
+assert "NewsVoiceWAV-v5.32-release-unsigned" in workflow
+print("PASS: v5.32 56px text, 84px line spacing and 700ms voice lead with safe scene transitions")
