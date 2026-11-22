@@ -1,0 +1,35 @@
+name: Recovery preview APK
+on:
+  pull_request:
+    branches: ['feature/v5.32-news-title-image']
+permissions:
+  contents: read
+jobs:
+  preview:
+    if: github.head_ref == 'recovery/v5.33-long-script'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - run: gradle --no-daemon :app:assembleDebug
+      - name: Verify APK
+        shell: bash
+        run: |
+          apk=app/build/outputs/apk/debug/NewsVoiceWAV-v5.33-debug.apk
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$bt/apksigner" verify --verbose "$apk"
+          "$bt/aapt" dump badging "$apk" | grep "^package:" | grep -F "name='com.newsvoice.tts.stable.preview533'" | grep -F "versionName='5.33'"
+          sha256sum "$apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NewsVoiceWAV-v5.33-recovery
+          path: app/build/outputs/apk/debug/NewsVoiceWAV-v5.33-debug.apk
+          if-no-files-found: error
