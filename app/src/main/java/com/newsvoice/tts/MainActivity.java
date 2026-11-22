@@ -320,7 +320,17 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
-        preview.setOnClickListener(v->speakNow("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.",true));
+        preview.setOnClickListener(v->{
+            String script=editor.getText().toString().trim();
+            if(script.isEmpty()){updateStatus("미리 들을 뉴스 원고를 입력하세요.");return;}
+            try{
+                List<NewsStory> sections=NewsBroadcastSegments.build(
+                    NewsAutoScript.adapt(script),anchorEdit.getText().toString());
+                speakNow(NewsBroadcastSegments.audioScript(sections),true);
+            }catch(IllegalArgumentException e){
+                updateStatus("전체 대본 미리 듣기 오류: "+e.getMessage());
+            }
+        });
         play.setOnClickListener(v->{
             String checked=reviewEditorScript();
             if(checked==null)return;
