@@ -12,6 +12,10 @@ android {
         versionName releaseVersion
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
     }
+    // Debug testing installs alongside the existing stable app.
+    buildTypes {
+        debug { applicationIdSuffix '.preview531' }
+    }
     // Keep the raw APK filename, Android app label, and release version consistent.
     applicationVariants.all { variant ->
         variant.outputs.all {
