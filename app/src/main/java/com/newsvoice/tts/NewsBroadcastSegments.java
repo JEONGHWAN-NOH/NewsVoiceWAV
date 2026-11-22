@@ -6,7 +6,7 @@ import java.util.List;
 public final class NewsBroadcastSegments {
     private NewsBroadcastSegments() {}
     public static final String ANCHOR="마지막으로 앵커 한마디입니다. 오늘 전해드린 소식을 살펴보실 때에는 확정된 사실과 향후 전망을 구분하는 것이 중요하겠습니다. 주요 사안의 후속 소식도 계속 확인하겠습니다.";
-    public static final String CLOSING="이상으로 필리핀 뉴스·경제 종합 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
+    public static final String CLOSING="이상으로 광명시 종합 뉴스 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
     private static final java.util.regex.Pattern NUMBERED=java.util.regex.Pattern.compile(
         "^(?:첫|두|세|네|다섯|여섯|일곱|여덟|아홉|열[한두세네]?|열(?:다섯|여섯|일곱|여덟|아홉)|스무)\\s*번째\\s*(?:뉴스|소식)입니다[.!]?\\s*");
