@@ -1,8 +1,8 @@
-name: Build Gwangmyeong News V1.1 APK
+name: Build Gwangmyeong News V1.1.1 APK
 on:
   push:
     branches:
-      - feature/gwangmyeong-news-v1.1
+      - feature/gwangmyeong-news-v1.1.1
   workflow_dispatch:
 permissions:
   contents: write
@@ -44,22 +44,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Compile separately installable Gwangmyeong V1.1 APK
+      - name: Compile separately installable Gwangmyeong V1.1.1 APK
         run: |
           gradle --no-daemon :app:assembleDebug
-          test -s app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk
+          test -s app/build/outputs/apk/debug/GwangmyeongNews-v1.1.1-debug.apk
       - name: Verify package ID and version
         run: |
           set -euo pipefail
-          APK=app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk
+          APK=app/build/outputs/apk/debug/GwangmyeongNews-v1.1.1-debug.apk
           "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/aapt" dump badging "$APK" | tee /tmp/gm-apk-info.txt
           grep -F "name='com.gwangmyeong.news'" /tmp/gm-apk-info.txt
-          grep -F "versionName='1.1'" /tmp/gm-apk-info.txt
+          grep -F "versionName='1.1.1'" /tmp/gm-apk-info.txt
       - name: Upload installable Gwangmyeong APK for testing
         uses: actions/upload-artifact@v4
         with:
-          name: GwangmyeongNews-v1.1-debug-apk
-          path: app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk
+          name: GwangmyeongNews-v1.1.1-debug-apk
+          path: app/build/outputs/apk/debug/GwangmyeongNews-v1.1.1-debug.apk
           if-no-files-found: error
       - name: Publish direct-download preview APK
         env:
@@ -67,15 +67,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/debug/GwangmyeongNews-v1.1-debug.apk"
-          TAG="gwangmyeong-news-v1.1-preview"
+          APK="app/build/outputs/apk/debug/GwangmyeongNews-v1.1.1-debug.apk"
+          TAG="gwangmyeong-news-v1.1.1-preview"
           test -s "$APK"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" --clobber
           else
             gh release create "$TAG" "$APK" \
               --target "$GITHUB_SHA" \
-              --title "광명시 종합 뉴스 V1.1 · 테스트 APK" \
+              --title "광명시 종합 뉴스 V1.1.1 · 테스트 APK" \
               --notes "필리핀 뉴스 5.37/5.38과 별도 설치되는 광명시 전용 테스트 앱입니다. Galaxy에서 실제 TTS·영상 출력 검증 후 사용하세요." \
               --prerelease
           fi
