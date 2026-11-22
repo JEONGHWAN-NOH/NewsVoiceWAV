@@ -786,6 +786,34 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         updateStatus(result.summary());
         return result.approved()?result.reviewed:null;
     }
+    private void saveNewsPhoto(Uri uri, File directory, int slot) throws IOException {
+        android.graphics.ImageDecoder.Source source =
+            android.graphics.ImageDecoder.createSource(getContentResolver(), uri);
+        android.graphics.Bitmap bitmap = android.graphics.ImageDecoder.decodeBitmap(source, (decoder, info, src) -> {
+            int width = info.getSize().getWidth();
+            int height = info.getSize().getHeight();
+            int longest = Math.max(width, height);
+            if (longest > 1600) {
+                decoder.setTargetSize(Math.max(1, Math.round(width * (1600f / longest))),
+                    Math.max(1, Math.round(height * (1600f / longest))));
+            }
+            decoder.setAllocator(android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE);
+        });
+        File temporary = null;
+        try {
+            temporary = File.createTempFile("news_photo_", ".tmp", directory);
+            try (FileOutputStream out = new FileOutputStream(temporary)) {
+                if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 88, out))
+                    throw new IOException("사진을 JPEG로 저장할 수 없습니다.");
+            }
+            File target = new File(directory, String.format(Locale.US, "news_%03d.jpg", slot));
+            java.nio.file.Files.move(temporary.toPath(), target.toPath(),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            bitmap.recycle();
+            if (temporary != null && temporary.exists()) temporary.delete();
+        }
+    }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
         if(requestCode>NEWS_SINGLE_PICKER_BASE && requestCode<=NEWS_SINGLE_PICKER_BASE+12){
@@ -793,17 +821,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             int slot=requestCode-NEWS_SINGLE_PICKER_BASE;
             File dir=new File(getFilesDir(),"news_images");
             if(!dir.exists()&&!dir.mkdirs()){updateStatus("사진 저장 폴더 생성 실패");return;}
-            try(InputStream in=getContentResolver().openInputStream(data.getData())){
-                if(in==null)throw new IOException("선택한 사진을 열 수 없습니다.");
-                android.graphics.BitmapFactory.Options options=new android.graphics.BitmapFactory.Options();
-                options.inSampleSize=2;
-                android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in,null,options);
-                if(bitmap==null)throw new IOException("이미지 형식을 읽을 수 없습니다.");
-                File output=new File(dir,String.format(Locale.US,"news_%03d.jpg",slot));
-                try(FileOutputStream out=new FileOutputStream(output)){
-                    if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,88,out))
-                        throw new IOException("이미지 저장 실패");
-                }finally{bitmap.recycle();}
+            try{
+                saveNewsPhoto(data.getData(),dir,slot);
                 updateStatus(String.format(Locale.KOREA,"뉴스 %02d 사진 저장 완료",slot));
             }catch(Exception error){
                 android.util.Log.e("NewsVoiceImages","사진 등록 실패",error);
@@ -823,17 +842,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             if(!dir.exists()&&!dir.mkdirs()){updateStatus("사진 저장 폴더를 만들 수 없습니다.");return;}
             int saved=0;
             for(int i=0;i<uris.size();i++){
-                try(InputStream in=getContentResolver().openInputStream(uris.get(i))){
-                    if(in==null)throw new IOException("사진을 읽을 수 없습니다.");
-                    android.graphics.BitmapFactory.Options options=new android.graphics.BitmapFactory.Options();
-                    options.inSampleSize=2;
-                    android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in,null,options);
-                    if(bitmap==null)throw new IOException("지원하지 않는 사진 형식");
-                    File output=new File(dir,String.format(Locale.US,"news_%03d.jpg",i+1));
-                    try(FileOutputStream out=new FileOutputStream(output)){
-                        if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,88,out))
-                            throw new IOException("JPEG 저장 실패");
-                    }finally{bitmap.recycle();}
+                try{
+                    saveNewsPhoto(uris.get(i),dir,i+1);
                     saved++;
                 }catch(Exception ex){android.util.Log.e("NewsVoiceImages","뉴스 사진 "+(i+1)+" 저장 실패",ex);}
             }
