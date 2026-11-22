@@ -50,6 +50,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private static final int DARK = 0xff0e2942;
     private static final int OPENING_PICKER=5110;
     private static final int SCRIPT_PICKER=5111;
+    private static final int NEWS_IMAGES_PICKER=5130;
     private static final int PORTRAIT_PICKER_OPENING=5121, PORTRAIT_PICKER_ANCHOR=5122, PORTRAIT_PICKER_CLOSING=5123;
     private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
@@ -247,6 +248,24 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             pick.setType("text/*");
             pick.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(pick,SCRIPT_PICKER);
+        });
+        body.addView(text("뉴스별 사진 · 사전 저장 (방송 전 준비)",16,true),lp(-1,-2,14));
+        Button selectNewsImages=btn("뉴스 사진 여러 장 등록",0xffe3eff2,DARK);
+        body.addView(selectNewsImages,lp(-1,52,8));
+        Button verifyNewsImages=btn("저장된 뉴스 사진 확인",0xffe7f2f3,MINT);
+        body.addView(verifyNewsImages,lp(-1,48,4));
+        selectNewsImages.setOnClickListener(v->{
+            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            pick.setType("image/*");
+            pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(pick,NEWS_IMAGES_PICKER);
+        });
+        verifyNewsImages.setOnClickListener(v->{
+            File dir=new File(getFilesDir(),"news_images");
+            File[] images=dir.listFiles((d,name)->name.matches("news_[0-9]{3}\\\\.jpg"));
+            int count=images==null?0:images.length;
+            updateStatus("사전 저장된 뉴스 사진: "+count+"장 · 등록 순서를 확인하세요.");
         });
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
         anchorEdit=new EditText(this);
@@ -754,6 +773,35 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==NEWS_IMAGES_PICKER){
+            if(resultCode!=RESULT_OK||data==null)return;
+            ArrayList<Uri> uris=new ArrayList<>();
+            if(data.getClipData()!=null){
+                for(int i=0;i<data.getClipData().getItemCount();i++)
+                    uris.add(data.getClipData().getItemAt(i).getUri());
+            }else if(data.getData()!=null)uris.add(data.getData());
+            if(uris.isEmpty()){updateStatus("선택한 사진이 없습니다.");return;}
+            File dir=new File(getFilesDir(),"news_images");
+            if(!dir.exists()&&!dir.mkdirs()){updateStatus("사진 저장 폴더를 만들 수 없습니다.");return;}
+            int saved=0;
+            for(int i=0;i<uris.size();i++){
+                try(InputStream in=getContentResolver().openInputStream(uris.get(i))){
+                    if(in==null)throw new IOException("사진을 읽을 수 없습니다.");
+                    android.graphics.BitmapFactory.Options options=new android.graphics.BitmapFactory.Options();
+                    options.inSampleSize=2;
+                    android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in,null,options);
+                    if(bitmap==null)throw new IOException("지원하지 않는 사진 형식");
+                    File output=new File(dir,String.format(Locale.US,"news_%03d.jpg",i+1));
+                    try(FileOutputStream out=new FileOutputStream(output)){
+                        if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,88,out))
+                            throw new IOException("JPEG 저장 실패");
+                    }finally{bitmap.recycle();}
+                    saved++;
+                }catch(Exception ex){android.util.Log.e("NewsVoiceImages","뉴스 사진 "+(i+1)+" 저장 실패",ex);}
+            }
+            updateStatus("뉴스 사진 "+saved+"/"+uris.size()+"장 내부 저장 완료. 사진 선택 순서를 검토하세요.");
+            return;
+        }
         if(requestCode>=PORTRAIT_PICKER_OPENING&&requestCode<=PORTRAIT_PICKER_CLOSING){
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
             String slot=requestCode==PORTRAIT_PICKER_OPENING?"opening":
