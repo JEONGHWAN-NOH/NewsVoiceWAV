@@ -80,6 +80,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private EditText anchorEdit;
     private long taskToken = 0;
     private int lastQueuedIndex = -1;
+    private List<String> playbackSegments = new ArrayList<>();
+    private int playbackIndex = -1;
+    private long playbackToken = -1;
     private final Handler main = new Handler(Looper.getMainLooper());
 
     private static int dp(Activity a, int d) { return Math.round(d*a.getResources().getDisplayMetrics().density); }
@@ -339,7 +342,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 speakNow(NewsBroadcastSegments.audioScript(sections),false);
             }catch(IllegalArgumentException e){updateStatus("방송 멘트 검수: "+e.getMessage());}
         });
-        stop.setOnClickListener(v->{taskToken++;if(tts!=null)tts.stop();updateStatus("낭독 정지됨");});
+        stop.setOnClickListener(v->{taskToken++;playbackSegments.clear();playbackIndex=-1;playbackToken=-1;if(tts!=null)tts.stop();updateStatus("낭독 정지됨");});
         save.setOnClickListener(v->queueManualSave());
         buildAutomationControls(body);
         setContentView(sc);
@@ -380,10 +383,18 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 }
                 @Override public void onDone(String utteranceId) {
                     if(utteranceId.startsWith("save_")) updateStatus("WAV 구간 생성 완료");
-                    else if(utteranceId.equals("play_"+taskToken+"_"+lastQueuedIndex)) updateStatus("낭독 완료");
+                    else if(utteranceId.startsWith("play_")) main.post(() -> advancePlayback(utteranceId));
                 }
                 @Override public void onError(String utteranceId) {
-                    updateStatus("음성 합성 오류. 다른 한국어 음성을 선택해 주세요.");
+                    main.post(() -> {
+                        if(utteranceId.startsWith("play_")) {
+                            if(!isCurrentPlayback(utteranceId))return;
+                            playbackSegments.clear();
+                            playbackIndex=-1;
+                            playbackToken=-1;
+                            updateStatus("음성 낭독 오류: "+utteranceId);
+                        }else updateStatus("음성 합성 오류. 다른 한국어 음성을 선택해 주세요.");
+                    });
                 }
             });
             String active=currentEngine.isEmpty()?tts.getDefaultEngine():currentEngine;
@@ -604,23 +615,66 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             result.add(remaining.substring(0,cut).trim());remaining=remaining.substring(cut).trim();
         }return result;
     }
+    private boolean isCurrentPlayback(String utteranceId){
+        return playbackIndex>=0 && playbackToken==taskToken &&
+            utteranceId.equals("play_"+playbackToken+"_"+playbackIndex);
+    }
+    private void advancePlayback(String utteranceId){
+        if(!isCurrentPlayback(utteranceId))return;
+        if(playbackIndex+1>=playbackSegments.size()){
+            playbackSegments.clear();
+            playbackIndex=-1;
+            playbackToken=-1;
+            updateStatus("낭독 완료");
+        }else{
+            playbackIndex++;
+            speakPlaybackChunk();
+        }
+    }
+    private void speakPlaybackChunk(){
+        if(playbackToken!=taskToken||playbackIndex<0||playbackIndex>=playbackSegments.size())return;
+        int result;
+        try{
+            result=tts.speak(playbackSegments.get(playbackIndex),TextToSpeech.QUEUE_ADD,
+                new Bundle(),"play_"+playbackToken+"_"+playbackIndex);
+        }catch(RuntimeException ex){
+            playbackSegments.clear();
+            playbackIndex=-1;
+            playbackToken=-1;
+            updateStatus("낭독 구간 처리 오류: "+ex.getClass().getSimpleName());
+            return;
+        }
+        if(result!=TextToSpeech.SUCCESS){
+            int failed=playbackIndex+1;
+            playbackSegments.clear();
+            playbackIndex=-1;
+            playbackToken=-1;
+            updateStatus("낭독 "+failed+"번째 구간을 실행하지 못했습니다.");
+        }else updateStatus("뉴스 낭독 중: "+(playbackIndex+1)+"/"+playbackSegments.size()+" 구간");
+    }
     private void speakNow(String src,boolean preview){
         if(!ready){updateStatus("TTS 엔진이 아직 준비되지 않았습니다.");return;}
         if(src.trim().isEmpty()){updateStatus("원고를 입력하세요.");return;}
         try {
             taskToken++;
+            playbackSegments.clear();
+            playbackIndex=-1;
+            playbackToken=-1;
             tts.stop();
             configure();
             persistVoiceSettings();
-            List<String> segments = chunks(src);
-            lastQueuedIndex = segments.size()-1;
-            for(int i=0;i<segments.size();i++) {
-                int code = tts.speak(segments.get(i), i==0 ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, new Bundle(), "play_"+taskToken+"_"+i);
-                if(code==TextToSpeech.ERROR) {updateStatus("낭독 명령을 실행하지 못했습니다.");return;}
-            }
-            updateStatus(preview ? "목소리 미리 듣기 중..." : "총 "+segments.size()+"개 구간으로 나누어 낭독합니다.");
-        } catch(RuntimeException e) {
-            updateStatus("낭독 실행 오류: " + e.getClass().getSimpleName());
+            // Only one chunk is queued at a time to avoid overwhelming TTS engines.
+            playbackSegments=chunks(src);
+            if(playbackSegments.isEmpty()){updateStatus("읽을 원고가 없습니다.");return;}
+            playbackToken=taskToken;
+            playbackIndex=0;
+            lastQueuedIndex=playbackSegments.size()-1;
+            speakPlaybackChunk();
+        }catch(RuntimeException e){
+            playbackSegments.clear();
+            playbackIndex=-1;
+            playbackToken=-1;
+            updateStatus("낭독 실행 오류: "+e.getClass().getSimpleName());
         }
     }
     private void persistVoiceSettings(){
