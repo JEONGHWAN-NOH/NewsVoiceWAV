@@ -109,6 +109,8 @@ public final class ManualRenderService extends Service {
         if(text.isEmpty()||text.length()>60000)throw new IOException("원고 길이를 확인해 주세요.");
         List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
         String stamp=String.valueOf(System.currentTimeMillis());
+        // Do not expose a previous run as the latest WAV when a new run begins.
+        AppPrefs.get(context).edit().remove("last_wav_uri").remove("last_wav_name").apply();
         NewsOutputNaming.Names names=NewsOutputNaming.at(java.time.Instant.now());
         List<File> parts=new ArrayList<>();
         List<List<Long>> sentenceFrames=new ArrayList<>();
@@ -119,7 +121,9 @@ public final class ManualRenderService extends Service {
             if(!AppPrefs.videoEnabled(context)){
                 progress("WAV 음성 생성 중",10);
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
-                DownloadsPublisher.publish(context,wav,names.wav());
+                Uri savedWav=DownloadsPublisher.publish(context,wav,names.wav());
+                AppPrefs.get(context).edit().putString("last_wav_uri",savedWav.toString())
+                    .putString("last_wav_name",names.wav()).apply();
                 progress("WAV 저장 완료",100);
                 report("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+"/"+names.wav());
                 success=true;return;
@@ -137,7 +141,9 @@ public final class ManualRenderService extends Service {
             }
             wav=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+"_combined.wav");
             WavTools.concatenate(parts,wav);
-            DownloadsPublisher.publish(context,wav,names.wav());
+            Uri savedWav=DownloadsPublisher.publish(context,wav,names.wav());
+            AppPrefs.get(context).edit().putString("last_wav_uri",savedWav.toString())
+                .putString("last_wav_name",names.wav()).apply();
             progress("WAV 저장 성공 · MP4 변환 준비",40);
             for(int i=0;i<pages.size();i++){
                 if(Thread.currentThread().isInterrupted())
