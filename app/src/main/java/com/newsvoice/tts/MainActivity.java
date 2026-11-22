@@ -263,7 +263,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         verifyNewsImages.setOnClickListener(v->{
             File dir=new File(getFilesDir(),"news_images");
-            File[] images=dir.listFiles((d,name)->name.matches("news_[0-9]{3}\\\\.jpg"));
+            File[] images=dir.listFiles((d,name)->name.startsWith("news_") && name.endsWith(".jpg"));
             int count=images==null?0:images.length;
             updateStatus("사전 저장된 뉴스 사진: "+count+"장 · 등록 순서를 확인하세요.");
         });
