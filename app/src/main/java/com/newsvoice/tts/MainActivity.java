@@ -302,6 +302,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
+        Button lastWav=btn("최근 생성된 WAV 바로 열기",0xffe7f2f3,DARK);
+        body.addView(lastWav,lp(-1,50,9));
+        lastWav.setOnClickListener(v->openLastWav());
         Button lastVideo=btn("최근 저장된 MP4 바로 열기",0xffe7f2f3,DARK);
         body.addView(lastVideo,lp(-1,50,9));
         lastVideo.setOnClickListener(v->openLastVideo());
@@ -637,6 +640,22 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 cover?"표지 사진 공유 · 카카오톡 선택":"뉴스 동영상 공유 · 카카오톡 선택"));
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("공유할 앱이 없거나 접근 권한이 없습니다: "+ex.getClass().getSimpleName());
+        }
+    }
+    private void openLastWav(){
+        String value=AppPrefs.get(this).getString("last_wav_uri","");
+        if(value.isEmpty()){
+            updateStatus("이번 제작에서 저장된 WAV 기록이 없습니다. 제작 상태와 날짜별 폴더를 확인하세요.");
+            return;
+        }
+        try {
+            Intent view=new Intent(Intent.ACTION_VIEW);
+            view.setDataAndType(Uri.parse(value),"audio/wav");
+            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(view);
+        }catch(ActivityNotFoundException | SecurityException ex){
+            updateStatus("WAV 열기 오류: "+ex.getClass().getSimpleName()+
+                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private void openLastVideo(){
