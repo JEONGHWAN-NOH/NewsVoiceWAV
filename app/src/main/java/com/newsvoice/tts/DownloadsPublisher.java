@@ -21,7 +21,7 @@ public final class DownloadsPublisher {
     public static Uri publish(Context context,File source,String filename) throws IOException {
         if(!source.isFile()||source.length()<44)throw new IOException("생성된 파일이 없거나 크기가 잘못되었습니다.");
         boolean namedNews=filename.matches(
-            "\\d{4}-\\d{2}-\\d{2}_(?:오전6시|오후6시)_필리핀뉴스_\\d{6}(?:_cover|_image_credits)?\\.(?:wav|mp4|jpg|txt)");
+            "\\d{4}-\\d{2}-\\d{2}_(?:오전7시|오후7시)_광명시뉴스_\\d{6}(?:_cover|_image_credits)?\\.(?:wav|mp4|jpg|txt)");
         boolean olderFormat=filename.matches("newsvoice_[a-zA-Z0-9_-]{1,110}\\.(?:wav|mp4|jpg|txt)");
         if(!namedNews && !olderFormat)
             throw new IOException("저장할 파일 이름이 올바르지 않습니다.");
