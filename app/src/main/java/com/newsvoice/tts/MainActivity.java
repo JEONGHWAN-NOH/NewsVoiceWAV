@@ -587,16 +587,26 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         if(selected>=0&&selected<koreanVoices.size())tts.setVoice(koreanVoices.get(selected));
         tts.setSpeechRate(rate());tts.setPitch(pitch());
     }
-    private List<String> chunks(String text){
-        List<String> result=new ArrayList<>();int max=Math.min(1000,TextToSpeech.getMaxSpeechInputLength()-100);
-        String remaining=text.trim();
-        while(remaining.length()>0){
-            if(remaining.length()<=max){result.add(remaining);break;}
-            int limit=Math.min(max,remaining.length());int cut=-1;
-            for(int i=limit-1;i>=limit/2;i--){char c=remaining.charAt(i);if(c==' '||c=='\n'||c=='.'||c=='!'||c=='?'){cut=i+1;break;}}
-            if(cut<1)cut=limit;
-            result.add(remaining.substring(0,cut).trim());remaining=remaining.substring(cut).trim();
-        }return result;
+    private List<String> chunks(String text) {
+        List<String> result = new ArrayList<>();
+        int max = Math.min(1000, TextToSpeech.getMaxSpeechInputLength());
+        for (int start = 0; start < text.length();) {
+            int end = start + Math.min(max, text.length() - start);
+            if (end < text.length()) {
+                for (int i = end - 1; i >= start + max / 2; i--) {
+                    char c = text.charAt(i);
+                    if (Character.isWhitespace(c) || c == '.' || c == '!' || c == '?') {
+                        end = i + 1;
+                        break;
+                    }
+                }
+                if (Character.isHighSurrogate(text.charAt(end - 1))
+                        && Character.isLowSurrogate(text.charAt(end))) end--;
+            }
+            result.add(text.substring(start, end));
+            start = end;
+        }
+        return result;
     }
     private boolean isCurrentPlayback(String utteranceId){
         return playbackIndex>=0 && playbackToken==taskToken &&
@@ -642,23 +652,14 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
 
     private void preparePlayback(boolean preview) {
         if (!ready) { updateStatus("TTS 엔진이 아직 준비되지 않았습니다."); return; }
-        final String script = editor.getText().toString().trim();
-        if (script.isEmpty()) { updateStatus("원고를 입력하세요."); return; }
-        if (script.length() > 60000) { updateStatus("원고가 60,000자를 초과합니다."); return; }
-        final String anchor = anchorEdit.getText().toString();
+        final String script = editor.getText().toString();
+        if (script.trim().isEmpty()) { updateStatus("원고를 입력하세요."); return; }
         final long token = ++taskToken;
         tts.stop();
-        updateStatus(preview ? "미리 듣기 준비 중" : "전체 대본 검수 중");
+        updateStatus(preview ? "미리 듣기 준비 중" : "전체 대본 낭독 준비 중");
         playbackWorker.execute(() -> {
             try {
-                String source = script;
-                if (!preview) {
-                    BroadcastScriptReview.Result review = BroadcastScriptReview.review(script);
-                    if (!review.approved()) throw new IllegalArgumentException(review.summary());
-                    source = review.reviewed;
-                }
-                List<NewsStory> sections = NewsBroadcastSegments.build(source, anchor);
-                String narration = NewsBroadcastSegments.audioScript(sections);
+                String narration = script;
                 if (preview) {
                     java.text.BreakIterator sentences = java.text.BreakIterator.getSentenceInstance(java.util.Locale.KOREAN);
                     sentences.setText(narration);
