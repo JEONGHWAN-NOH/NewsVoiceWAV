@@ -5,16 +5,16 @@ import java.util.List;
 /** Arrange all spoken sections in the order the user requested. */
 public final class NewsBroadcastSegments {
     private NewsBroadcastSegments() {}
-    public static final String OPENING="안녕하십니까. 필리핀 뉴스·경제 종합 브리핑입니다. 지금부터 주요 소식을 전해드리겠습니다.";
     public static final String ANCHOR="마지막으로 앵커 한마디입니다. 오늘 전해드린 소식을 살펴보실 때에는 확정된 사실과 향후 전망을 구분하는 것이 중요하겠습니다. 주요 사안의 후속 소식도 계속 확인하겠습니다.";
     public static final String CLOSING="이상으로 필리핀 뉴스·경제 종합 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
     private static final String NEXT="다음 뉴스입니다.";
     private static final java.util.regex.Pattern NEXT_CUE=java.util.regex.Pattern.compile(
         "(?m)(?:^|(?<=[.!?])\\s+|\\n+)다음\\s+뉴스입니다[.!]?(?=\\s|$)\\s*");
+    private static final java.util.regex.Pattern DIVIDER=java.util.regex.Pattern.compile("(?m)^\\s*(?:===|---)\\s*$");
     private static String structured(String raw){
         String adapted=NewsAutoScript.adapt(raw);
-        if(!adapted.equals(raw)||raw.matches("(?s).*(?m:^\\s*(?:===|---)\\s*$).*"))return adapted;
+        if(!adapted.equals(raw)||DIVIDER.matcher(raw).find())return adapted;
         java.util.regex.Matcher cues=NEXT_CUE.matcher(raw);
         StringBuilder result=new StringBuilder();
         int start=0;
@@ -36,8 +36,14 @@ public final class NewsBroadcastSegments {
     }
     public static String playback(String raw){
         if(raw.trim().isEmpty())return "";
-        if(!NewsAutoScript.isAutoFormat(raw)&&!raw.matches("(?s).*(?m:^\\s*(?:===|---)\\s*$).*"))return raw;
-        List<NewsStory> sections=NewsStory.parse(NewsAutoScript.adapt(raw));
+        if(!NewsAutoScript.isAutoFormat(raw)&&!DIVIDER.matcher(raw).find())return raw;
+        List<NewsStory> sections;
+        try {
+            sections=NewsStory.parse(NewsAutoScript.adapt(raw));
+        }catch(IllegalArgumentException ex){
+            // The video renderer limits article count. Live reading accepts longer scripts.
+            return raw;
+        }
         StringBuilder out=new StringBuilder();
         int news=0;
         for(NewsStory item:sections){

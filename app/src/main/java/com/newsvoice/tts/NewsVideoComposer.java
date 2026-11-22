@@ -19,7 +19,7 @@ import java.util.List;
  * 16-bit PCM WAV -> AAC encoder; MediaExtractor/MediaMuxer join to playable MP4.
  * No internet or unlicensed third-party codecs required.
  * An original built-in A-style six-second opening plays automatically. A registered original A WAV overrides it.
- * Each card starts 0.30s before the corresponding narrated article.
+ * Article changes follow the first audible PCM frame of the incoming narration.
  */
 public final class NewsVideoComposer {
     private NewsVideoComposer() { }
@@ -73,6 +73,24 @@ public final class NewsVideoComposer {
             f.seek(piece.dataOffset);byte[] chunk=new byte[32768];long remaining=piece.dataLength;
             while(remaining>0){int n=f.read(chunk,0,(int)Math.min(chunk.length,remaining));if(n<0)throw new EOFException();out.write(chunk,0,n);remaining-=n;}
         }
+    }
+
+    private static long leadingQuietFrames(WavTools.Piece part,int channels,long firstSentenceFrames)throws IOException{
+        int frameBytes=channels*2;
+        byte[] data=new byte[4096];
+        try(RandomAccessFile in=new RandomAccessFile(part.file,"r")){
+            in.seek(part.dataOffset);
+            long framesRead=0;
+            while(framesRead<firstSentenceFrames){
+                int frames=(int)Math.min(firstSentenceFrames-framesRead,data.length/frameBytes);
+                in.readFully(data,0,frames*frameBytes);
+                for(int offset=0;offset<frames*frameBytes;offset+=2){
+                    if(Math.abs((short)shortLE(data,offset))>=32)return framesRead+offset/frameBytes;
+                }
+                framesRead+=frames;
+            }
+        }
+        return 0;
     }
 
     /** Resample the user's approved original opening A into the TTS output format.
@@ -159,7 +177,7 @@ public final class NewsVideoComposer {
                 appendWave(out,part);
                 frameCount+=totalFrames;
                 spans.add(new Span(stories.get(i),start,toUs(frameCount,rate),
-                    toUs(audioStart,rate),cueEnds));
+                    toUs(audioStart+leadingQuietFrames(part,channels,lengths.get(0)),rate),cueEnds));
             }
             long tailFrames=rate*4L/5; // Keep the final frame 0.8s, longer than the 0.7s scroll delay.
             writeSilence(out,tailFrames*frameBytes);frameCount+=tailFrames;

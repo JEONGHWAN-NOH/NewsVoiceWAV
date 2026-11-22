@@ -23,6 +23,14 @@ public final class NewsBroadcastSegmentsTest {
         check(sections.get(3).kind==NewsStory.ANCHOR && sections.get(3).audioText().equals("앵커 의견입니다."),"approved anchor");
         String inline=first+" 다음 뉴스입니다. 시장 본문입니다. 다음 뉴스입니다. 공항 본문입니다.";
         check(NewsBroadcastSegments.newsCount(NewsBroadcastSegments.build(inline,""))==3,"inline markers");
+        String supplied="시작 인사\n특별한 인사입니다.\n===\n"+script+
+            "\n===\n앵커 한마디\n확인된 사실입니다.\n===\n마감 인사\n마치겠습니다.";
+        List<NewsStory> override=NewsBroadcastSegments.build(supplied,"설정한 의견입니다.");
+        check(override.size()==6 && NewsBroadcastSegments.audioScript(override).startsWith("특별한 인사입니다."),"explicit greeting");
+        check(override.get(4).audioText().equals("확인된 사실입니다.") && override.get(5).audioText().equals("마치겠습니다."),"explicit ending");
+        check(NewsBroadcastSegments.remainingNews(override.get(2))==1,"remaining article count");
+        String lengthy=("제목\n기사입니다.\n===\n").repeat(31);
+        check(NewsBroadcastSegments.playback(lengthy).contains("기사입니다."),"long preview has no video export limit");
         System.out.println("NewsBroadcastSegments PASS");
     }
 }
