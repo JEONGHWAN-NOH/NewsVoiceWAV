@@ -28,8 +28,8 @@ public final class NewsAutoScriptTest {
         check(sections.get(1).title.contains("필리핀 정부가"),"title from input facts only");
         check(sections.get(2).title.contains("칼락스"),"second title from input");
         String spoken=NewsBroadcastSegments.audioScript(sections);
-        check(spoken.contains("첫 번째 소식입니다."),"original spoken article cue retained");
-        check(spoken.contains("두 번째 소식입니다."),"second spoken cue retained");
+        check(spoken.contains("첫 번째 뉴스입니다."),"original spoken article cue retained");
+        check(spoken.contains("두 번째 뉴스입니다."),"second spoken cue retained");
         check(spoken.contains("정부 발표와 실제 사업을"),"anchor spoken");
         check(spoken.contains("감사합니다."),"closing spoken");
         check(!spoken.contains("뉴스 1 ·"),"display headline not spoken");
@@ -46,6 +46,21 @@ public final class NewsAutoScriptTest {
         check(NewsBroadcastSegments.newsCount(oneSections)==1,"single story recognized");
         check(oneSections.get(1).title.contains("필리핀 금융시장"),"single story headline from news, not greeting");
         check(!oneSections.get(1).title.contains("안녕하십니까"),"greeting excluded from headline");
+        String[] ordinals={"첫","두","세","네","다섯","여섯","일곱","여덟","아홉","열","열한","열두"};
+        StringBuilder bulletin=new StringBuilder();
+        for(int i=0;i<12;i++){
+            bulletin.append(ordinals[i]).append(" 번째 뉴스입니다.").append(i%2==0?" ":"\n")
+                .append(i+1).append("번 본문입니다.").append(" 추가 설명입니다.".repeat(i)).append(i%2==0?" ":"\n");
+        }
+        List<NewsStory> numbered=NewsBroadcastSegments.build(bulletin.toString(),"앵커 의견입니다.");
+        check(numbered.size()==14,"12 articles plus anchor and closing");
+        for(int i=0;i<12;i++){
+            NewsStory story=numbered.get(i);
+            check(story.articleNumber==i+1 && story.title.contains((i+1)+"번 본문"),"photo slot and title");
+            check(story.audioText().equals(ordinals[i]+" 번째 뉴스입니다. "+(i+1)+"번 본문입니다."
+                +" 추가 설명입니다.".repeat(i)),"single numbered cue and full body "+i);
+        }
+        check(numbered.get(12).kind==NewsStory.ANCHOR,"12 to anchor");
         System.out.println("NewsAutoScript PASS");
     }
 }

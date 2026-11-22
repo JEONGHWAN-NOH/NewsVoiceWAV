@@ -37,8 +37,13 @@ public final class NewsStory {
         return pos<0?"":text.substring(pos+1).trim();
     }
 
-    public boolean hasTransition(){return kind==NEWS && articleNumber>1;}
-    public String audioText(){return hasTransition()?"다음 뉴스입니다. "+spokenText():spokenText();}
+    public boolean hasTransition(){return kind==NEWS && articleNumber>0;}
+    private static final String[] ORDINALS={"첫","두","세","네","다섯","여섯","일곱","여덟","아홉","열","열한","열두","열세","열네","열다섯","열여섯","열일곱","열여덟","열아홉","스무"};
+    public String audioText(){
+        if(!hasTransition())return spokenText();
+        String ordinal=articleNumber<=ORDINALS.length?ORDINALS[articleNumber-1]:String.valueOf(articleNumber);
+        return ordinal+" 번째 뉴스입니다. "+spokenText();
+    }
 
     public static NewsStory segment(int kind,String title,String narration,int newsCount){
         if(kind==NEWS||narration==null||narration.trim().isEmpty())

@@ -307,7 +307,7 @@ public final class NewsVideoComposer {
                 // Four-second cover. The first card appears during the final two seconds of music.
                 if(us<4L*US_PER_S)which=-2;
                 else {
-                    which=0;
+                    which=t.spans.get(0).story.kind==NewsStory.OPENING?0:-2;
                     // Advance title, photo and body together at the start of the incoming WAV.
                     for(int i=0;i<t.spans.size();i++)
                         if(us>=t.spans.get(i).audioStartUs)which=i;

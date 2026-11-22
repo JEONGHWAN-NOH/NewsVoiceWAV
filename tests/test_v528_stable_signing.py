@@ -4,8 +4,8 @@ workflow=Path(".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 verify=Path("scripts/verify-stable-apk.sh").read_text(encoding="utf-8")
 cert=Path("signing/expected-cert-sha256.txt").read_text(encoding="utf-8").strip()
 assert "applicationId 'com.newsvoice.tts.stable'" in base
-assert "def releaseVersion = '5.37'" in base
-assert "versionCode 43" in base
+assert "def releaseVersion = '5.38'" in base
+assert "versionCode 44" in base
 assert len(cert)==64 and all(c in "0123456789ABCDEF" for c in cert)
 assert "SIGNING_KEYSTORE_B64" in workflow
 assert "NEWSVOICE_SIGNING_STORE_PASSWORD" in workflow
@@ -18,4 +18,4 @@ assert "BLOCKED: APK signed by unexpected certificate" in verify
 assert "git" not in cert.lower()
 assert not Path("signing/newsvoice-signing.p12").exists()
 assert not list(Path("signing").glob("*.jks"))
-print("PASS: v5.37 permanent signature fingerprint, distinct package, fail-closed verification")
+print("PASS: v5.38 permanent signature fingerprint, distinct package, fail-closed verification")
