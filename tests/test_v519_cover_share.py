@@ -12,8 +12,8 @@ gradle=Path("app/build.gradle").read_text(encoding="utf-8")
 workflow=Path(".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
 # The first decoded frame is a full-news cover and it remains unchanged for six seconds.
-assert 'if(us<6L*US_PER_S)which=-2;' in video
-assert 'cardStart=0;cardEnd=6L*US_PER_S;' in video
+assert 'if(us<4L*US_PER_S)which=-2;' in video
+assert 'cardStart=0;cardEnd=4L*US_PER_S;' in video
 assert 'fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,1);' in video
 assert 'float zoom=1.0f;' in video
 assert 'FPS=30;' in video
@@ -39,8 +39,8 @@ assert 'shareLast(false)' in ui
 assert 'Intent.ACTION_SEND' in ui
 assert 'Intent.FLAG_GRANT_READ_URI_PERMISSION' in ui
 assert '카카오톡이 결정하므로 100% 고정은 보장되지 않습니다.' in ui
-assert "def releaseVersion = '5.34'" in gradle
+assert "def releaseVersion = '5.35'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
 assert 'android:label="@string/app_display_name"' in manifest
-assert 'NewsVoiceWAV-v5.34-release-unsigned' in workflow
+assert 'NewsVoiceWAV-v5.35-release-unsigned' in workflow
 print("PASS: v5.19 uses a full 6s first-frame cover, exact JPEG poster, native share and uninterrupted scroll")

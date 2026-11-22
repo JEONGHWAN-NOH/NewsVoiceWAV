@@ -9,8 +9,49 @@ public final class NewsBroadcastSegments {
     public static final String ANCHOR="마지막으로 앵커 한마디입니다. 오늘 전해드린 소식을 살펴보실 때에는 확정된 사실과 향후 전망을 구분하는 것이 중요하겠습니다. 주요 사안의 후속 소식도 계속 확인하겠습니다.";
     public static final String CLOSING="이상으로 필리핀 뉴스·경제 종합 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
+    private static final String NEXT="다음 뉴스입니다.";
+    private static final java.util.regex.Pattern NEXT_CUE=java.util.regex.Pattern.compile(
+        "(?m)(?:^|(?<=[.!?])\\s+|\\n+)다음\\s+뉴스입니다[.!]?(?=\\s|$)\\s*");
+    private static String structured(String raw){
+        String adapted=NewsAutoScript.adapt(raw);
+        if(!adapted.equals(raw)||raw.matches("(?s).*(?m:^\\s*(?:===|---)\\s*$).*"))return adapted;
+        java.util.regex.Matcher cues=NEXT_CUE.matcher(raw);
+        StringBuilder result=new StringBuilder();
+        int start=0;
+        while(cues.find()){
+            appendPlain(result,raw.substring(start,cues.start()));
+            start=cues.end();
+        }
+        appendPlain(result,raw.substring(start));
+        return result.toString();
+    }
+    private static void appendPlain(StringBuilder result,String raw){
+        String text=raw.trim();
+        if(text.isEmpty())return;
+        if(result.length()>0)result.append("\n===\n");
+        String title=text.split("[.!?\\n]",2)[0].trim();
+        if(title.isEmpty())title="주요 뉴스";
+        if(title.length()>45)title=title.substring(0,45)+"…";
+        result.append(title).append('\n').append(text);
+    }
+    public static String playback(String raw){
+        if(raw.trim().isEmpty())return "";
+        if(!NewsAutoScript.isAutoFormat(raw)&&!raw.matches("(?s).*(?m:^\\s*(?:===|---)\\s*$).*"))return raw;
+        List<NewsStory> sections=NewsStory.parse(NewsAutoScript.adapt(raw));
+        StringBuilder out=new StringBuilder();
+        int news=0;
+        for(NewsStory item:sections){
+            boolean corner=item.title.matches("시작 인사|오프닝|마감 인사|클로징|앵커 한마디|앵커 한 말씀");
+            String body=item.spokenText();
+            if(body.isEmpty())body=item.narration;
+            if(out.length()>0)out.append('\n');
+            if(!corner && news++>0 && !NEXT_CUE.matcher(body).lookingAt())out.append(NEXT).append(' ');
+            out.append(body);
+        }
+        return out.toString();
+    }
     public static List<NewsStory> build(String raw,String preferredAnchor) {
-        List<NewsStory> parsed=NewsStory.parse(NewsAutoScript.adapt(raw));
+        List<NewsStory> parsed=NewsStory.parse(structured(raw));
         List<NewsStory> news=new ArrayList<>();
         String opening=null,anchor=null,closing=null;
         for(NewsStory section:parsed) {
@@ -32,13 +73,19 @@ public final class NewsBroadcastSegments {
         }
         if(news.isEmpty())throw new IllegalArgumentException("전할 뉴스 원고가 없습니다.");
         int count=news.size();
-        String first=verified(opening==null?OPENING:opening,"시작 인사");
-        String comment=verified(anchor!=null?anchor:
-            preferredAnchor!=null&&!preferredAnchor.trim().isEmpty()?preferredAnchor:ANCHOR,"앵커 한마디");
-        String last=verified(closing==null?CLOSING:closing,"마감 인사");
+
+        String comment=anchor!=null?anchor:
+            preferredAnchor!=null&&!preferredAnchor.trim().isEmpty()?preferredAnchor:ANCHOR;
+        String last=closing==null?CLOSING:closing;
         List<NewsStory> result=new ArrayList<>();
-        result.add(NewsStory.segment(NewsStory.OPENING,"시작 인사",first,count));
-        result.addAll(news);
+        if(opening!=null)result.add(NewsStory.segment(NewsStory.OPENING,"시작 인사",opening,count));
+        for(int i=0;i<count;i++){
+            NewsStory item=news.get(i);
+            String text=item.spokenText();
+            java.util.regex.Matcher cue=NEXT_CUE.matcher(text);
+            if(i>0 && cue.lookingAt())text=text.substring(cue.end());
+            result.add(item.page(item.title+"\n"+text,i+1,count,1,1));
+        }
         result.add(NewsStory.segment(NewsStory.ANCHOR,"앵커 한마디",comment,count));
         result.add(NewsStory.segment(NewsStory.CLOSING,"마감 인사",last,count));
         return result;
@@ -49,11 +96,6 @@ public final class NewsBroadcastSegments {
         String text=s.narration.substring(pos+1).trim();
         if(text.isEmpty())throw new IllegalArgumentException(s.title+" 내용이 비어 있습니다.");
         return text;
-    }
-    private static String verified(String text,String label){
-        BroadcastScriptReview.Result review=BroadcastScriptReview.review(text);
-        if(!review.approved())throw new IllegalArgumentException(label+" 검수 오류: "+review.summary());
-        return review.reviewed;
     }
     public static int newsCount(List<NewsStory> sections) {
         int count=0;
@@ -73,7 +115,7 @@ public final class NewsBroadcastSegments {
         StringBuilder result=new StringBuilder();
         for(NewsStory s:sections){
             if(result.length()>0)result.append('\n');
-            result.append(s.spokenText());
+            result.append(s.audioText());
         }
         return result.toString();
     }

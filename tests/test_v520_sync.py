@@ -29,14 +29,14 @@ assert 'm[i]=(w1+w2)/(w1/before+w2/after);' in math
 assert 'return clamp((float)val,0f,lastPixel);' in math
 assert 'int lo=0,hi=end;' in math
 assert 'FPS=30;' in video
-assert 'if(us<6L*US_PER_S)which=-2;' in video
+assert 'if(us<4L*US_PER_S)which=-2;' in video
 assert 'Paint highlight=' not in painter
 assert 'Paint underline=' not in painter
 assert 'readAlready=' not in painter
 assert 'app_display_name' in gradle
-assert "def releaseVersion = '5.34'" in gradle
+assert "def releaseVersion = '5.35'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert 'versionCode 40' in gradle
+assert 'versionCode 41' in gradle
 assert '56px·줄 간격 84px' in ui
 assert 'MUSIC_REVISION=2' in opening
 assert 'shareLast(true)' in ui and 'shareLast(false)' in ui
@@ -45,5 +45,5 @@ for source in (manual,worker):
     assert 'NewsCoverExporter.coverFile(' in source
     assert 'names.jpg()' in source  # same dated JPEG filename in both render paths
 assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
-assert 'NewsVoiceWAV-v5.34-release-unsigned' in pipeline
+assert 'NewsVoiceWAV-v5.35-release-unsigned' in pipeline
 print("PASS: 56px/84px and voice-first 700ms delayed scroll with existing cover sharing and music")

@@ -101,7 +101,7 @@ public final class NewsVoiceWorker extends Worker {
                 if(isStopped())throw new IOException(stopDetail());
                 AppPrefs.status(context,"화면별 음성 합성: "+(i+1)+"/"+pages.size());
                 List<Long> cues=new ArrayList<>();
-                waveFiles.add(synthesize(pages.get(i).spokenText(),jobId+"_page"+(i+1),cues));
+                waveFiles.add(synthesize(pages.get(i).audioText(),jobId+"_page"+(i+1),cues));
                 sentenceFrames.add(cues);
             }
             // Search relevant openly licensed photo references for each news item.
@@ -143,9 +143,6 @@ public final class NewsVoiceWorker extends Worker {
                 runAsForeground();
                 input=new File(new File(context.getFilesDir(),"inbox"),localFile);
                 String text=readString(input);
-                BroadcastScriptReview.Result checked=BroadcastScriptReview.review(text);
-                if(!checked.approved())throw new IOException("방송체 사전 검수 실패: "+checked.summary());
-                text=checked.reviewed;
                 String stamp=String.valueOf(System.currentTimeMillis());
                 NewsOutputNaming.Names names=NewsOutputNaming.at(java.time.Instant.now());
                 if(AppPrefs.videoEnabled(context)){
@@ -175,9 +172,7 @@ public final class NewsVoiceWorker extends Worker {
             validateServer(base,token);
             Job job=fetch(base,token);
             if(job==null){AppPrefs.status(context,"새 뉴스 원고 없음");return Result.success();}
-            BroadcastScriptReview.Result checkedJob=BroadcastScriptReview.review(job.text);
-            if(!checkedJob.approved())throw new IOException("서버 원고 방송체 사전 검수 실패: "+checkedJob.summary());
-            String broadcast=checkedJob.reviewed;
+            String broadcast=job.text;
             NewsOutputNaming.Names names=NewsOutputNaming.at(java.time.Instant.now());
             AppPrefs.status(context,"자동 음성 생성: "+job.id);
             if(AppPrefs.videoEnabled(context)){

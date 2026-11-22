@@ -257,6 +257,10 @@ public final class NewsCardPainter {
         /** One immutable row-centered speed curve per spoken article. */
         public NewsScrollMath.AudioCurve centeredAudioCurve(
             long voiceStartUs,long[] sentenceEndsUs){
+            if(story.hasTransition()){
+                voiceStartUs=sentenceEndsUs[0];
+                sentenceEndsUs=java.util.Arrays.copyOfRange(sentenceEndsUs,1,sentenceEndsUs.length);
+            }
             return NewsScrollMath.centeredAudioCurve(voiceStartUs,
                 sentenceEndsUs,sentenceStarts,rowLengths,SCROLL_STEP,maxOffset);
         }
@@ -360,7 +364,7 @@ public final class NewsCardPainter {
     /** News-specific photo; the label is always "reference image", never an event photograph claim. */
     private static void drawReferenceThumbnail(Canvas c,NewsImageFetcher.Photo photo,
                                                 String title){
-        final float l=68,t=263,r=423,b=625;
+        final float l=68,t=253,r=596,b=788;
         Path clip=new Path();
         clip.addRoundRect(new RectF(l,t,r,b),16,16,Path.Direction.CW);
         c.save();c.clipPath(clip);
@@ -428,8 +432,8 @@ public final class NewsCardPainter {
         c.drawText(english,51,93,p(white,33,true));
         c.drawText("오늘의 주요 뉴스",50,178,p(yellow,69,true));
         rounded(c,yellow,51,196,1031,204,3);
-        rounded(c,blue,43,233,1037,674,30);
-        stroke(c,43,233,1037,674,Color.rgb(41,157,241),4,30);
+        rounded(c,blue,43,233,1037,809,30);
+        stroke(c,43,233,1037,809,Color.rgb(41,157,241),4,30);
         // Approved A-mode design: illustrative news image on left, text on right.
         // The former yellow '주요 뉴스 1' plaque is deliberately removed.
         String title=story.title;
@@ -439,50 +443,50 @@ public final class NewsCardPainter {
             title.contains("경유")||title.contains("산업")||
             title.contains("수출")||title.contains("기업");
         drawReferenceThumbnail(c,photo,title);
-        line(c,Color.rgb(131,190,245),437,281,437,626,3);
+        line(c,Color.rgb(131,190,245),607,258,607,784,3);
         Paint headline=null;List<String> headlines=null;
         for(int size=55;size>=27;size--){
             headline=p(white,size,true);
-            headlines=wrapComplete(title,headline,550f);
-            if(headlines.size()<=5 &&
-               headlines.size()*size*1.18f<=354)break;
+            headlines=wrapComplete(title,headline,396f);
+            if(headlines.size()<=12 &&
+               headlines.size()*size*1.18f<=520)break;
         }
-        if(headlines==null||headlines.size()>5)
+        if(headlines==null||headlines.size()>12)
             throw new IllegalArgumentException("제목이 상단 이미지 옆 공간을 초과합니다: "+title);
         float lineHeight=headline.getTextSize()*1.18f;
-        float titleY=365+(4-headlines.size())*lineHeight/2f;
-        for(String row:headlines){c.drawText(row,458,titleY,headline);titleY+=lineHeight;}
-        rounded(c,Color.rgb(8,43,94),44,694,1036,1598,29);
-        stroke(c,44,694,1036,1598,Color.rgb(40,153,237),4,29);
+        float titleY=521-(headlines.size()-1)*lineHeight/2f+headline.getTextSize()*0.32f;
+        for(String row:headlines){c.drawText(row,618,titleY,headline);titleY+=lineHeight;}
+        rounded(c,Color.rgb(8,43,94),44,830,1036,1598,29);
+        stroke(c,44,830,1036,1598,Color.rgb(40,153,237),4,29);
         // Entire width is now available for the complete announcer script.
         String category=story.kind==NewsStory.OPENING?"시작 인사":
             story.kind==NewsStory.ANCHOR?"앵커 한마디":
             story.kind==NewsStory.CLOSING?"마감 인사":
             economy?"경제·산업":"필리핀 주요 뉴스";
-        c.drawText(category,89,776,p(yellow,43,true));
+        c.drawText(category,89,906,p(yellow,43,true));
         String scrollLabel="큰 글씨 · 자동 스크롤";
         Paint scrollLabelPaint=p(Color.rgb(182,214,242),29,true);
         c.drawText(scrollLabel,991-scrollLabelPaint.measureText(scrollLabel),
-            774,scrollLabelPaint);
-        line(c,Color.rgb(69,143,220),87,807,990,807,2);
+            904,scrollLabelPaint);
+        line(c,Color.rgb(69,143,220),87,935,990,935,2);
         drawWatermark(c,story);
         // No active-sentence shading or underline: steady white large print.
         // Sentence cues only determine the gradual vertical movement.
         c.save();
-        c.clipRect(75f,829f,1002f,SCROLL_BOTTOM);
+        c.clipRect(75f,954f,1002f,SCROLL_BOTTOM);
         Paint body=p(Color.WHITE,SCROLL_FONT,true);
         for(int row=0;row<scroll.lines.size();row++){
             float y=SCROLL_TOP+row*SCROLL_STEP-scrollPixels;
-            if(y<829f-SCROLL_STEP || y>SCROLL_BOTTOM+SCROLL_STEP)continue;
+            if(y<954f-SCROLL_STEP || y>SCROLL_BOTTOM+SCROLL_STEP)continue;
             String text=scroll.lines.get(row);
             if(!text.isEmpty())drawProseLine(c,text,92f,y,body);
         }
         c.restore();
         // A quiet progress rail makes the scroll position visible without subtitles.
         if(scroll.maxOffset>0){
-            rounded(c,Color.rgb(48,79,128),1014,843,1020,1542,3);
+            rounded(c,Color.rgb(48,79,128),1014,960,1020,1542,3);
             float scrollRatio=NewsScrollMath.clamp(scrollPixels/scroll.maxOffset,0f,1f);
-            float thumbTop=843+601f*scrollRatio;
+            float thumbTop=960+484f*scrollRatio;
             rounded(c,Color.rgb(255,210,46),1012,thumbTop,1022,thumbTop+98f,5);
         }
         int total=Math.max(1,story.articleCount);

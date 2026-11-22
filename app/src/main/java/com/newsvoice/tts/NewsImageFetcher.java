@@ -66,13 +66,18 @@ public final class NewsImageFetcher {
         if(title.contains("사라 두테르테"))return "Sara Duterte";
         if(title.contains("마르코스"))return "Ferdinand Marcos Jr";
         if(title.contains("나가시"))return "Naga City Camarines Sur";
+        if(title.contains("공항")||title.contains("여객기")||title.contains("비상착륙")){
+            if(title.contains("다바오"))return "Davao International Airport aircraft";
+            if(title.contains("세부"))return "Mactan Cebu International Airport aircraft";
+            return "Philippines airport aircraft";
+        }
         if(title.contains("다바오"))return "Davao City Philippines";
         if(title.contains("팔라완"))return "Palawan Philippines";
         if(title.contains("세부"))return "Cebu City";
         if(title.contains("비콜"))return "Bicol Region";
         if(title.contains("부키드논"))return "Bukidnon";
         if(title.contains("마닐라"))return "Manila Philippines";
-        if(title.contains("공항"))return "Philippines airport";
+
         if(title.contains("고속도로")||title.contains("교통")||title.contains("물류"))
             return "Philippines highway";
         if(title.contains("학교")||title.contains("교육"))return "Philippines public school";
@@ -86,8 +91,8 @@ public final class NewsImageFetcher {
         if(title.contains("철도"))return "Philippines railway";
         if(title.contains("국회")||title.contains("상원")||title.contains("탄핵"))
             return "Senate of the Philippines";
-        if(title.contains("한국")||title.contains("전투기"))return "Philippine Air Force";
-        return "Philippines";
+        if(title.contains("전투기"))return "Philippine Air Force";
+        return "";
     }
     private static String decodePlain(String html){
         if(html==null)return "";
@@ -127,7 +132,9 @@ public final class NewsImageFetcher {
         if(story==null||story.kind!=NewsStory.NEWS)return null;
         HttpURLConnection api=null;
         try{
-            String q=URLEncoder.encode("filetype:bitmap "+searchTerm(story.title+" "+story.preview),"UTF-8");
+            String subject=searchTerm(story.title+" "+story.preview);
+            if(subject.isEmpty())return null;
+            String q=URLEncoder.encode("filetype:bitmap "+subject,"UTF-8");
             String endpoint="https://commons.wikimedia.org/w/api.php?action=query"
                 +"&generator=search&gsrnamespace=6&gsrlimit=8&gsrsearch="+q
                 +"&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=600"

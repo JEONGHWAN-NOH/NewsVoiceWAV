@@ -210,9 +210,38 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         editor = new EditText(this);editor.setTextSize(16);editor.setTextColor(DARK);editor.setGravity(Gravity.TOP);editor.setPadding(dp(this,14),dp(this,14),dp(this,14),dp(this,14));
         editor.setHint("아나운서 대본 전체를 붙여 넣으세요. 첫 번째 소식입니다. 등 순서가 있으면 자동으로 뉴스를 분리합니다.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        LinearLayout scriptActions=new LinearLayout(this);
+        body.addView(scriptActions,lp(-1,52,8));
+        Button importScript=btn("대본 불러오기",0xffe3eff2,DARK);
+        Button clearScript=btn("대본 지우기",0xffffeeee,0xff90252b);
+        scriptActions.addView(importScript,new LinearLayout.LayoutParams(0,-1,1));
+        scriptActions.addView(clearScript,new LinearLayout.LayoutParams(0,-1,1));
         body.addView(editor,lp(-1,-2,10));
-        Button importScript=btn("휴대폰에서 대본 TXT 파일 불러오기",0xffffe78b,DARK);
-        body.addView(importScript,lp(-1,50,8));
+        Button undo=btn("되돌리기",0xffe7f2f3,MINT);
+        body.addView(undo,lp(-1,48,4));
+        undo.setVisibility(View.GONE);
+        editor.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            public void onTextChanged(CharSequence s,int start,int before,int count){
+                undo.setTag(null);
+                undo.setVisibility(View.GONE);
+            }
+            public void afterTextChanged(android.text.Editable s){}
+        });
+        clearScript.setOnClickListener(v->{
+            String previous=editor.getText().toString();
+            if(previous.isEmpty())return;
+            taskToken++; playbackIndex=-1; playbackToken=-1; playbackSegments.clear();
+            if(tts!=null)tts.stop();
+            editor.setText("");
+            undo.setTag(previous);
+            undo.setVisibility(View.VISIBLE);
+            updateStatus("대본을 지웠습니다.");
+        });
+        undo.setOnClickListener(v->{
+            String previous=(String)undo.getTag();
+            if(previous!=null){editor.setText(previous);editor.setSelection(editor.length());}
+        });
         importScript.setOnClickListener(v->{
             Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             pick.setType("text/*");
@@ -301,7 +330,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("v5.30 날짜별 자동 저장·이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 6초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 음성·영상·표지·자료출처 파일은 필리핀 현지 날짜별 하위 폴더에 같은 회차명과 제작시각으로 저장됩니다.",12,false);
+        TextView formatHelp=text("v5.35 날짜별 자동 저장·이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 4초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 음성·영상·표지·자료출처 파일은 필리핀 현지 날짜별 하위 폴더에 같은 회차명과 제작시각으로 저장됩니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
@@ -323,25 +352,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
-        preview.setOnClickListener(v->{
-            String script=editor.getText().toString().trim();
-            if(script.isEmpty()){updateStatus("미리 들을 뉴스 원고를 입력하세요.");return;}
-            try{
-                List<NewsStory> sections=NewsBroadcastSegments.build(
-                    NewsAutoScript.adapt(script),anchorEdit.getText().toString());
-                speakNow(NewsBroadcastSegments.audioScript(sections),true);
-            }catch(IllegalArgumentException e){
-                updateStatus("전체 대본 미리 듣기 오류: "+e.getMessage());
-            }
-        });
-        play.setOnClickListener(v->{
-            String checked=reviewEditorScript();
-            if(checked==null)return;
-            try{
-                List<NewsStory> sections=NewsBroadcastSegments.build(checked,anchorEdit.getText().toString());
-                speakNow(NewsBroadcastSegments.audioScript(sections),false);
-            }catch(IllegalArgumentException e){updateStatus("방송 멘트 검수: "+e.getMessage());}
-        });
+        preview.setOnClickListener(v->speakNow(NewsBroadcastSegments.playback(editor.getText().toString()),true));
+        play.setOnClickListener(v->speakNow(NewsBroadcastSegments.playback(editor.getText().toString()),false));
         stop.setOnClickListener(v->{taskToken++;playbackSegments.clear();playbackIndex=-1;playbackToken=-1;if(tts!=null)tts.stop();updateStatus("낭독 정지됨");});
         save.setOnClickListener(v->queueManualSave());
         buildAutomationControls(body);
@@ -815,8 +827,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     private void queueManualSave(){
         if(!ready){updateStatus("한국어 음성 엔진이 준비되지 않았습니다.");return;}
-        String text=reviewEditorScript();
-        if(text==null)return;
+        String text=editor.getText().toString();
+        if(text.trim().isEmpty()){updateStatus("원고를 입력하세요.");return;}
         try {
             String comment=anchorEdit.getText().toString().trim();
             NewsBroadcastSegments.build(text,comment);

@@ -103,9 +103,6 @@ public final class ManualRenderService extends Service {
         if(!input.isFile()||input.length()>240000)
             throw new IOException("원고를 읽을 수 없습니다.");
         String text=new String(Files.readAllBytes(input.toPath()),StandardCharsets.UTF_8).trim();
-        BroadcastScriptReview.Result check=BroadcastScriptReview.review(text);
-        if(!check.approved())throw new IOException("방송체 사전 검수 실패: "+check.summary());
-        text=check.reviewed;
         if(text.isEmpty()||text.length()>60000)throw new IOException("원고 길이를 확인해 주세요.");
         List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
         String stamp=String.valueOf(System.currentTimeMillis());
@@ -132,7 +129,7 @@ public final class ManualRenderService extends Service {
                     throw new IOException("영상 처리 스레드가 시스템에서 중단됐습니다.");
                 progress("화면별 WAV 생성: "+(i+1)+"/"+pages.size(),5+35*i/Math.max(1,pages.size()));
                 List<Long> cues=new ArrayList<>();
-                parts.add(synthesize(pages.get(i).spokenText(),"manual_"+stamp+"_p"+(i+1),cues));
+                parts.add(synthesize(pages.get(i).audioText(),"manual_"+stamp+"_p"+(i+1),cues));
                 sentenceFrames.add(cues);
             }
             wav=new File(context.getCacheDir(),"newsvoice_manual_"+stamp+"_combined.wav");

@@ -37,6 +37,9 @@ public final class NewsStory {
         return pos<0?"":text.substring(pos+1).trim();
     }
 
+    public boolean hasTransition(){return kind==NEWS && articleNumber>1;}
+    public String audioText(){return hasTransition()?"다음 뉴스입니다. "+spokenText():spokenText();}
+
     public static NewsStory segment(int kind,String title,String narration,int newsCount){
         if(kind==NEWS||narration==null||narration.trim().isEmpty())
             throw new IllegalArgumentException("방송 멘트 형식이 올바르지 않습니다.");

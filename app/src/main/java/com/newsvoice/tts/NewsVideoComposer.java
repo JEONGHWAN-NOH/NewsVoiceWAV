@@ -142,7 +142,7 @@ public final class NewsVideoComposer {
                 WavTools.Piece part=pieces.get(i);
                 if(part.dataLength%frameBytes!=0)throw new IOException("WAV 데이터의 샘플 경계가 맞지 않습니다.");
                 List<Long> lengths=sentenceFrames.get(i);
-                int expectedSentences=NewsSentenceTimeline.split(stories.get(i).spokenText()).size();
+                int expectedSentences=NewsSentenceTimeline.split(stories.get(i).audioText()).size();
                 if(lengths==null||lengths.size()!=expectedSentences)
                     throw new IOException("문장별 WAV 타임라인이 빠졌습니다.");
                 long audioStart=frameCount;
@@ -286,20 +286,18 @@ public final class NewsVideoComposer {
             for(int f=0;f<frames;f++) {
                 long us=f*US_PER_S/FPS;
                 int which;
-                // Full six-second fixed opening cover, including all of the music.
-                if(us<6L*US_PER_S)which=-2;
+                // Four-second cover. The first card appears during the final two seconds of music.
+                if(us<4L*US_PER_S)which=-2;
                 else {
                     which=0;
-                    // The previous article remains on screen for its final 700ms
-                    // after its narration ends, while the next article uses
-                    // the remaining 200ms silent pre-roll before its voice starts.
+                    // Advance title, photo and body together at the start of the incoming WAV.
                     for(int i=0;i<t.spans.size();i++)
-                        if(us>=t.spans.get(i).startUs+(i==0?0L:SCROLL_DELAY_US))which=i;
+                        if(us>=t.spans.get(i).audioStartUs)which=i;
                 }
                 Span current=which>=0?t.spans.get(which):null;
                 int activeSentence=current!=null?current.activeSentence(us):-1;
                 if(which!=previousCard){
-                    if(which==-2) {cardStart=0;cardEnd=6L*US_PER_S;}
+                    if(which==-2) {cardStart=0;cardEnd=4L*US_PER_S;}
                     else {
                         cardStart=current.startUs;
                         cardEnd=which+1<t.spans.size()?t.spans.get(which+1).startUs:t.endUs;
