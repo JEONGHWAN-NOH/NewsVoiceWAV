@@ -10,16 +10,19 @@ public final class NewsBroadcastSegmentsTest {
         String first="이것은 테스트 문장입니다.";
         String raw=first+" 긴 대본을 읽습니다.".repeat(300);
         check(NewsBroadcastSegments.playback(raw).contains(raw),"literal long preview");
-        check(NewsBroadcastSegments.build(raw,"").get(0).audioText().equals("첫 번째 뉴스입니다. "+raw),"literal first WAV");
+        List<NewsStory> plain=NewsBroadcastSegments.build(raw,"");
+        check(plain.get(0).kind==NewsStory.OPENING,"default opening is always first");
+        check(plain.get(0).audioText().equals(NewsBroadcastSegments.DEFAULT_OPENING),"default opening spoken");
+        check(plain.get(1).audioText().equals("첫 번째 뉴스입니다. "+raw),"literal first WAV");
         String script="첫 제목\n"+first+"\n===\n시장 소식\n다음 뉴스입니다. 시장 본문입니다.\n===\n공항 소식\n공항 본문입니다.";
         List<NewsStory> sections=NewsBroadcastSegments.build(script,"앵커 의견입니다.");
-        check(sections.size()==5,"three articles and ending sections");
+        check(sections.size()==6,"opening, three articles and ending sections");
         String expected="첫 번째 뉴스입니다. "+first+"\n두 번째 뉴스입니다. 시장 본문입니다.\n세 번째 뉴스입니다. 공항 본문입니다.";
-        check(NewsBroadcastSegments.playback(script).startsWith(expected),"preview has exactly two transitions");
-        check(NewsBroadcastSegments.audioScript(sections).startsWith(expected),"export matches preview");
-        check(sections.get(1).title.equals("시장 소식") && sections.get(1).spokenText().equals("시장 본문입니다."),"visual body and title match");
-        check(sections.get(2).hasTransition() && sections.get(2).articleNumber==3,"third card audio");
-        check(sections.get(3).kind==NewsStory.ANCHOR && sections.get(3).audioText().equals("앵커 의견입니다."),"approved anchor");
+        check(NewsBroadcastSegments.playback(script).startsWith(NewsBroadcastSegments.DEFAULT_OPENING+"\n"+expected),"preview has opening and exactly two transitions");
+        check(NewsBroadcastSegments.audioScript(sections).startsWith(NewsBroadcastSegments.DEFAULT_OPENING+"\n"+expected),"export matches preview");
+        check(sections.get(2).title.equals("시장 소식") && sections.get(2).spokenText().equals("시장 본문입니다."),"visual body and title match");
+        check(sections.get(3).hasTransition() && sections.get(3).articleNumber==3,"third card audio");
+        check(sections.get(4).kind==NewsStory.ANCHOR && sections.get(4).audioText().equals("앵커 의견입니다."),"approved anchor");
         String inline=first+" 다음 뉴스입니다. 시장 본문입니다. 다음 뉴스입니다. 공항 본문입니다.";
         check(NewsBroadcastSegments.newsCount(NewsBroadcastSegments.build(inline,""))==3,"inline markers");
         String supplied="시작 인사\n특별한 인사입니다.\n===\n"+script+
