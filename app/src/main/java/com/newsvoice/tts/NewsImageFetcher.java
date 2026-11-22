@@ -73,40 +73,19 @@ public final class NewsImageFetcher {
         return bmp==null?null:new Photo(bmp,"사용자 등록 뉴스 사진","","사용자 제공 이미지","");
     }
     private static String searchTerm(String title){
-        // Geographic or subject reference images are preferable to falsely
-        // representing current-day accident or protest photos as genuine.
-        if(title.contains("칼락스")||title.toLowerCase(Locale.ROOT).contains("calax"))
-            return "Cavite Laguna Expressway";
-        if(title.contains("사라 두테르테"))return "Sara Duterte";
-        if(title.contains("마르코스"))return "Ferdinand Marcos Jr";
-        if(title.contains("나가시"))return "Naga City Camarines Sur";
-        if(title.contains("공항")||title.contains("여객기")||title.contains("비상착륙")){
-            if(title.contains("다바오"))return "Davao International Airport aircraft";
-            if(title.contains("세부"))return "Mactan Cebu International Airport aircraft";
-            return "Philippines airport aircraft";
-        }
-        if(title.contains("다바오"))return "Davao City Philippines";
-        if(title.contains("팔라완"))return "Palawan Philippines";
-        if(title.contains("세부"))return "Cebu City";
-        if(title.contains("비콜"))return "Bicol Region";
-        if(title.contains("부키드논"))return "Bukidnon";
-        if(title.contains("마닐라"))return "Manila Philippines";
-
-        if(title.contains("고속도로")||title.contains("교통")||title.contains("물류"))
-            return "Philippines highway";
-        if(title.contains("학교")||title.contains("교육"))return "Philippines public school";
-        if(title.contains("태풍")||title.contains("기상"))return "Philippines weather";
-        if(title.contains("전력")||title.contains("발전"))return "Philippines electric power";
-        if(title.contains("금리")||title.contains("중앙은행")||title.contains("BSP"))return "Bangko Sentral ng Pilipinas";
-        if(title.contains("환율")||title.contains("페소")||title.contains("금융")||title.contains("은행"))return "Philippine peso currency";
-        if(title.contains("물가")||title.contains("인플레이션")||title.contains("소비자"))return "Philippines public market";
-        if(title.contains("투자")||title.contains("산업")||title.contains("기업")||title.contains("제조"))
-            return "Philippines factory";
-        if(title.contains("철도"))return "Philippines railway";
-        if(title.contains("국회")||title.contains("상원")||title.contains("탄핵"))
-            return "Senate of the Philippines";
-        if(title.contains("전투기"))return "Philippine Air Force";
-        return "";
+        // Only use geographically relevant reference illustrations.
+        // A reference image must never be described as a real accident photo.
+        if(title==null)return "Gwangmyeong Gyeonggi South Korea";
+        if(title.contains("광명역")||title.contains("KTX"))
+            return "Gwangmyeong Station South Korea";
+        if(title.contains("광명시청")||title.contains("시의회")||title.contains("행정")||title.contains("예산"))
+            return "Gwangmyeong City Hall South Korea";
+        if(title.contains("철도")||title.contains("전철"))
+            return "Gwangmyeong Station railway South Korea";
+        if(title.contains("광명동")||title.contains("철산")||title.contains("하안")||
+           title.contains("소하")||title.contains("일직")||title.contains("학온"))
+            return "Gwangmyeong-si Gyeonggi South Korea";
+        return "Gwangmyeong-si Gyeonggi South Korea";
     }
     private static String decodePlain(String html){
         if(html==null)return "";
