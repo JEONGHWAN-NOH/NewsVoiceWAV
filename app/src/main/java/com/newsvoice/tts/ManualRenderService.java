@@ -104,7 +104,7 @@ public final class ManualRenderService extends Service {
             throw new IOException("원고를 읽을 수 없습니다.");
         String text=new String(Files.readAllBytes(input.toPath()),StandardCharsets.UTF_8).trim();
         if(text.isEmpty()||text.length()>60000)throw new IOException("원고 길이를 확인해 주세요.");
-        List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
+        List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context),NewsImageFetcher.hasOpeningPortrait(context));
         String stamp=String.valueOf(System.currentTimeMillis());
         NewsOutputNaming.Names names=NewsOutputNaming.at(java.time.Instant.now());
         List<File> parts=new ArrayList<>();
@@ -118,7 +118,7 @@ public final class ManualRenderService extends Service {
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                 DownloadsPublisher.publish(context,wav,names.wav());
                 progress("WAV 저장 완료",100);
-                report("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+"/"+names.wav());
+                report("저장 완료: 다운로드/1. 필리핀뉴스 v5.40/"+names.dateFolder+"/"+names.wav());
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
@@ -172,7 +172,7 @@ public final class ManualRenderService extends Service {
             cover.delete();
             if(credits!=null)
                 DownloadsPublisher.publish(context,credits,names.credits());
-            progress("저장 완료: 다운로드/1. 필리핀뉴스/"+names.dateFolder+" → MP4 · WAV · JPG",100);
+            progress("저장 완료: 다운로드/1. 필리핀뉴스 v5.40/"+names.dateFolder+" → MP4 · WAV · JPG",100);
             success=true;
         }finally{
             for(File f:parts)f.delete();

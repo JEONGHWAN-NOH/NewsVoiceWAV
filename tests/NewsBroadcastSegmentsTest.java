@@ -14,6 +14,8 @@ public final class NewsBroadcastSegmentsTest {
         String script="첫 제목\n"+first+"\n===\n시장 소식\n다음 뉴스입니다. 시장 본문입니다.\n===\n공항 소식\n공항 본문입니다.";
         List<NewsStory> sections=NewsBroadcastSegments.build(script,"앵커 의견입니다.");
         check(sections.size()==5,"three articles and ending sections");
+        List<NewsStory> withPortrait=NewsBroadcastSegments.build(script,"",true);
+        check(withPortrait.size()==6 && withPortrait.get(0).kind==NewsStory.OPENING,"opening portrait gets a greeting");
         String next="다음 뉴스입니다. ";
         String expected=first+"\n"+next+"시장 본문입니다.\n"+next+"공항 본문입니다.";
         check(NewsBroadcastSegments.playback(script).equals(expected),"preview has exactly two transitions");

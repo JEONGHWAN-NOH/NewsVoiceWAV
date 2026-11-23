@@ -91,7 +91,7 @@ public final class NewsVoiceWorker extends Worker {
         return output;
     }
     private VideoResult makeVideo(String script,String jobId) throws Exception {
-        List<NewsStory> sections=NewsBroadcastSegments.build(script,AppPrefs.anchorComment(context));
+        List<NewsStory> sections=NewsBroadcastSegments.build(script,AppPrefs.anchorComment(context),NewsImageFetcher.hasOpeningPortrait(context));
         List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
         List<File> waveFiles=new ArrayList<>();
         List<List<Long>> sentenceFrames=new ArrayList<>();
@@ -157,13 +157,13 @@ public final class NewsVoiceWorker extends Worker {
                         saveDownloads(made.credits,names.credits());
                         made.credits.delete();
                     }
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 → "+names.dateFolder+" → WAV · MP4 · JPG");
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.40 → "+names.dateFolder+" → WAV · MP4 · JPG");
                     made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
                 }else{
-                    List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context));
+                    List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context),NewsImageFetcher.hasOpeningPortrait(context));
                     File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                     saveDownloads(wav,names.wav());
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 → "+names.dateFolder+" → "+names.wav());
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.40 → "+names.dateFolder+" → "+names.wav());
                     wav.delete();
                 }
                 return Result.success();
@@ -190,7 +190,7 @@ public final class NewsVoiceWorker extends Worker {
                 made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
                 AppPrefs.status(context,"WAV + MP4 생성 및 WAV 전송 완료: "+job.id);
             }else{
-                List<NewsStory> sections=NewsBroadcastSegments.build(broadcast,AppPrefs.anchorComment(context));
+                List<NewsStory> sections=NewsBroadcastSegments.build(broadcast,AppPrefs.anchorComment(context),NewsImageFetcher.hasOpeningPortrait(context));
                 File wav=synthesize(NewsBroadcastSegments.audioScript(sections),job.id);
                 saveDownloads(wav,names.wav());
                 upload(base,token,job.id,wav);

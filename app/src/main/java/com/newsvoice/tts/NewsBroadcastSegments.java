@@ -57,6 +57,9 @@ public final class NewsBroadcastSegments {
         return out.toString();
     }
     public static List<NewsStory> build(String raw,String preferredAnchor) {
+        return build(raw,preferredAnchor,false);
+    }
+    public static List<NewsStory> build(String raw,String preferredAnchor,boolean openingPortrait) {
         List<NewsStory> parsed=NewsStory.parse(structured(raw));
         List<NewsStory> news=new ArrayList<>();
         String opening=null,anchor=null,closing=null;
@@ -84,6 +87,7 @@ public final class NewsBroadcastSegments {
             preferredAnchor!=null&&!preferredAnchor.trim().isEmpty()?preferredAnchor:ANCHOR;
         String last=closing==null?CLOSING:closing;
         List<NewsStory> result=new ArrayList<>();
+        if(opening==null && openingPortrait)opening="안녕하십니까. 오늘의 뉴스를 전해드립니다.";
         if(opening!=null)result.add(NewsStory.segment(NewsStory.OPENING,"시작 인사",opening,count));
         for(int i=0;i<count;i++){
             NewsStory item=news.get(i);

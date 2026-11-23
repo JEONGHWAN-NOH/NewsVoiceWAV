@@ -54,6 +54,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private static final int SCRIPT_PICKER=5111;
     private static final int NEWS_IMAGES_PICKER=5130;
     private static final int NEWS_SINGLE_PICKER_BASE=5200;
+    private static final int PORTRAIT_PICKER_COMMON=5120;
     private static final int PORTRAIT_PICKER_OPENING=5121, PORTRAIT_PICKER_ANCHOR=5122, PORTRAIT_PICKER_CLOSING=5123;
     private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
@@ -284,7 +285,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 startActivityForResult(pick,NEWS_SINGLE_PICKER_BASE+selectedSlot);
             });
         }
-        Button removePhotos=btn("등록 사진 제거",0xffe7f2f3,MINT);
+        Button removePhotos=btn("아나운서 사진 공통·개별 등록",0xffe7f2f3,MINT);
         body.addView(removePhotos,lp(-1,48,5));
         removePhotos.setOnClickListener(v->showPhotoRemoval());
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
@@ -344,6 +345,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         body.addView(restoreCover,lp(-1,49,7));
         restoreCover.setOnClickListener(v->changeCover(null));
         body.addView(text("아나운서 이미지 · 갤러리 등록",17,true),lp(-1,-2,22));
+        Button commonPortrait=btn("공통 사진 선택 · 세 구간",0xffe7f2f3,MINT);
+        body.addView(commonPortrait,lp(-1,51,8));
+        commonPortrait.setOnClickListener(v->pickPortrait(PORTRAIT_PICKER_COMMON));
+        body.addView(text("개별 사진을 선택한 구간에는 그 사진이 나옵니다. 구간 버튼을 길게 누르면 다시 공통 사진을 사용합니다.",13,false),lp(-1,-2,8));
         LinearLayout portraitButtons=new LinearLayout(this);
         portraitButtons.setOrientation(LinearLayout.HORIZONTAL);
         body.addView(portraitButtons,lp(-1,49,8));
@@ -355,11 +360,13 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             LinearLayout.LayoutParams param=new LinearLayout.LayoutParams(0,-1,1);
             if(k>0)param.leftMargin=dp(this,5);
             portraitButtons.addView(pick,param);
-            pick.setOnClickListener(v->{
-                Intent gallery=new Intent(Intent.ACTION_GET_CONTENT);
-                gallery.setType("image/*");
-                gallery.addCategory(Intent.CATEGORY_OPENABLE);
-                startActivityForResult(gallery,request);
+            pick.setOnClickListener(v->pickPortrait(request));
+            pick.setOnLongClickListener(v->{
+                try {
+                    java.nio.file.Files.deleteIfExists(portraitFile(request).toPath());
+                    updateStatus("개별 사진 해제 · "+pick.getText());
+                } catch(IOException e){updateStatus("개별 사진 해제 실패");}
+                return true;
             });
         }
         body.addView(text("04  재생 · 저장",17,true),lp(-1,-2,25));
@@ -618,7 +625,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.40/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -800,7 +807,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.40 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -905,6 +912,18 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             if (temporary != null && temporary.exists()) temporary.delete();
         }
     }
+    private File portraitFile(int request){
+        String[] slots={"common","opening","anchor","closing"};
+        return new File(getFilesDir(),"portrait_"+slots[request-PORTRAIT_PICKER_COMMON]+".jpg");
+    }
+
+    private void pickPortrait(int request){
+        Intent intent=new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(intent,request);
+    }
+
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
         if(requestCode==COVER_PICKER){
@@ -945,22 +964,28 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             updateStatus("뉴스 사진 "+saved+"/"+uris.size()+"장 내부 저장 완료. 사진 선택 순서를 검토하세요.");
             return;
         }
-        if(requestCode>=PORTRAIT_PICKER_OPENING&&requestCode<=PORTRAIT_PICKER_CLOSING){
-            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
-            String slot=requestCode==PORTRAIT_PICKER_OPENING?"opening":
-                requestCode==PORTRAIT_PICKER_ANCHOR?"anchor":"closing";
-            try(InputStream in=getContentResolver().openInputStream(data.getData())){
-                if(in==null)throw new IOException("갤러리 사진을 읽을 수 없습니다.");
-                android.graphics.BitmapFactory.Options opt=new android.graphics.BitmapFactory.Options();
-                opt.inSampleSize=2;
-                android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in,null,opt);
-                if(bitmap==null)throw new IOException("지원되지 않는 사진 형식입니다.");
-                File dest=new File(getFilesDir(),"portrait_"+slot+".jpg");
-                try(FileOutputStream out=new FileOutputStream(dest)){
-                    if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,87,out))
-                        throw new IOException("사진 저장 실패");
-                }finally{bitmap.recycle();}
-                updateStatus("아나운서 사진 등록 완료: "+slot+" · 다음 MP4부터 적용");
+        if(requestCode>=PORTRAIT_PICKER_COMMON && requestCode<=PORTRAIT_PICKER_CLOSING){
+            if(resultCode!=RESULT_OK || data==null || data.getData()==null)return;
+            try {
+                android.graphics.ImageDecoder.Source source=android.graphics.ImageDecoder.createSource(getContentResolver(),data.getData());
+                android.graphics.Bitmap bitmap=android.graphics.ImageDecoder.decodeBitmap(source,(decoder,info,unused)->{
+                    int w=info.getSize().getWidth(),h=info.getSize().getHeight();
+                    float scale=Math.min(1f,1200f/Math.max(w,h));
+                    decoder.setTargetSize(Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale)));
+                    decoder.setAllocator(android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE);
+                });
+                try {
+                    File tmp=File.createTempFile("portrait",".tmp",getFilesDir());
+                    try {
+                        try(FileOutputStream out=new FileOutputStream(tmp)){
+                            if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,90,out))throw new IOException("사진 저장 실패");
+                        }
+                        java.nio.file.Files.move(tmp.toPath(),portraitFile(requestCode).toPath(),
+                            java.nio.file.StandardCopyOption.ATOMIC_MOVE,java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    } finally {tmp.delete();}
+                } finally {bitmap.recycle();}
+                String[] labels={"세 구간 공통","시작 인사","앵커 한마디","마감 인사"};
+                updateStatus(labels[requestCode-PORTRAIT_PICKER_COMMON]+" 사진 등록 완료 · 다음 MP4부터 적용");
             }catch(Exception ex){updateStatus("아나운서 이미지 오류: "+ex.getMessage());}
             return;
         }
@@ -1068,7 +1093,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.40/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){

@@ -18,6 +18,7 @@ public class BroadcastCoverTest extends Instrumentation {
         Bundle result=new Bundle();
         try {
             verifyPhotoRemoval();
+            verifyAnnouncerPhotos();
             importPreviewExportAndRestore();
             result.putString("cover_tests","passed");
             finish(android.app.Activity.RESULT_OK,result);
@@ -69,6 +70,62 @@ public class BroadcastCoverTest extends Instrumentation {
         assertTrue(first.delete());
         runOnMainSync(()->{ assertTrue(activity.showPhotoRemoval()==null); activity.finish(); });
     }
+
+    private void verifyAnnouncerPhotos() throws Exception {
+        Context c=getTargetContext();
+        MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+        int[] colors={Color.RED,Color.GREEN,Color.BLUE,Color.YELLOW};
+        java.util.List<NewsStory> stories=NewsBroadcastSegments.build("제목\n오늘의 소식입니다.","",true);
+        for(int i=0;i<colors.length;i++){
+            File input=new File(c.getCacheDir(),"portrait-test.png");
+            Bitmap b=Bitmap.createBitmap(48,48,Bitmap.Config.ARGB_8888);
+            b.eraseColor(colors[i]);
+            try(FileOutputStream out=new FileOutputStream(input)){assertTrue(b.compress(Bitmap.CompressFormat.PNG,100,out));}
+            b.recycle();
+            final int code=5120+i;
+            runOnMainSync(()->activity.onActivityResult(code,android.app.Activity.RESULT_OK,
+                new android.content.Intent().setData(Uri.fromFile(input))));
+            waitForIdleSync();
+            for(int j=0;j<stories.size();j++){
+                NewsImageFetcher.Photo photo=NewsImageFetcher.anchorPortrait(c,stories.get(j));
+                if(j==1){assertTrue(photo==null);continue;}
+                int slot=j==0?1:j;
+                int expected=colors[slot<=i?slot:0];
+                assertNotNull(photo);
+                assertColor(expected,photo.bitmap.getPixel(10,10));
+                photo.bitmap.recycle();
+            }
+        }
+        java.util.List<NewsImageFetcher.Photo> photos=new java.util.ArrayList<>();
+        for(NewsStory story:stories)photos.add(NewsImageFetcher.anchorPortrait(c,story));
+        File voice=OpeningMusicA.ensureInstalled(c);
+        WavTools.Piece wav=WavTools.inspect(voice);
+        long frames=wav.dataLength/(wav.format[2]*2);
+        File video=new File(c.getCacheDir(),"portrait-test.mp4");
+        NewsVideoComposer.create(c,stories,Collections.nCopies(stories.size(),voice),
+            Collections.nCopies(stories.size(),Collections.singletonList(frames)),video,message->{},photos);
+        MediaMetadataRetriever retriever=new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(video.getPath());
+            long duration=Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+            int matched=0;
+            for(long ms=5000;ms<duration && matched<3;ms+=2000){
+                Bitmap frame=retriever.getFrameAtTime(ms*1000,MediaMetadataRetriever.OPTION_CLOSEST);
+                int pixel=frame.getPixel(frame.getWidth()/3,frame.getHeight()/4);
+                if(closeColor(colors[matched+1],pixel))matched++;
+                frame.recycle();
+            }
+            assertEquals(3,matched);
+        } finally {retriever.release();video.delete();}
+        runOnMainSync(activity::finish);
+    }
+
+    private static boolean closeColor(int a,int b){
+        return Math.abs(Color.red(a)-Color.red(b))<40 && Math.abs(Color.green(a)-Color.green(b))<40
+            && Math.abs(Color.blue(a)-Color.blue(b))<40;
+    }
+    private static void assertColor(int a,int b){assertTrue("Unexpected portrait "+Integer.toHexString(b),closeColor(a,b));}
 
     private void importPreviewExportAndRestore() throws Exception {
         Context c=getTargetContext();

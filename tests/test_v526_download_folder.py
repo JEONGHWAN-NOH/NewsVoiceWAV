@@ -10,7 +10,7 @@ workflow = Path(".github/workflows/build-apk.yml").read_text(encoding="utf-8")
 
 # Android MediaStore creates the subdirectory when a new file is inserted.
 naming=(root/"NewsOutputNaming.java").read_text(encoding="utf-8")
-assert 'public static final String DIRECTORY_NAME="1. 필리핀뉴스";' in naming
+assert 'public static final String DIRECTORY_NAME="1. 필리핀뉴스 v5.40";' in naming
 assert 'NewsOutputNaming.DIRECTORY_NAME' in publisher
 assert '"/"+dateFolder' in publisher
 assert 'NewsOutputNaming.folderFor(filename' in publisher
@@ -32,9 +32,9 @@ assert 'Uri uri=DownloadsPublisher.publish(context,source,filename);' in worker
 for s in (ui, manual, worker):
     assert '다운로드/NewsVoiceWAV' not in s
     assert '다운로드 → NewsVoiceWAV' not in s
-    assert '1. 필리핀뉴스' in s
+    assert '1. 필리핀뉴스 v5.40' in s
 assert 'applicationId \'com.newsvoice.tts.stable\'' in gradle
-assert "def releaseVersion = '5.39'" in gradle, 'APK release version must match v5.39'
-assert 'versionCode 47' in gradle
-assert 'NewsVoiceWAV-v5.39-debug.apk' in workflow
-print("PASS: v5.39 all output formats use Download/1. 필리핀뉴스")
+assert "def releaseVersion = '5.40'" in gradle, 'APK release version must match v5.40'
+assert 'versionCode 48' in gradle
+assert 'NewsVoiceWAV-v5.40-debug.apk' in workflow
+print("PASS: v5.40 all output formats use Download/1. 필리핀뉴스 v5.40")
