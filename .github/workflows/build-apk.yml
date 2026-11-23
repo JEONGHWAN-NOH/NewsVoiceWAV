@@ -189,7 +189,14 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
-          script: gradle --no-daemon :app:connectedDebugAndroidTest
+          script: |
+            adb install -r app/build/outputs/apk/debug/NewsVoiceWAV-v5.38-debug.apk
+            adb shell am start -W -n com.newsvoice.tts.stable.lite538/com.newsvoice.tts.MainActivity
+            gradle --no-daemon :app:connectedDebugAndroidTest
+            adb logcat -d -s NewsVoiceSize:I > comparison.txt
+            cat comparison.txt
+            adb pull /sdcard/Download/NewsVoice720.jpg NewsVoice720.jpg
+            adb pull /sdcard/Download/NewsVoice1080.jpg NewsVoice1080.jpg
       - name: Provide tested standalone cover edition APK
         if: github.ref == 'refs/heads/feature/v5.38-broadcast-cover'
         env:
@@ -197,4 +204,4 @@ jobs:
         run: |
           cp app/build/outputs/apk/debug/NewsVoiceWAV-v5.38-debug.apk NewsVoice-v5.38.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose NewsVoice-v5.38.apk
-          gh release create "v5.38-cover-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoice-v5.38.apk --target "$GITHUB_SHA" --prerelease --title "뉴스보이스 v5.38 · 방송 표지 선택" --notes "v5.37과 함께 설치하는 방송 표지 선택판입니다."
+          gh release create "v5.38-lite-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoice-v5.38.apk NewsVoice720.jpg NewsVoice1080.jpg comparison.txt --target "$GITHUB_SHA" --prerelease --title "뉴스보이스 v5.38 · 경량 MP4" --notes "v5.37과 함께 설치하는 방송 표지 선택판입니다."

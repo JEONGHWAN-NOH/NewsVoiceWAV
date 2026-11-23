@@ -43,17 +43,36 @@ public class BroadcastCoverTest {
         File voice=OpeningMusicA.ensureInstalled(c);
         WavTools.Piece wav=WavTools.inspect(voice);
         long frames=wav.dataLength/(wav.format[2]*2);
-        File video=new File(c.getCacheDir(),"test.mp4");
-        NewsVideoComposer.create(c,NewsStory.parse("뉴스 제목\n기사 본문입니다."),Collections.singletonList(voice),
+        assertTrue(AppPrefs.liteVideo(c));
+        long liteSize=0;
+        for (boolean lite : new boolean[]{true,false}) {
+        AppPrefs.setLiteVideo(c,lite);
+        File video=new File(c.getCacheDir(),lite?"lite.mp4":"full.mp4");
+        NewsVideoComposer.create(c,NewsStory.parse("필리핀 산업 뉴스\n필리핀 산업단지에서 생산한 제품을 마닐라 항구로 운송합니다."),Collections.singletonList(voice),
             Collections.singletonList(Collections.singletonList(frames)),video,message->{});
         checkGreen(BitmapFactory.decodeFile(NewsCoverExporter.coverFile(video).getPath()));
         MediaMetadataRetriever retriever=new MediaMetadataRetriever();
         try {
             retriever.setDataSource(video.getPath());
+            assertEquals(lite?"720":"1080", retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+            assertEquals(lite?"1280":"1920", retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+            Bitmap card=retriever.getFrameAtTime(8000000,MediaMetadataRetriever.OPTION_CLOSEST);
+            android.content.ContentValues values=new android.content.ContentValues();
+            values.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME,lite?"NewsVoice720.jpg":"NewsVoice1080.jpg");
+            values.put(android.provider.MediaStore.MediaColumns.MIME_TYPE,"image/jpeg");
+            Uri uri=c.getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);
+            try(OutputStream out=c.getContentResolver().openOutputStream(uri)) {
+                assertTrue(card.compress(Bitmap.CompressFormat.JPEG,95,out));
+            }
+            android.util.Log.i("NewsVoiceSize",(lite?"720p":"1080p")+" bytes="+video.length()
+                +" durationMs="+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
             checkGreen(retriever.getFrameAtTime(0,MediaMetadataRetriever.OPTION_CLOSEST));
             checkGreen(retriever.getFrameAtTime(3000000,MediaMetadataRetriever.OPTION_CLOSEST));
             assertEquals("yes",retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO));
         } finally { retriever.release(); }
+        if(lite) liteSize=video.length();
+        else assertTrue("Lightweight MP4 should be smaller",liteSize<video.length());
+        }
         BroadcastCover.restore(c);
         assertTrue(original.sameAs(NewsCardPainter.render(c,null,0,1,0,meta)));
     }

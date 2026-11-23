@@ -16,6 +16,10 @@ public final class AppPrefs {
     public static String enginePackage(Context c) {return get(c).getString("engine", "");}
     public static int presetIndex(Context c) {return get(c).getInt("preset", 0);}
     public static boolean videoEnabled(Context c) {return get(c).getBoolean("video", true);}
+    static boolean liteVideo(Context context) { return get(context).getBoolean("lite_video",true); }
+    static void setLiteVideo(Context context,boolean enabled) {
+        get(context).edit().putBoolean("lite_video",enabled).apply();
+    }
     public static String anchorComment(Context c) {return get(c).getString("anchor_comment","");}
     public static String voiceName(Context c) {return get(c).getString("voice", "");}
     public static float speed(Context c) {return get(c).getFloat("speed", 0.95f);}

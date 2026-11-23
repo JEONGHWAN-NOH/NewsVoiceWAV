@@ -24,6 +24,18 @@ import java.util.List;
 public final class NewsVideoComposer {
     private NewsVideoComposer() { }
     public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=30;
+    private enum Quality {
+        LITE(720,1280,24,700_000),
+        FULL(VIDEO_WIDTH,VIDEO_HEIGHT,FPS,3_000_000);
+
+        final int width,height,fps,videoBitrate;
+        Quality(int width,int height,int fps,int videoBitrate) {
+            this.width=width;
+            this.height=height;
+            this.fps=fps;
+            this.videoBitrate=videoBitrate;
+        }
+    }
     private static final long US_PER_S=1_000_000L;
     private static final long SCROLL_DELAY_US=700_000L; // narration leads the scroll by 0.7 seconds
     private static final int PCM_CHUNK=16384;
@@ -197,17 +209,18 @@ public final class NewsVideoComposer {
         File folder=new File(context.getCacheDir(),"video_work_"+System.nanoTime());
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
+        Quality quality=AppPrefs.liteVideo(context)?Quality.LITE:Quality.FULL;
         Bitmap cover=null;
         try {
             Timeline timeline=makeTimeline(context,stories,waves,sentenceFrames,raw);
             if(timeline.endUs>12L*60*US_PER_S)throw new IOException("한 영상은 12분 이내 원고를 사용하세요.");
             progress.message("WAV 음성을 AAC로 변환 중");
-            encodeAudio(raw,aac,timeline.sampleRate,timeline.channels);
+            encodeAudio(raw,aac,timeline.sampleRate,timeline.channels,quality);
             progress.message("뉴스 카드 영상 렌더링 중");
             NewsCoverMeta coverMeta=NewsCoverMeta.now();
             int articleCount=stories.get(0).articleCount>0?stories.get(0).articleCount:stories.size();
             cover=NewsCardPainter.render(context,null,0,articleCount,0,coverMeta);
-            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,photos,cover);
+            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,photos,cover,quality);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
@@ -220,13 +233,13 @@ public final class NewsVideoComposer {
             File[] files=folder.listFiles();if(files!=null)for(File f:files)f.delete();folder.delete();
         }
     }
-    private static void encodeAudio(File pcm,File out,int rate,int channels)throws Exception {
+    private static void encodeAudio(File pcm,File out,int rate,int channels,Quality quality)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC);
         MediaMuxer mux=null;FileInputStream in=null;boolean muxStarted=false;
         try {
             MediaFormat format=MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC,rate,channels);
             format.setInteger(MediaFormat.KEY_AAC_PROFILE,MediaCodecInfo.CodecProfileLevel.AACObjectLC);
-            format.setInteger(MediaFormat.KEY_BIT_RATE,channels==1?96000:128000);
+            format.setInteger(MediaFormat.KEY_BIT_RATE,quality==Quality.LITE?64000:(channels==1?96000:128000));
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE,PCM_CHUNK);
             codec.configure(format,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
             codec.start();in=new FileInputStream(pcm);
@@ -271,25 +284,25 @@ public final class NewsVideoComposer {
     }
     private static void encodeVideo(Context context,File output,Timeline t,int articleCount,
                                     NewsCoverMeta meta,Progress progress,
-                                    List<NewsImageFetcher.Photo> photos,Bitmap cover)throws Exception {
+                                    List<NewsImageFetcher.Photo> photos,Bitmap cover,Quality quality)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
         Bitmap reusableSlide=null;
         boolean started=false,muxStarted=false;
         try {
-            MediaFormat fmt=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,VIDEO_WIDTH,VIDEO_HEIGHT);
+            MediaFormat fmt=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,quality.width,quality.height);
             fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-            fmt.setInteger(MediaFormat.KEY_BIT_RATE,3000000);
-            fmt.setInteger(MediaFormat.KEY_FRAME_RATE,FPS);
+            fmt.setInteger(MediaFormat.KEY_BIT_RATE,quality.videoBitrate);
+            fmt.setInteger(MediaFormat.KEY_FRAME_RATE,quality.fps);
             fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,1);
             codec.configure(fmt,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
             inputSurface=codec.createInputSurface();codec.start();started=true;
             mux=new MediaMuxer(output.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-            renderer=new EglFrameRenderer(inputSurface,VIDEO_WIDTH,VIDEO_HEIGHT);
+            renderer=new EglFrameRenderer(inputSurface,quality.width,quality.height);
             inputSurface=null; // Renderer owns and releases the surface.
             int track=-1;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
-            int frames=(int)((t.endUs*FPS+US_PER_S-1)/US_PER_S);
+            int frames=(int)((t.endUs*quality.fps+US_PER_S-1)/US_PER_S);
             reusableSlide=Bitmap.createBitmap(VIDEO_WIDTH,VIDEO_HEIGHT,Bitmap.Config.ARGB_8888);
             int previousCard=-10;float previousScroll=Float.NaN;
             float previousProgress=Float.NaN;
@@ -303,7 +316,7 @@ public final class NewsVideoComposer {
             NewsScrollMath.AudioCurve scrollCurve=null;
             long cardStart=0,cardEnd=0;
             for(int f=0;f<frames;f++) {
-                long us=f*US_PER_S/FPS;
+                long us=f*US_PER_S/quality.fps;
                 int which;
                 // Four-second cover. The first card appears during the final two seconds of music.
                 if(us<4L*US_PER_S)which=-2;
@@ -358,7 +371,7 @@ public final class NewsVideoComposer {
                 renderer.draw(us*1000L,zoom);
                 int newTrack=drainVideo(codec,mux,track,info,false);
                 if(newTrack>=0){track=newTrack;muxStarted=true;}
-                if(f%Math.max(1,FPS*8)==0)progress.message("뉴스 화면 렌더링 " +(100L*f/Math.max(1,frames))+"%");
+                if(f%Math.max(1,quality.fps*8)==0)progress.message("뉴스 화면 렌더링 " +(100L*f/Math.max(1,frames))+"%");
             }
             codec.signalEndOfInputStream();
             boolean eos=false;int stalls=0;

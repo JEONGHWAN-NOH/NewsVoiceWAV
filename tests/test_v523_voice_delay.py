@@ -33,6 +33,6 @@ assert "Bitmap.CompressFormat.JPEG,95,stream" in poster
 assert "shareLast(true)" in ui and "shareLast(false)" in ui
 assert "def releaseVersion = '5.38'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert "versionCode 45" in gradle
+assert "versionCode 46" in gradle
 assert "NewsVoiceWAV-v5.38-release-unsigned" in workflow
 print("PASS: v5.38 56px text, 84px line spacing and 700ms voice lead with safe scene transitions")

@@ -35,6 +35,6 @@ for s in (ui, manual, worker):
     assert '1. 필리핀뉴스' in s
 assert 'applicationId \'com.newsvoice.tts.stable\'' in gradle
 assert "def releaseVersion = '5.38'" in gradle, 'APK release version must match v5.38'
-assert 'versionCode 45' in gradle
+assert 'versionCode 46' in gradle
 assert 'NewsVoiceWAV-v5.38-debug.apk' in workflow
 print("PASS: v5.38 all output formats use Download/1. 필리핀뉴스")
