@@ -192,7 +192,10 @@ jobs:
           script: |
             adb install -r app/build/outputs/apk/debug/NewsVoiceWAV-v5.38-debug.apk
             adb shell am start -W -n com.newsvoice.tts.stable.lite538/com.newsvoice.tts.MainActivity
-            gradle --no-daemon :app:connectedDebugAndroidTest
+            gradle --no-daemon :app:assembleDebugAndroidTest
+            adb install -r "$(find app/build/outputs/apk/androidTest -name '*.apk' -print -quit)"
+            adb shell am instrument -w com.newsvoice.tts.stable.lite538.test/com.newsvoice.tts.BroadcastCoverTest | tee instrumentation.txt
+            grep -F "cover_tests=passed" instrumentation.txt
             adb logcat -d -s NewsVoiceSize:I > comparison.txt
             cat comparison.txt
             adb pull /sdcard/Download/NewsVoice720.jpg NewsVoice720.jpg

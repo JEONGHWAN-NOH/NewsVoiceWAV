@@ -6,13 +6,33 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
-import androidx.test.platform.app.InstrumentationRegistry;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import android.app.Instrumentation;
+import android.os.Bundle;
 import java.io.*;
 import java.util.Collections;
 
-public class BroadcastCoverTest {
+public class BroadcastCoverTest extends Instrumentation {
+    @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
+
+    @Override public void onStart() {
+        Bundle result=new Bundle();
+        try {
+            importPreviewExportAndRestore();
+            result.putString("cover_tests","passed");
+            finish(android.app.Activity.RESULT_OK,result);
+        } catch(Throwable failure) {
+            result.putString("error",android.util.Log.getStackTraceString(failure));
+            finish(android.app.Activity.RESULT_CANCELED,result);
+        }
+    }
+
+    private static void fail(String message) { throw new AssertionError(message); }
+    private static void assertTrue(String message,boolean ok) { if(!ok)fail(message); }
+    private static void assertTrue(boolean ok) { assertTrue("Assertion failed",ok); }
+    private static void assertNotNull(Object value) { assertTrue(value!=null); }
+    private static void assertEquals(Object expected,Object actual) {
+        assertTrue("Expected "+expected+" but got "+actual,java.util.Objects.equals(expected,actual));
+    }
     private static void checkGreen(Bitmap b) {
         assertNotNull(b);
         int color=b.getPixel(b.getWidth()/2,b.getHeight()/2);
@@ -20,8 +40,8 @@ public class BroadcastCoverTest {
             Color.green(color)>180 && Color.red(color)<50 && Color.blue(color)<50);
     }
 
-    @Test public void importPreviewExportAndRestore() throws Exception {
-        Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private void importPreviewExportAndRestore() throws Exception {
+        Context c=getTargetContext();
         BroadcastCover.restore(c);
         NewsCoverMeta meta=NewsCoverMeta.now();
         Bitmap original=NewsCardPainter.render(c,null,0,1,0,meta);

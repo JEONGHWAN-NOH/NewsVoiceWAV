@@ -10,7 +10,7 @@ android {
         targetSdk 35
         versionCode 46
         versionName releaseVersion
-        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        testInstrumentationRunner 'com.newsvoice.tts.BroadcastCoverTest'
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
     }
     // Debug testing installs alongside the existing stable app.
@@ -33,8 +33,6 @@ android {
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 dependencies {
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test:runner:1.6.2'
     implementation 'androidx.work:work-runtime:2.10.5'
     implementation 'androidx.annotation:annotation:1.9.1'
 }
