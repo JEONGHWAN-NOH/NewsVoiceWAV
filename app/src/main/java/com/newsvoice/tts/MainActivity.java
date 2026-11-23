@@ -863,7 +863,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         for(int i=0;i<photos.length;i++) {
             String name=photos[i].getName();
             labels[i]=String.format(Locale.KOREA,"뉴스 %02d 사진",
-                Integer.parseInt(name.substring(5,name.length()-4)));
+                Integer.parseInt(name.substring(5,name.lastIndexOf('.'))));
         }
         android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
             .setTitle("제거할 뉴스 사진 선택")

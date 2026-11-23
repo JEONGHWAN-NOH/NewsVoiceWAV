@@ -14,15 +14,21 @@ public final class NewsAutoScript {
     private NewsAutoScript() {}
     private static final Pattern DIVIDER=Pattern.compile("(?m)^\\s*(?:===|---)\\s*$");
     private static final Pattern SECTION=Pattern.compile(
-        "(?m)^\\s*((?:(?:첫|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열한|열두|열세|열네|열다섯|열여섯|열일곱|열여덟|열아홉|스무)\\s*번째\\s*소식입니다[.!]?)"
+        "(?m)(?:^|(?<=[.!?。])(?=\\s))\\s*((?:(?:첫|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열\\s*한|열\\s*두|열세|열네|열다섯|열여섯|열일곱|열여덟|열아홉|스무)\\s*번째\\s*(?:뉴스|소식)입니다[.!]?)"
         +"|(?:다음은\\s*(?:한국(?:과 필리핀)?\\s*(?:관련\\s*)?특별\\s*뉴스입니다[.!]?))"
         +"|(?:다음은\\s*필리핀\\s*기업\\s*운영[^\\n]*입니다[.!]?)"
         +"|(?:마지막으로\\s*필리핀\\s*경제[^\\n]*전망입니다[.!]?)"
-        +"|(?:오늘의\\s*앵커\\s*한마디입니다[.!]?)"
+        +"|(?:오늘의\\s*(?:뉴스[,，]?\\s*)?앵커\\s*한마디입니다[.!]?)"
         +"|(?:마지막으로\\s*앵커\\s*한마디입니다[.!]?)"
-        +"|(?:이상으로[^\\n]{0,100}브리핑을\\s*마칩니다[.!]?))\\s*$");
+        +"|(?:이상\\s+(?:필리핀|광명)\\s*뉴스였습니다[.!]?)"
+        +"|(?:이상으로[^\\n]{0,100}브리핑을\\s*(?:마칩니다|마치겠습니다)[.!]?))(?=\\s|$)");
     private static final Pattern ANCHOR=Pattern.compile(".*앵커\\s*한마디.*");
-    private static final Pattern CLOSING=Pattern.compile("^이상으로.*");
+    private static final Pattern CLOSING=Pattern.compile("^이상.*");
+
+    static boolean startsWithArticleCue(String body) {
+        Matcher match=SECTION.matcher(body);
+        return match.lookingAt() && isArticle(match.group(1));
+    }
 
     public static boolean isAutoFormat(String raw) {
         if(raw==null||DIVIDER.matcher(raw).find())return false;

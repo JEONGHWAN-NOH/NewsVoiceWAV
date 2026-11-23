@@ -38,7 +38,7 @@ public final class NewsStory {
     }
 
     public boolean hasTransition(){return kind==NEWS && articleNumber>1;}
-    public String audioText(){return hasTransition()?"다음 뉴스입니다. "+spokenText():spokenText();}
+    public String audioText(){String body=spokenText(); return hasTransition() && !NewsAutoScript.startsWithArticleCue(body)?"다음 뉴스입니다. "+body:body;}
 
     public static NewsStory segment(int kind,String title,String narration,int newsCount){
         if(kind==NEWS||narration==null||narration.trim().isEmpty())

@@ -97,26 +97,47 @@ public class BroadcastCoverTest extends Instrumentation {
                 photo.bitmap.recycle();
             }
         }
+        stories=NewsBroadcastSegments.build("안녕하십니까. 첫 번째 뉴스입니다. 첫 기사입니다. 두 번째 뉴스입니다. 둘째 기사입니다. 오늘의 뉴스, 앵커 한마디입니다. 의견입니다. 이상 필리핀 뉴스였습니다.","",true);
+        assertEquals(5,stories.size());
         java.util.List<NewsImageFetcher.Photo> photos=new java.util.ArrayList<>();
-        for(NewsStory story:stories)photos.add(NewsImageFetcher.anchorPortrait(c,story));
+        int[] expectedFrames={Color.GREEN,Color.MAGENTA,Color.CYAN,Color.BLUE,Color.YELLOW};
+        for(int i=0;i<stories.size();i++){
+            NewsStory story=stories.get(i);
+            if(story.kind==NewsStory.NEWS){
+                File src=new File(c.getCacheDir(),"article.png");
+                Bitmap image=Bitmap.createBitmap(64,64,Bitmap.Config.ARGB_8888);
+                image.eraseColor(expectedFrames[i]);
+                try(FileOutputStream out=new FileOutputStream(src)){assertTrue(image.compress(Bitmap.CompressFormat.PNG,100,out));}
+                image.recycle();
+                runOnMainSync(()->activity.onActivityResult(5200+story.articleNumber,android.app.Activity.RESULT_OK,
+                    new android.content.Intent().setData(Uri.fromFile(src))));
+                photos.add(NewsImageFetcher.localNewsPhoto(c,story.articleNumber));
+            }else photos.add(NewsImageFetcher.anchorPortrait(c,story));
+        }
         File voice=OpeningMusicA.ensureInstalled(c);
         WavTools.Piece wav=WavTools.inspect(voice);
         long frames=wav.dataLength/(wav.format[2]*2);
         File video=new File(c.getCacheDir(),"portrait-test.mp4");
-        NewsVideoComposer.create(c,stories,Collections.nCopies(stories.size(),voice),
-            Collections.nCopies(stories.size(),Collections.singletonList(frames)),video,message->{},photos);
+        java.util.List<java.util.List<Long>> timing=new java.util.ArrayList<>();
+        for(NewsStory story:stories){
+            int count=NewsSentenceTimeline.split(story.audioText()).size();
+            java.util.List<Long> durations=new java.util.ArrayList<>(Collections.nCopies(count,frames/count));
+            durations.set(count-1,frames/count+frames%count);
+            timing.add(durations);
+        }
+        NewsVideoComposer.create(c,stories,Collections.nCopies(stories.size(),voice),timing,video,message->{},photos);
         MediaMetadataRetriever retriever=new MediaMetadataRetriever();
         try {
             retriever.setDataSource(video.getPath());
             long duration=Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
             int matched=0;
-            for(long ms=5000;ms<duration && matched<3;ms+=2000){
+            for(long ms=5000;ms<duration && matched<expectedFrames.length;ms+=2000){
                 Bitmap frame=retriever.getFrameAtTime(ms*1000,MediaMetadataRetriever.OPTION_CLOSEST);
                 int pixel=frame.getPixel(frame.getWidth()/3,frame.getHeight()/4);
-                if(closeColor(colors[matched+1],pixel))matched++;
+                if(closeColor(expectedFrames[matched],pixel))matched++;
                 frame.recycle();
             }
-            assertEquals(3,matched);
+            assertEquals(expectedFrames.length,matched);
         } finally {retriever.release();video.delete();}
         runOnMainSync(activity::finish);
     }

@@ -51,7 +51,7 @@ public final class NewsBroadcastSegments {
             String body=item.spokenText();
             if(body.isEmpty())body=item.narration;
             if(out.length()>0)out.append('\n');
-            if(!corner && news++>0 && !NEXT_CUE.matcher(body).lookingAt())out.append(NEXT).append(' ');
+            if(!corner && news++>0 && !NEXT_CUE.matcher(body).lookingAt() && !NewsAutoScript.startsWithArticleCue(body))out.append(NEXT).append(' ');
             out.append(body);
         }
         return out.toString();

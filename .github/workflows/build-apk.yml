@@ -25,7 +25,7 @@ jobs:
       - name: Test article card splitting
         run: |
           mkdir -p /tmp/newsstory-classes
-          javac -encoding UTF-8 -d /tmp/newsstory-classes app/src/main/java/com/newsvoice/tts/NewsStory.java tests/NewsStoryTest.java
+          javac -encoding UTF-8 -d /tmp/newsstory-classes app/src/main/java/com/newsvoice/tts/NewsAutoScript.java app/src/main/java/com/newsvoice/tts/NewsStory.java tests/NewsStoryTest.java
           java -cp /tmp/newsstory-classes NewsStoryTest
       - name: Test pagination content preservation
         run: |
