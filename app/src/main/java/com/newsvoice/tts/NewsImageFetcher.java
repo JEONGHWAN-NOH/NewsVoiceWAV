@@ -35,16 +35,16 @@ public final class NewsImageFetcher {
         }
     }
     static boolean hasOpeningPortrait(android.content.Context context){
-        return new java.io.File(context.getFilesDir(),"portrait_opening.jpg").isFile() ||
-            new java.io.File(context.getFilesDir(),"portrait_common.jpg").isFile();
+        return new java.io.File(context.getFilesDir(),"portrait_opening.webp").isFile() ||
+            new java.io.File(context.getFilesDir(),"portrait_common.webp").isFile();
     }
     /** User-approved gallery portrait for opening, anchor comment and closing. */
     public static Photo anchorPortrait(android.content.Context context,NewsStory story){
         if(story==null||story.kind==NewsStory.NEWS)return null;
         String slot=story.kind==NewsStory.OPENING?"opening":
             story.kind==NewsStory.ANCHOR?"anchor":"closing";
-        java.io.File file=new java.io.File(context.getFilesDir(),"portrait_"+slot+".jpg");
-        if(!file.isFile())file=new java.io.File(context.getFilesDir(),"portrait_common.jpg");
+        java.io.File file=new java.io.File(context.getFilesDir(),"portrait_"+slot+".webp");
+        if(!file.isFile())file=new java.io.File(context.getFilesDir(),"portrait_common.webp");
         if(!file.isFile()){
             // Bundled default is used on a clean install. Gallery selection remains an override.
             try(InputStream in=context.getAssets().open("anchors/portrait_"+slot+".jpg")){
@@ -67,7 +67,7 @@ public final class NewsImageFetcher {
     public static Photo localNewsPhoto(android.content.Context context,int articleNumber){
         if(articleNumber<1)return null;
         java.io.File file=new java.io.File(new java.io.File(context.getFilesDir(),"news_images"),
-            String.format(Locale.US,"news_%03d.jpg",articleNumber));
+            String.format(Locale.US,"news_%03d.webp",articleNumber));
         if(!file.isFile())return null;
         BitmapFactory.Options opts=new BitmapFactory.Options();
         opts.inJustDecodeBounds=true;
