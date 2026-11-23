@@ -46,7 +46,7 @@ public class BroadcastCoverTest extends Instrumentation {
         Context context=getTargetContext();
         File dir=new File(context.getFilesDir(),"news_images");
         assertTrue(dir.isDirectory() || dir.mkdir());
-        File first=new File(dir,"news_001.jpg"),last=new File(dir,"news_012.jpg");
+        File first=new File(dir,"news_001.webp"),last=new File(dir,"news_012.webp");
         assertTrue(first.createNewFile());
         assertTrue(last.createNewFile());
         MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(context,MainActivity.class)
