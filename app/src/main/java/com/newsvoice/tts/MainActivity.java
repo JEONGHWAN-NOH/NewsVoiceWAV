@@ -306,7 +306,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         reviewHint.setTextColor(0xff61778e);body.addView(reviewHint,lp(-1,-2,7));
         reviewButton.setOnClickListener(v->reviewEditorScript());
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
-        sample.setOnClickListener(v->editor.setText("경제 뉴스 1\n필리핀 정부는 오늘 산업 투자와 고용 관련 계획을 발표했습니다. 구체적인 집행 일정은 추가 발표를 통해 확인해야 합니다.\n===\n사회 뉴스 2\n교육부는 학교 지원 현황을 점검하고 있다고 밝혔습니다. 후속 일정은 공식 발표를 통해 확인하겠습니다."));
+        sample.setOnClickListener(v->editor.setText("시정 뉴스 1\n광명시는 시민 생활과 관련된 주요 정책을 안내했습니다. 실제 발표 내용과 출처를 확인한 뒤 원고를 작성해 주세요.\n===\n교통 뉴스 2\n광명시 교통 관련 소식은 공식 발표와 실제 시행 일정을 구분해서 작성해 주세요."));
         body.addView(text("03  활기찬 오프닝 음악 · MP4 자동 적용",17,true),lp(-1,-2,23));
         TextView openingHelp=text("새롭게 제작한 밝고 활기찬 6초 오프닝 음악이 기본 설치되며 MP4를 제작할 때마다 자동으로 재생됩니다. 직접 준비한 다른 오프닝 WAV가 있으면 아래 버튼으로 교체할 수 있습니다.",12,false);
         openingHelp.setTextColor(0xff61778e);body.addView(openingHelp,lp(-1,-2,7));
@@ -397,7 +397,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         liteVideo.setChecked(AppPrefs.liteVideo(this));
         liteVideo.setOnCheckedChangeListener((button,checked)->AppPrefs.setLiteVideo(this,checked));
         body.addView(liteVideo,lp(-1,-2,4));
-        TextView formatHelp=text("v5.35 날짜별 자동 저장·이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 경량 24fps · 고화질 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 4초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 음성·영상·표지·자료출처 파일은 필리핀 현지 날짜별 하위 폴더에 같은 회차명과 제작시각으로 저장됩니다.",12,false);
+        TextView formatHelp=text("v5.35 날짜별 자동 저장·이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 경량 24fps · 고화질 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 4초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 음성·영상·표지·자료출처 파일은 한국 날짜별 하위 폴더에 같은 회차명과 제작시각으로 저장됩니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
@@ -625,7 +625,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.40/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/광명시 뉴스/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -807,7 +807,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.40 → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → 광명시 뉴스 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -1093,7 +1093,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.40/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/광명시 뉴스/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){

@@ -170,7 +170,7 @@ public final class NewsCardPainter {
         boolean health=lower.contains("교육")||lower.contains("학교")||
             lower.contains("복지")||lower.contains("보건");
         String category=fuel?"유류·생활경제":economy?"경제·산업":
-            health?"사회·교육":"필리핀 주요 현안";
+            health?"사회·교육":"광명시 주요 현안";
         c.drawText(category,105,685,p(YELLOW,34,true));
         if(fuel){
             rounded(c,Color.rgb(23,114,215),355,729,575,908,25);
@@ -394,7 +394,7 @@ public final class NewsCardPainter {
             c.drawOval(new RectF(215,375,265,501),map);
             c.drawLine(176,438,304,438,map);
             c.drawLine(240,374,240,502,map);
-            c.drawText("PHILIPPINES",147,607,p(Color.WHITE,25,true));
+            c.drawText("GWANGMYEONG CITY",147,607,p(Color.WHITE,25,true));
         }
         rounded(c,Color.argb(195,3,20,43),l,b-32,r,b,0);
         String credit=photo==null?"뉴스 관련 중립 이미지":
@@ -425,10 +425,10 @@ public final class NewsCardPainter {
         c.drawRect(0,0,WIDTH,HEIGHT,background);
         rounded(c,yellow,0,0,WIDTH,14,0);
         String english=meta.clock.startsWith("오전")?
-            "PHILIPPINES  |  MORNING NEWS":
+            "GWANGMYEONG CITY  |  MORNING NEWS":
             meta.clock.startsWith("오후")?
-            "PHILIPPINES  |  AFTERNOON NEWS":
-            "PHILIPPINES  |  NEWS BRIEF";
+            "GWANGMYEONG CITY  |  AFTERNOON NEWS":
+            "GWANGMYEONG CITY  |  NEWS BRIEF";
         c.drawText(english,51,93,p(white,33,true));
         c.drawText("오늘의 주요 뉴스",50,178,p(yellow,69,true));
         rounded(c,yellow,51,196,1031,204,3);
@@ -462,7 +462,7 @@ public final class NewsCardPainter {
         String category=story.kind==NewsStory.OPENING?"시작 인사":
             story.kind==NewsStory.ANCHOR?"앵커 한마디":
             story.kind==NewsStory.CLOSING?"마감 인사":
-            economy?"경제·산업":"필리핀 주요 뉴스";
+            economy?"경제·산업":"광명시 주요 뉴스";
         c.drawText(category,89,906,p(yellow,43,true));
         String scrollLabel="큰 글씨 · 자동 스크롤";
         Paint scrollLabelPaint=p(Color.rgb(182,214,242),29,true);
@@ -522,7 +522,7 @@ public final class NewsCardPainter {
     /** Pixel artwork is an original offline image; date/slot/count are live Android overlays. */
     private static Bitmap renderBroadcastCover(Context context,NewsCoverMeta meta,int articleCount) {
         Bitmap cover=null;
-        try(InputStream input=context.getAssets().open("philippines_cover.webp")){
+        try(InputStream input=context.getAssets().open("gwangmyeong_cover.webp")){
             cover=BitmapFactory.decodeStream(input);
             if(cover==null)return null;
             Bitmap output=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
@@ -542,19 +542,19 @@ public final class NewsCardPainter {
 
             Paint country=p(Color.WHITE,150,true);
             country.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
-            String line1="필리핀";
+            String line1="광명시";
             canvas.drawText(line1,195,539,country);
 
             Paint main=p(Color.rgb(6,23,45),97,true);
             main.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
-            String title="뉴스·경제 브리핑";
+            String title="종합 뉴스 브리핑";
             while(main.getTextSize()>49&&main.measureText(title)>915f)
                 main.setTextSize(main.getTextSize()-1f);
             canvas.drawText(title,86,768,main);
 
             Paint english=p(WHITE,39,true);
             english.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
-            String en="Philippines Daily News Briefing";
+            String en="Gwangmyeong City Daily News Briefing";
             while(english.getTextSize()>26&&english.measureText(en)>810)
                 english.setTextSize(english.getTextSize()-1f);
             float enX=(WIDTH-english.measureText(en))/2f;
@@ -570,7 +570,7 @@ public final class NewsCardPainter {
 
             rounded(canvas,Color.argb(221,5,28,55),96,1810,986,1896,21);
             Paint footer=p(Color.WHITE,39,true);
-            String end="정치 · 경제 · 사회 · 사건사고   |   주요 뉴스 "+articleCount+"건";
+            String end="시정 · 교통 · 주거 · 복지   |   주요 뉴스 "+articleCount+"건";
             while(footer.getTextSize()>25&&footer.measureText(end)>850)
                 footer.setTextSize(footer.getTextSize()-1f);
             canvas.drawText(end,116,1866,footer);
@@ -622,18 +622,18 @@ public final class NewsCardPainter {
         c.drawCircle(560,1170,225,outline);
         c.drawCircle(1150,40,270,outline);
         rounded(c,YELLOW,102,116,164,127,6);
-        c.drawText("PHILIPPINES  /  DAILY BRIEF",185,130,p(SUB,27,false));
+        c.drawText("GWANGMYEONG CITY  /  DAILY BRIEF",185,130,p(SUB,27,false));
         line(c,Color.rgb(65,115,130),101,166,978,166,2);
         String date=meta.date;
         String timeLabel=meta.clock;
         if(stage==0){
             rounded(c,Color.rgb(28,71,84),100,212,532,273,18);
-            c.drawText("PHILIPPINES",125,259,p(YELLOW,36,false));
-            wrapped(c,"필리핀 뉴스\n경제 종합 브리핑",103,467,860,105,Color.rgb(20,43,64),85,3,true);
+            c.drawText("GWANGMYEONG CITY",125,259,p(YELLOW,36,false));
+            wrapped(c,"광명시 뉴스\n종합 브리핑",103,467,860,105,Color.rgb(20,43,64),85,3,true);
             rounded(c,YELLOW,103,705,270,716,1);
             c.drawText(date,105,865,p(Color.rgb(31,74,102),66,true));
             c.drawText(timeLabel,106,940,p(Color.rgb(45,90,115),30,false));
-            c.drawText("NEWSVOICE WAV",248,1225,p(Color.rgb(18,100,103),70,true));
+            c.drawText("GWANGMYEONG NEWS",248,1225,p(Color.rgb(18,100,103),70,true));
             rounded(c,Color.rgb(21,49,66),100,1430,982,1685,30);
             wrapped(c,"뉴스 보이스 자동 음성 · 기사별 카드 · MP4",135,1525,808,59,WHITE,39,3,false);
         } else if(stage==1){
@@ -657,7 +657,7 @@ public final class NewsCardPainter {
             wrapped(c,story.preview,139,1444,797,62,WHITE,40,4,false);
         }
         line(c,Color.rgb(55,109,123),102,1762,983,1762,2);
-        c.drawText("NEWSVOICE WAV  |  " + date,103,1813,p(SUB,25,false));
+        c.drawText("GWANGMYEONG NEWS  |  " + date,103,1813,p(SUB,25,false));
         c.drawText(String.format(java.util.Locale.US,"%02d / %02d",Math.max(1,index+2),count+2),872,1813,p(YELLOW,27,false));
         rounded(c,MINT,105,1847,105+Math.max(28,(875*(Math.max(1,index+2))/(count+2))),1855,4);
         return bitmap;

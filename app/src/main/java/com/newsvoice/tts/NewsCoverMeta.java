@@ -11,7 +11,7 @@ public final class NewsCoverMeta {
     private NewsCoverMeta(String d,String c,String s){date=d;clock=c;session=s;}
     public static NewsCoverMeta now(){return from(Instant.now());}
     public static NewsCoverMeta from(Instant timestamp){
-        ZonedDateTime t=timestamp.atZone(ZoneId.of("Asia/Manila"));
+        ZonedDateTime t=timestamp.atZone(ZoneId.of("Asia/Seoul"));
         String date=DateTimeFormatter.ofPattern("yyyy.MM.dd",Locale.KOREA).format(t);
         String ampm=t.getHour()<12?"오전":"오후";
         int h=t.getHour()%12; if(h==0)h=12;

@@ -1,22 +1,22 @@
 plugins { id 'com.android.application' }
-def releaseVersion = '5.40'
+def releaseVersion = '1.3'
 
 android {
     namespace 'com.newsvoice.tts'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.newsvoice.tts.stable'
+        applicationId 'com.gwangmyeong.news.v540'
         minSdk 29
         targetSdk 35
-        versionCode 48
+        versionCode 130
         versionName releaseVersion
         testInstrumentationRunner 'com.newsvoice.tts.BroadcastCoverTest'
-        resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
+        resValue 'string', 'app_display_name', "광명시 뉴스 ${releaseVersion}"
     }
     // Debug testing installs alongside the existing stable app.
     buildTypes {
         debug {
-            applicationIdSuffix '.lite540'
+            applicationIdSuffix '.trial'
             minifyEnabled true
             shrinkResources true
             testProguardFile 'test-proguard.pro'
@@ -27,7 +27,7 @@ android {
     // Keep the raw APK filename, Android app label, and release version consistent.
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "NewsVoiceWAV-v${releaseVersion}-${variant.buildType.name}.apk"
+            outputFileName = "GwangmyeongNews-v${releaseVersion}-${variant.buildType.name}.apk"
         }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
