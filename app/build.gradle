@@ -1,5 +1,5 @@
 plugins { id 'com.android.application' }
-def releaseVersion = '5.38'
+def releaseVersion = '5.39'
 
 android {
     namespace 'com.newsvoice.tts'
@@ -8,7 +8,7 @@ android {
         applicationId 'com.newsvoice.tts.stable'
         minSdk 29
         targetSdk 35
-        versionCode 46
+        versionCode 47
         versionName releaseVersion
         testInstrumentationRunner 'com.newsvoice.tts.BroadcastCoverTest'
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
@@ -16,7 +16,7 @@ android {
     // Debug testing installs alongside the existing stable app.
     buildTypes {
         debug {
-            applicationIdSuffix '.lite538'
+            applicationIdSuffix '.lite539'
             minifyEnabled true
             shrinkResources true
             testProguardFile 'test-proguard.pro'

@@ -1,7 +1,7 @@
 name: Build NewsVoice WAV Automatic APK
 on:
   push:
-    branches: [main, feature/v530-progress-eta-anchor, feature/v5.34-news-title-image, feature/v5.34-verbatim-tts, feature/v5.36-news-cards, feature/v5.36-local-news-images, feature/v5.37-news-image-picker, feature/v5.38-broadcast-cover]
+    branches: [main, feature/v530-progress-eta-anchor, feature/v5.34-news-title-image, feature/v5.34-verbatim-tts, feature/v5.36-news-cards, feature/v5.36-local-news-images, feature/v5.37-news-image-picker, feature/v5.39-remove-news-photos]
   workflow_dispatch:
 permissions:
   contents: write
@@ -111,19 +111,19 @@ jobs:
       - name: Build review APK and unsigned release candidate
         run: |
           gradle --no-daemon :app:assembleDebug :app:assembleRelease
-          test -s app/build/outputs/apk/debug/NewsVoiceWAV-v5.38-debug.apk
-          test -s app/build/outputs/apk/release/NewsVoiceWAV-v5.38-release.apk
+          test -s app/build/outputs/apk/debug/NewsVoiceWAV-v5.39-debug.apk
+          test -s app/build/outputs/apk/release/NewsVoiceWAV-v5.39-release.apk
       - name: Upload installable debug APK (testing only; not an upgrade)
         uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.38-debug-testing-only
-          path: app/build/outputs/apk/debug/NewsVoiceWAV-v5.38-debug.apk
+          name: NewsVoiceWAV-v5.39-debug-testing-only
+          path: app/build/outputs/apk/debug/NewsVoiceWAV-v5.39-debug.apk
           if-no-files-found: error
       - name: Upload unsigned release candidate (not for installation)
         uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.38-release-unsigned
-          path: app/build/outputs/apk/release/NewsVoiceWAV-v5.38-release.apk
+          name: NewsVoiceWAV-v5.39-release-unsigned
+          path: app/build/outputs/apk/release/NewsVoiceWAV-v5.39-release.apk
           if-no-files-found: error
       - name: Sign and verify official installable APK with pinned certificate
         id: sign
@@ -144,8 +144,8 @@ jobs:
           KEYSTORE="$(mktemp)"
           trap 'rm -f "$KEYSTORE"' EXIT
           printf '%s' "$SIGNING_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
-          SOURCE="app/build/outputs/apk/release/NewsVoiceWAV-v5.38-release.apk"
-          SIGNED="app/build/outputs/apk/release/NewsVoiceWAV-v5.38-stable-signed.apk"
+          SOURCE="app/build/outputs/apk/release/NewsVoiceWAV-v5.39-release.apk"
+          SIGNED="app/build/outputs/apk/release/NewsVoiceWAV-v5.39-stable-signed.apk"
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           "$SDK_ROOT/build-tools/35.0.0/apksigner" sign \
             --ks "$KEYSTORE" --ks-type PKCS12 \
@@ -159,8 +159,8 @@ jobs:
         if: steps.sign.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: NewsVoiceWAV-v5.38-stable-signed-apk
-          path: app/build/outputs/apk/release/NewsVoiceWAV-v5.38-stable-signed.apk
+          name: NewsVoiceWAV-v5.39-stable-signed-apk
+          path: app/build/outputs/apk/release/NewsVoiceWAV-v5.39-stable-signed.apk
           if-no-files-found: error
       - name: Publish signed APK for direct download (main only)
         if: github.ref == 'refs/heads/main' && steps.sign.outputs.ready == 'true'
@@ -169,13 +169,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/release/NewsVoiceWAV-v5.38-stable-signed.apk"
+          APK="app/build/outputs/apk/release/NewsVoiceWAV-v5.39-stable-signed.apk"
           bash scripts/verify-stable-apk.sh "$APK"
-          if gh release view v5.38 >/dev/null 2>&1; then
-            gh release upload v5.38 "$APK" --clobber
+          if gh release view v5.39 >/dev/null 2>&1; then
+            gh release upload v5.39 "$APK" --clobber
           else
-            gh release create v5.38 "$APK" \
-              --title "뉴스보이스 WAV v5.38 · 고정 서명 신규 앱" \
+            gh release create v5.39 "$APK" \
+              --title "뉴스보이스 WAV v5.39 · 고정 서명 신규 앱" \
               --notes "기존 v5.27과 별도 설치됩니다. 뉴스 파일은 Download/1. 필리핀뉴스/날짜별 폴더에 저장됩니다. 고정 서명 검증 완료." \
               --latest
           fi
@@ -190,21 +190,21 @@ jobs:
           api-level: 35
           arch: x86_64
           script: |
-            adb install -r app/build/outputs/apk/debug/NewsVoiceWAV-v5.38-debug.apk
-            adb shell am start -W -n com.newsvoice.tts.stable.lite538/com.newsvoice.tts.MainActivity
+            adb install -r app/build/outputs/apk/debug/NewsVoiceWAV-v5.39-debug.apk
+            adb shell am start -W -n com.newsvoice.tts.stable.lite539/com.newsvoice.tts.MainActivity
             gradle --no-daemon :app:assembleDebugAndroidTest
             adb install -r "$(find app/build/outputs/apk/androidTest -name '*.apk' -print -quit)"
-            adb shell am instrument -w com.newsvoice.tts.stable.lite538.test/com.newsvoice.tts.BroadcastCoverTest | tee instrumentation.txt
+            adb shell am instrument -w com.newsvoice.tts.stable.lite539.test/com.newsvoice.tts.BroadcastCoverTest | tee instrumentation.txt
             grep -F "cover_tests=passed" instrumentation.txt
             adb logcat -d -s NewsVoiceSize:I > comparison.txt
             cat comparison.txt
             adb pull /sdcard/Download/NewsVoice720.jpg NewsVoice720.jpg
             adb pull /sdcard/Download/NewsVoice1080.jpg NewsVoice1080.jpg
       - name: Provide tested standalone cover edition APK
-        if: github.ref == 'refs/heads/feature/v5.38-broadcast-cover'
+        if: github.ref == 'refs/heads/feature/v5.39-remove-news-photos'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/NewsVoiceWAV-v5.38-debug.apk NewsVoice-v5.38.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose NewsVoice-v5.38.apk
-          gh release create "v5.38-lite-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoice-v5.38.apk NewsVoice720.jpg NewsVoice1080.jpg comparison.txt --target "$GITHUB_SHA" --prerelease --title "뉴스보이스 v5.38 · 경량 MP4" --notes "v5.37과 함께 설치하는 방송 표지 선택판입니다."
+          cp app/build/outputs/apk/debug/NewsVoiceWAV-v5.39-debug.apk NewsVoice-v5.39.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose NewsVoice-v5.39.apk
+          gh release create "v5.39-lite-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoice-v5.39.apk --target "$GITHUB_SHA" --prerelease --title "뉴스보이스 v5.39 · 등록 사진 제거" --notes "뉴스별로 등록한 사진을 선택해 제거할 수 있습니다."

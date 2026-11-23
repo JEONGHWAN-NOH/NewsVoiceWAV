@@ -17,6 +17,7 @@ public class BroadcastCoverTest extends Instrumentation {
     @Override public void onStart() {
         Bundle result=new Bundle();
         try {
+            verifyPhotoRemoval();
             importPreviewExportAndRestore();
             result.putString("cover_tests","passed");
             finish(android.app.Activity.RESULT_OK,result);
@@ -38,6 +39,35 @@ public class BroadcastCoverTest extends Instrumentation {
         int color=b.getPixel(b.getWidth()/2,b.getHeight()/2);
         assertTrue("Green cover center: "+Integer.toHexString(color),
             Color.green(color)>180 && Color.red(color)<50 && Color.blue(color)<50);
+    }
+
+    private void verifyPhotoRemoval() throws Exception {
+        Context context=getTargetContext();
+        File dir=new File(context.getFilesDir(),"news_images");
+        assertTrue(dir.isDirectory() || dir.mkdir());
+        File first=new File(dir,"news_001.jpg"),last=new File(dir,"news_012.jpg");
+        assertTrue(first.createNewFile());
+        assertTrue(last.createNewFile());
+        MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(context,MainActivity.class)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+        runOnMainSync(()->{
+            android.app.AlertDialog dialog=activity.showPhotoRemoval();
+            assertEquals(2,dialog.getListView().getCount());
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
+        });
+        waitForIdleSync();
+        assertTrue(first.exists() && last.exists());
+        runOnMainSync(()->{
+            android.app.AlertDialog dialog=activity.showPhotoRemoval();
+            android.widget.ListView list=dialog.getListView();
+            assertEquals("뉴스 12 사진",list.getItemAtPosition(1));
+            list.performItemClick(list.getChildAt(1),1,list.getItemIdAtPosition(1));
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+        });
+        waitForIdleSync();
+        assertTrue(first.exists() && !last.exists());
+        assertTrue(first.delete());
+        runOnMainSync(()->{ assertTrue(activity.showPhotoRemoval()==null); activity.finish(); });
     }
 
     private void importPreviewExportAndRestore() throws Exception {

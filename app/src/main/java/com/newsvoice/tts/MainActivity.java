@@ -284,6 +284,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 startActivityForResult(pick,NEWS_SINGLE_PICKER_BASE+selectedSlot);
             });
         }
+        Button removePhotos=btn("등록 사진 제거",0xffe7f2f3,MINT);
+        body.addView(removePhotos,lp(-1,48,5));
+        removePhotos.setOnClickListener(v->showPhotoRemoval());
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
         anchorEdit=new EditText(this);
         anchorEdit.setHint("비워 두면 정중한 기본 멘트가 자동 삽입됩니다. 필요하면 오늘 뉴스에 맞는 앵커 멘트를 작성하세요.");
@@ -837,6 +840,41 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         new android.app.AlertDialog.Builder(this).setTitle("방송 표지 미리보기").setView(image)
             .setPositiveButton("닫기",null).show();
+    }
+
+    android.app.AlertDialog showPhotoRemoval() {
+        File directory=new File(getFilesDir(),"news_images");
+        File[] photos=directory.listFiles(file->file.isFile() &&
+            file.getName().matches("news_[0-9]{3,}\\.jpg"));
+        if(photos==null || photos.length==0) {
+            Toast.makeText(this,"제거할 등록 사진이 없습니다.",Toast.LENGTH_SHORT).show();
+            return null;
+        }
+        java.util.Arrays.sort(photos,java.util.Comparator.comparing(File::getName));
+        String[] labels=new String[photos.length];
+        boolean[] selected=new boolean[photos.length];
+        for(int i=0;i<photos.length;i++) {
+            String name=photos[i].getName();
+            labels[i]=String.format(Locale.KOREA,"뉴스 %02d 사진",
+                Integer.parseInt(name.substring(5,name.length()-4)));
+        }
+        android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
+            .setTitle("제거할 뉴스 사진 선택")
+            .setMultiChoiceItems(labels,selected,(d,index,checked)->selected[index]=checked)
+            .setNegativeButton("취소",null)
+            .setPositiveButton("선택한 사진 제거",(d,which)->{
+                int removed=0,failed=0;
+                for(int i=0;i<photos.length;i++) {
+                    if(!selected[i])continue;
+                    if(photos[i].delete())removed++;
+                    else if(photos[i].exists())failed++;
+                }
+                String result="등록 사진 "+removed+"장 제거";
+                if(failed>0)result+=" · 제거 실패 "+failed+"장";
+                Toast.makeText(this,result,Toast.LENGTH_SHORT).show();
+            }).create();
+        dialog.show();
+        return dialog;
     }
 
     private void saveNewsPhoto(Uri uri, File directory, int slot) throws IOException {
