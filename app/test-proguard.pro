@@ -1,0 +1,2 @@
+-keep class com.newsvoice.tts.BroadcastCoverTest { *; }
+-keepattributes *Annotation*
