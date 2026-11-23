@@ -293,6 +293,12 @@ public final class NewsVideoComposer {
             MediaFormat fmt=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,quality.width,quality.height);
             fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
             fmt.setInteger(MediaFormat.KEY_BIT_RATE,quality.videoBitrate);
+            if(quality==Quality.LITE) {
+                MediaCodecInfo.EncoderCapabilities caps=codec.getCodecInfo()
+                    .getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC).getEncoderCapabilities();
+                if(caps.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR))
+                    fmt.setInteger(MediaFormat.KEY_BITRATE_MODE,MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR);
+            }
             fmt.setInteger(MediaFormat.KEY_FRAME_RATE,quality.fps);
             fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,1);
             codec.configure(fmt,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
