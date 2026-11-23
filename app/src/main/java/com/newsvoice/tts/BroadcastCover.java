@@ -12,7 +12,7 @@ import java.nio.file.StandardCopyOption;
 /** Private normalized cover. Atomic replacement keeps an earlier choice on import failure. */
 final class BroadcastCover {
     private static File file(Context context) {
-        return new File(context.getFilesDir(), "broadcast-cover.png");
+        return new File(context.getFilesDir(), "broadcast-cover.webp");
     }
 
     static void restore(Context context) throws IOException {
@@ -48,7 +48,7 @@ final class BroadcastCover {
             canvas.drawBitmap(image, null, new RectF(x, y, width-x, height-y), new Paint(Paint.FILTER_BITMAP_FLAG));
             temp = File.createTempFile("broadcast-cover", ".tmp", context.getFilesDir());
             try (FileOutputStream out = new FileOutputStream(temp)) {
-                if (!frame.compress(Bitmap.CompressFormat.PNG, 100, out)) throw new IOException("표지 저장 실패");
+                if (!frame.compress(Bitmap.CompressFormat.WEBP, 85, out)) throw new IOException("표지 저장 실패");
             }
             Files.move(temp.toPath(), file(context).toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } finally {
