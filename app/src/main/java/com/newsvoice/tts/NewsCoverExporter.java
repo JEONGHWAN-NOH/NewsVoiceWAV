@@ -18,12 +18,10 @@ public final class NewsCoverExporter {
         return new File(video.getParentFile(),
             video.getName().substring(0,video.getName().length()-4)+"_cover.jpg");
     }
-    public static File save(Context context,NewsCoverMeta meta,int articleCount,File video)
+    public static File save(Bitmap cover,File video)
         throws IOException {
         File output=coverFile(video);
-        Bitmap cover=null;
         try{
-            cover=NewsCardPainter.render(context,null,0,articleCount,0,meta);
             try(FileOutputStream stream=new FileOutputStream(output)){
                 if(!cover.compress(Bitmap.CompressFormat.JPEG,95,stream))
                     throw new IOException("표지 JPG 압축에 실패했습니다.");
@@ -35,8 +33,6 @@ public final class NewsCoverExporter {
             output.delete();
             if(ex instanceof IOException)throw (IOException)ex;
             throw new IOException("뉴스 표지 생성 오류",ex);
-        }finally{
-            if(cover!=null&&!cover.isRecycled())cover.recycle();
         }
     }
 }

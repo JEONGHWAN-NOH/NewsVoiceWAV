@@ -33,12 +33,12 @@ assert "Paint underline=" not in p
 assert "FPS=30;" in v
 assert "if(us<4L*US_PER_S)which=-2;" in v
 assert "MUSIC_REVISION=2" in music
-assert "NewsCoverExporter.save(context,coverMeta," in v
+assert "NewsCoverExporter.save(cover,output)" in v
 assert "Bitmap.CompressFormat.JPEG,95,stream" in poster
 assert "shareLast(true)" in ui and "shareLast(false)" in ui
-assert "def releaseVersion = '5.37'" in gradle
+assert "def releaseVersion = '5.38'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert "versionCode 43" in gradle
-assert "NewsVoiceWAV-v5.37-debug.apk" in workflow
-assert "NewsVoiceWAV-v5.37-release-unsigned" in workflow
-print("PASS: v5.37 56px/84px and cached, variable-speed row-centered WAV sync with 700ms voice lead")
+assert "versionCode 45" in gradle
+assert "NewsVoiceWAV-v5.38-debug.apk" in workflow
+assert "NewsVoiceWAV-v5.38-release-unsigned" in workflow
+print("PASS: v5.38 56px/84px and cached, variable-speed row-centered WAV sync with 700ms voice lead")

@@ -49,6 +49,8 @@ import java.util.Locale;
 public final class MainActivity extends Activity implements TextToSpeech.OnInitListener {
     private static final int DARK = 0xff0e2942;
     private static final int OPENING_PICKER=5110;
+    private static final int COVER_PICKER=5112;
+    private final java.util.concurrent.ExecutorService coverTasks = java.util.concurrent.Executors.newSingleThreadExecutor();
     private static final int SCRIPT_PICKER=5111;
     private static final int NEWS_IMAGES_PICKER=5130;
     private static final int NEWS_SINGLE_PICKER_BASE=5200;
@@ -323,6 +325,21 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             pick.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(pick,OPENING_PICKER);
         });
+        body.addView(text("방송 표지",17,true),lp(-1,-2,22));
+        Button chooseCover=btn("휴대전화에서 표지 선택 · WebP / JPG / PNG",0xffe7f2f3,MINT);
+        body.addView(chooseCover,lp(-1,51,8));
+        chooseCover.setOnClickListener(v->{
+            Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("image/*");
+            intent.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"image/webp","image/jpeg","image/png"});
+            startActivityForResult(intent,COVER_PICKER);
+        });
+        Button previewCover=btn("표지 미리보기",0xffdfeef4,DARK);
+        body.addView(previewCover,lp(-1,49,7));
+        previewCover.setOnClickListener(v->showCover());
+        Button restoreCover=btn("기본 표지 복원",0xffdfeef4,DARK);
+        body.addView(restoreCover,lp(-1,49,7));
+        restoreCover.setOnClickListener(v->changeCover(null));
         body.addView(text("아나운서 이미지 · 갤러리 등록",17,true),lp(-1,-2,22));
         LinearLayout portraitButtons=new LinearLayout(this);
         portraitButtons.setOrientation(LinearLayout.HORIZONTAL);
@@ -786,6 +803,36 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         updateStatus(result.summary());
         return result.approved()?result.reviewed:null;
     }
+    private void changeCover(Uri uri) {
+        coverTasks.execute(()->{
+            try {
+                if (uri == null) BroadcastCover.restore(this);
+                else BroadcastCover.select(this,uri);
+                runOnUiThread(()->{
+                    if (isFinishing() || isDestroyed()) return;
+                    Toast.makeText(this, uri == null ? "기본 표지를 복원했습니다." : "새 방송 표지를 저장했습니다.",Toast.LENGTH_SHORT).show();
+                    showCover();
+                });
+            } catch (Exception error) {
+                runOnUiThread(()->Toast.makeText(this,"표지 변경 실패 · "+error.getMessage(),Toast.LENGTH_LONG).show());
+            }
+        });
+    }
+
+    private void showCover() {
+        int count=0;
+        try {
+            count=NewsBroadcastSegments.newsCount(NewsBroadcastSegments.build(editor.getText().toString(),anchorEdit.getText().toString()));
+        } catch (IllegalArgumentException emptyScript) { /* Preview is available before adding a script. */ }
+        android.graphics.Bitmap cover=NewsCardPainter.render(this,null,0,count,0,NewsCoverMeta.now());
+        ImageView image=new ImageView(this);
+        image.setImageBitmap(cover);
+        image.setAdjustViewBounds(true);
+        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        new android.app.AlertDialog.Builder(this).setTitle("방송 표지 미리보기").setView(image)
+            .setPositiveButton("닫기",null).show();
+    }
+
     private void saveNewsPhoto(Uri uri, File directory, int slot) throws IOException {
         android.graphics.ImageDecoder.Source source =
             android.graphics.ImageDecoder.createSource(getContentResolver(), uri);
@@ -816,6 +863,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==COVER_PICKER){
+            if(resultCode==RESULT_OK && data!=null && data.getData()!=null) changeCover(data.getData());
+            return;
+        }
         if(requestCode>NEWS_SINGLE_PICKER_BASE && requestCode<=NEWS_SINGLE_PICKER_BASE+12){
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
             int slot=requestCode-NEWS_SINGLE_PICKER_BASE;
@@ -1008,6 +1059,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         if(samsungTestTts!=null){
             try{samsungTestTts.stop();samsungTestTts.shutdown();}catch(RuntimeException ignored){}
         }
+        coverTasks.shutdown();
         super.onDestroy();
     }
 }

@@ -197,6 +197,7 @@ public final class NewsVideoComposer {
         File folder=new File(context.getCacheDir(),"video_work_"+System.nanoTime());
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
+        Bitmap cover=null;
         try {
             Timeline timeline=makeTimeline(context,stories,waves,sentenceFrames,raw);
             if(timeline.endUs>12L*60*US_PER_S)throw new IOException("한 영상은 12분 이내 원고를 사용하세요.");
@@ -204,18 +205,18 @@ public final class NewsVideoComposer {
             encodeAudio(raw,aac,timeline.sampleRate,timeline.channels);
             progress.message("뉴스 카드 영상 렌더링 중");
             NewsCoverMeta coverMeta=NewsCoverMeta.now();
-            encodeVideo(context,video,timeline,stories.get(0).articleCount>0?
-                stories.get(0).articleCount:stories.size(),coverMeta,progress,photos);
+            int articleCount=stories.get(0).articleCount>0?stories.get(0).articleCount:stories.size();
+            cover=NewsCardPainter.render(context,null,0,articleCount,0,coverMeta);
+            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,photos,cover);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
             // Save a JPEG with the same cover pixels and date as the video's first frame.
-            NewsCoverExporter.save(context,coverMeta,
-                stories.get(0).articleCount>0?stories.get(0).articleCount:stories.size(),
-                output);
+            NewsCoverExporter.save(cover,output);
             progress.message("MP4와 카카오톡용 표지 JPG 생성 완료");
             return output;
         } finally {
+            if(cover!=null)cover.recycle();
             File[] files=folder.listFiles();if(files!=null)for(File f:files)f.delete();folder.delete();
         }
     }
@@ -270,7 +271,7 @@ public final class NewsVideoComposer {
     }
     private static void encodeVideo(Context context,File output,Timeline t,int articleCount,
                                     NewsCoverMeta meta,Progress progress,
-                                    List<NewsImageFetcher.Photo> photos)throws Exception {
+                                    List<NewsImageFetcher.Photo> photos,Bitmap cover)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
         Bitmap reusableSlide=null;
@@ -344,9 +345,9 @@ public final class NewsVideoComposer {
                         NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
                             articleCount,meta,activeSentence,scrollPlan,scrollPixels,
                             photo,totalProgress,reusableSlide):
-                        NewsCardPainter.render(context,null,0,articleCount,which+2,meta);
+                        cover;
                     renderer.upload(card);
-                    if(card!=reusableSlide)card.recycle();
+                    if(card!=reusableSlide && card!=cover)card.recycle();
                     previousCard=which;
                     previousScroll=scrollPixels;
                     previousProgress=totalProgress;

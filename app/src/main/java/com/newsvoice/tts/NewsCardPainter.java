@@ -605,6 +605,8 @@ public final class NewsCardPainter {
         if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta,
             activeSentence,prepareScroll(story),0,null,-1f,null);
         if(stage==0){
+            Bitmap selected=BroadcastCover.read(context);
+            if(selected!=null)return selected;
             Bitmap artwork=renderBroadcastCover(context,meta,count);
             if(artwork!=null)return artwork;
         }

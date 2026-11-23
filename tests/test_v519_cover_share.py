@@ -24,8 +24,8 @@ assert 'current.audioStartUs,current.sentenceEndUs):null;' in video
 assert 'Math.round(scrollPlan.offset' not in video
 # The JPEG is derived from the same cover renderer and SAME metadata as the MP4.
 assert 'NewsCoverMeta coverMeta=NewsCoverMeta.now();' in video
-assert 'NewsCoverExporter.save(context,coverMeta,' in video
-assert 'NewsCardPainter.render(context,null,0,articleCount,0,meta)' in poster
+assert 'NewsCoverExporter.save(cover,output)' in video
+assert 'cover=NewsCardPainter.render(context,null,0,articleCount,0,coverMeta)' in video
 assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
 assert 'video.getName().substring(0,video.getName().length()-4)+"_cover.jpg"' in poster
 assert 'image/jpeg' in downloads
@@ -39,8 +39,8 @@ assert 'shareLast(false)' in ui
 assert 'Intent.ACTION_SEND' in ui
 assert 'Intent.FLAG_GRANT_READ_URI_PERMISSION' in ui
 assert '카카오톡이 결정하므로 100% 고정은 보장되지 않습니다.' in ui
-assert "def releaseVersion = '5.37'" in gradle
+assert "def releaseVersion = '5.38'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
 assert 'android:label="@string/app_display_name"' in manifest
-assert 'NewsVoiceWAV-v5.37-release-unsigned' in workflow
+assert 'NewsVoiceWAV-v5.38-release-unsigned' in workflow
 print("PASS: v5.19 uses a full 6s first-frame cover, exact JPEG poster, native share and uninterrupted scroll")

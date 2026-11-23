@@ -26,15 +26,15 @@ assert "FPS=30;" in composer
 assert "Paint highlight=" not in paint
 assert "Paint underline=" not in paint
 assert "if(us<4L*US_PER_S)which=-2;" in composer
-assert "NewsCoverExporter.save(context,coverMeta," in composer
+assert "NewsCoverExporter.save(cover,output)" in composer
 assert 'Bitmap.CompressFormat.JPEG,95,stream' in cover
 for service in [worker,manual]:
     assert "NewsCoverExporter.coverFile(" in service
 assert "MUSIC_REVISION=2" in opening
 assert "shareLast(true)" in ui and "shareLast(false)" in ui
-assert "def releaseVersion = '5.37'" in gradle
+assert "def releaseVersion = '5.38'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert "versionCode 43" in gradle
-assert "NewsVoiceWAV-v5.37-debug.apk" in actions
-assert "NewsVoiceWAV-v5.37-release-unsigned" in actions
-print("PASS: v5.37 font 56px, 84px leading, voice-first 700ms lag and retained existing features")
+assert "versionCode 45" in gradle
+assert "NewsVoiceWAV-v5.38-debug.apk" in actions
+assert "NewsVoiceWAV-v5.38-release-unsigned" in actions
+print("PASS: v5.38 font 56px, 84px leading, voice-first 700ms lag and retained existing features")
