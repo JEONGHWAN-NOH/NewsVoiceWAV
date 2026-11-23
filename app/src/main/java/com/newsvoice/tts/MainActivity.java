@@ -285,7 +285,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 startActivityForResult(pick,NEWS_SINGLE_PICKER_BASE+selectedSlot);
             });
         }
-        Button removePhotos=btn("아나운서 사진 공통·개별 등록",0xffe7f2f3,MINT);
+        Button removePhotos=btn("등록 사진 제거",0xffe7f2f3,MINT);
         body.addView(removePhotos,lp(-1,48,5));
         removePhotos.setOnClickListener(v->showPhotoRemoval());
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
@@ -970,7 +970,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 android.graphics.ImageDecoder.Source source=android.graphics.ImageDecoder.createSource(getContentResolver(),data.getData());
                 android.graphics.Bitmap bitmap=android.graphics.ImageDecoder.decodeBitmap(source,(decoder,info,unused)->{
                     int w=info.getSize().getWidth(),h=info.getSize().getHeight();
-                    float scale=Math.min(1f,1200f/Math.max(w,h));
+                    float scale=Math.min(1f,960f/Math.max(w,h));
                     decoder.setTargetSize(Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale)));
                     decoder.setAllocator(android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE);
                 });
@@ -978,7 +978,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                     File tmp=File.createTempFile("portrait",".tmp",getFilesDir());
                     try {
                         try(FileOutputStream out=new FileOutputStream(tmp)){
-                            if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,90,out))throw new IOException("사진 저장 실패");
+                            if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,80,out))throw new IOException("사진 저장 실패");
                         }
                         java.nio.file.Files.move(tmp.toPath(),portraitFile(requestCode).toPath(),
                             java.nio.file.StandardCopyOption.ATOMIC_MOVE,java.nio.file.StandardCopyOption.REPLACE_EXISTING);
