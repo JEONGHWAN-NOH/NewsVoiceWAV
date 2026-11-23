@@ -267,7 +267,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         verifyNewsImages.setOnClickListener(v->{
             File dir=new File(getFilesDir(),"news_images");
-            File[] images=dir.listFiles((d,name)->name.startsWith("news_") && name.endsWith(".jpg"));
+            File[] images=dir.listFiles((d,name)->name.startsWith("news_") && name.endsWith(".webp"));
             int count=images==null?0:images.length;
             updateStatus("사전 저장된 뉴스 사진: "+count+"장 · 등록 순서를 확인하세요.");
         });
@@ -852,7 +852,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     android.app.AlertDialog showPhotoRemoval() {
         File directory=new File(getFilesDir(),"news_images");
         File[] photos=directory.listFiles(file->file.isFile() &&
-            file.getName().matches("news_[0-9]{3,}\\.jpg"));
+            file.getName().matches("news_[0-9]{3,}\\.webp"));
         if(photos==null || photos.length==0) {
             Toast.makeText(this,"제거할 등록 사진이 없습니다.",Toast.LENGTH_SHORT).show();
             return null;
@@ -901,10 +901,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         try {
             temporary = File.createTempFile("news_photo_", ".tmp", directory);
             try (FileOutputStream out = new FileOutputStream(temporary)) {
-                if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 88, out))
+                if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 80, out))
                     throw new IOException("사진을 JPEG로 저장할 수 없습니다.");
             }
-            File target = new File(directory, String.format(Locale.US, "news_%03d.jpg", slot));
+            File target = new File(directory, String.format(Locale.US, "news_%03d.webp", slot));
             java.nio.file.Files.move(temporary.toPath(), target.toPath(),
                 java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         } finally {
@@ -914,7 +914,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     private File portraitFile(int request){
         String[] slots={"common","opening","anchor","closing"};
-        return new File(getFilesDir(),"portrait_"+slots[request-PORTRAIT_PICKER_COMMON]+".jpg");
+        return new File(getFilesDir(),"portrait_"+slots[request-PORTRAIT_PICKER_COMMON]+".webp");
     }
 
     private void pickPortrait(int request){
@@ -978,7 +978,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                     File tmp=File.createTempFile("portrait",".tmp",getFilesDir());
                     try {
                         try(FileOutputStream out=new FileOutputStream(tmp)){
-                            if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,80,out))throw new IOException("사진 저장 실패");
+                            if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP,80,out))throw new IOException("사진 저장 실패");
                         }
                         java.nio.file.Files.move(tmp.toPath(),portraitFile(requestCode).toPath(),
                             java.nio.file.StandardCopyOption.ATOMIC_MOVE,java.nio.file.StandardCopyOption.REPLACE_EXISTING);
