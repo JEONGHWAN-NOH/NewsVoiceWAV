@@ -37,8 +37,12 @@ public final class NewsStory {
         return pos<0?"":text.substring(pos+1).trim();
     }
 
-    public boolean hasTransition(){return kind==NEWS && articleNumber>1 && !NewsAutoScript.startsWithArticleCue(spokenText());}
-    public String audioText(){return hasTransition()?"다음 뉴스입니다. "+spokenText():spokenText();}
+    private static final String[] ORDINALS={"첫","두","세","네","다섯","여섯","일곱","여덟","아홉","열","열한","열두","열세","열네","열다섯","열여섯","열일곱","열여덟","열아홉","스무"};
+    public static String numberedCue(int number){
+        return number>=1 && number<=ORDINALS.length ? ORDINALS[number-1]+" 번째 뉴스입니다." : number+"번째 뉴스입니다.";
+    }
+    public boolean hasTransition(){return kind==NEWS && articleNumber>=1 && (articleCount>1 || articleNumber>1) && !NewsAutoScript.startsWithArticleCue(spokenText());}
+    public String audioText(){return hasTransition()?numberedCue(articleNumber)+" "+spokenText():spokenText();}
 
     public static NewsStory segment(int kind,String title,String narration,int newsCount){
         if(kind==NEWS||narration==null||narration.trim().isEmpty())

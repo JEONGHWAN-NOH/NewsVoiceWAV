@@ -16,8 +16,7 @@ public final class NewsBroadcastSegmentsTest {
         check(sections.size()==5,"three articles and ending sections");
         List<NewsStory> withPortrait=NewsBroadcastSegments.build(script,"",true);
         check(withPortrait.size()==6 && withPortrait.get(0).kind==NewsStory.OPENING,"opening portrait gets a greeting");
-        String next="다음 뉴스입니다. ";
-        String expected=first+"\n"+next+"시장 본문입니다.\n"+next+"공항 본문입니다.";
+        String expected="첫 번째 뉴스입니다. "+first+"\n두 번째 뉴스입니다. 시장 본문입니다.\n세 번째 뉴스입니다. 공항 본문입니다.";
         check(NewsBroadcastSegments.playback(script).equals(expected),"preview has exactly two transitions");
         check(NewsBroadcastSegments.audioScript(sections).startsWith(expected),"export matches preview");
         check(sections.get(1).title.equals("시장 소식") && sections.get(1).spokenText().equals("시장 본문입니다."),"visual body and title match");
@@ -33,6 +32,16 @@ public final class NewsBroadcastSegmentsTest {
         check(NewsBroadcastSegments.remainingNews(override.get(2))==1,"remaining article count");
         String lengthy=("제목\n기사입니다.\n===\n").repeat(31);
         check(NewsBroadcastSegments.playback(lengthy).contains("기사입니다."),"long preview has no video export limit");
+        StringBuilder twelve=new StringBuilder();
+        for(int i=1;i<=12;i++){
+            if(i>1)twelve.append("\n===\n");
+            twelve.append("기사 제목 ").append(i).append("\n기사 본문입니다.");
+        }
+        List<NewsStory> all=NewsBroadcastSegments.build(twelve.toString(),"");
+        for(int i=1;i<=12;i++){
+            check(all.get(i-1).articleNumber==i,"image slot "+i);
+            check(all.get(i-1).audioText().startsWith(NewsStory.numberedCue(i)+" "),"numbered cue "+i);
+        }
         System.out.println("NewsBroadcastSegments PASS");
     }
 }

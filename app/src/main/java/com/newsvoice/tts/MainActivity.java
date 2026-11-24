@@ -53,6 +53,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private final java.util.concurrent.ExecutorService coverTasks = java.util.concurrent.Executors.newSingleThreadExecutor();
     private static final int SCRIPT_PICKER=5111;
     private static final int NEWS_IMAGES_PICKER=5130;
+    private static final int NEWS_ZIP_PICKER=5131;
     private static final int NEWS_SINGLE_PICKER_BASE=5200;
     private static final int PORTRAIT_PICKER_COMMON=5120;
     private static final int PORTRAIT_PICKER_OPENING=5121, PORTRAIT_PICKER_ANCHOR=5122, PORTRAIT_PICKER_CLOSING=5123;
@@ -254,6 +255,14 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivityForResult(pick,SCRIPT_PICKER);
         });
         body.addView(text("뉴스별 사진 · 사전 저장 (방송 전 준비)",16,true),lp(-1,-2,14));
+        Button zip=btn("방송 ZIP 불러오기 (대본 + 번호 사진)",0xffe3eff2,DARK);
+        body.addView(zip,lp(-1,52,8));
+        zip.setOnClickListener(v->{
+            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            pick.setType("application/zip");
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(pick,NEWS_ZIP_PICKER);
+        });
         Button selectNewsImages=btn("뉴스 사진 여러 장 등록",0xffe3eff2,DARK);
         body.addView(selectNewsImages,lp(-1,52,8));
         Button verifyNewsImages=btn("저장된 뉴스 사진 확인",0xffe7f2f3,MINT);
@@ -298,7 +307,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 소식입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 상단 자료 이미지 검색과 하단 전체 뉴스 진행률은 MP4 생성 시 자동 적용되며, 사진을 찾지 못하면 중립 이미지를 사용합니다.",12,false);
+        TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 뉴스입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 상단 자료 이미지 검색과 하단 전체 뉴스 진행률은 MP4 생성 시 자동 적용되며, 사진을 찾지 못하면 중립 이미지를 사용합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
@@ -625,7 +634,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.40/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.41/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -807,7 +816,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.40 → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.41 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -890,26 +899,110 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         android.graphics.Bitmap bitmap = android.graphics.ImageDecoder.decodeBitmap(source, (decoder, info, src) -> {
             int width = info.getSize().getWidth();
             int height = info.getSize().getHeight();
-            int longest = Math.max(width, height);
-            if (longest > 1600) {
-                decoder.setTargetSize(Math.max(1, Math.round(width * (1600f / longest))),
-                    Math.max(1, Math.round(height * (1600f / longest))));
-            }
+            // Decode at the approved portrait aspect ratio without stretching the subject.
+            int cropWidth=width, cropHeight=height;
+            if((long)width*4>(long)height*3)cropWidth=Math.max(1,height*3/4);
+            else cropHeight=Math.max(1,width*4/3);
+            float scale=Math.min(1f, Math.max(360f/cropWidth,480f/cropHeight));
+            decoder.setTargetSize(Math.max(1,Math.round(width*scale)),Math.max(1,Math.round(height*scale)));
             decoder.setAllocator(android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE);
         });
+        android.graphics.Bitmap output=android.graphics.Bitmap.createBitmap(360,480,android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas=new android.graphics.Canvas(output);
+        int w=bitmap.getWidth(),h=bitmap.getHeight();
+        int cw=w,ch=h;
+        if((long)w*4>(long)h*3)cw=Math.max(1,h*3/4);else ch=Math.max(1,w*4/3);
+        canvas.drawBitmap(bitmap,new android.graphics.Rect((w-cw)/2,(h-ch)/2,(w-cw)/2+cw,(h-ch)/2+ch),
+            new android.graphics.Rect(0,0,360,480),new android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG));
         File temporary = null;
         try {
             temporary = File.createTempFile("news_photo_", ".tmp", directory);
             try (FileOutputStream out = new FileOutputStream(temporary)) {
-                if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 80, out))
-                    throw new IOException("사진을 JPEG로 저장할 수 없습니다.");
+                if (!output.compress(android.graphics.Bitmap.CompressFormat.WEBP, 60, out))
+                    throw new IOException("사진을 WebP로 저장할 수 없습니다.");
             }
             File target = new File(directory, String.format(Locale.US, "news_%03d.webp", slot));
             java.nio.file.Files.move(temporary.toPath(), target.toPath(),
                 java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         } finally {
+            output.recycle();
             bitmap.recycle();
             if (temporary != null && temporary.exists()) temporary.delete();
+        }
+    }
+    private static int slotFromName(String name){
+        if(name==null)return 0;
+        java.util.regex.Matcher m=java.util.regex.Pattern.compile("(?i)^(?:news[_ -]*)?0*(1[0-2]|[1-9])(?=[_. -]|$)").matcher(name);
+        return m.find()?Integer.parseInt(m.group(1)):0;
+    }
+    private int numberedPhotoSlot(Uri uri){
+        try(android.database.Cursor cursor=getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){
+            if(cursor!=null&&cursor.moveToFirst()){
+                String name=cursor.getString(0);
+                return slotFromName(name);
+            }
+        }catch(Exception ignored){}
+        return 0;
+    }
+    private void importNewsZip(Uri uri){
+        File staging=null;
+        try{
+            staging=java.nio.file.Files.createTempDirectory(getCacheDir().toPath(),"newszip-").toFile();
+            String script=null;
+            java.util.HashSet<Integer> slots=new java.util.HashSet<>();
+            long total=0;int entries=0;
+            try(InputStream stream=getContentResolver().openInputStream(uri);
+                java.util.zip.ZipInputStream zip=new java.util.zip.ZipInputStream(stream)){
+                java.util.zip.ZipEntry entry;
+                byte[] buffer=new byte[8192];
+                while((entry=zip.getNextEntry())!=null){
+                    if(++entries>64)throw new IOException("ZIP 항목이 너무 많습니다.");
+                    if(entry.isDirectory())continue;
+                    String name=new File(entry.getName()).getName();
+                    String lower=name.toLowerCase(Locale.ROOT);
+                    int slot=slotFromName(name);
+                    boolean isText=lower.endsWith(".txt");
+                    boolean isPhoto=slot>0&&(lower.endsWith(".webp")||lower.endsWith(".jpg")||lower.endsWith(".jpeg")||lower.endsWith(".png"));
+                    java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();
+                    int n;
+                    while((n=zip.read(buffer))!=-1){
+                        total+=n;
+                        if(total>24L*1024*1024 || bytes.size()+n>(isText?240000:4*1024*1024))
+                            throw new IOException("방송 ZIP 용량 제한을 초과했습니다.");
+                        if(isText||isPhoto)bytes.write(buffer,0,n);
+                    }
+                    if(isText){
+                        if(script!=null)throw new IOException("ZIP에는 대본 TXT 파일 하나만 넣으세요.");
+                        script=new String(bytes.toByteArray(),StandardCharsets.UTF_8).replace("\uFEFF","").trim();
+                    }else if(isPhoto){
+                        if(!slots.add(slot))throw new IOException("사진 번호 중복: "+slot);
+                        File input=new File(staging,"input-"+slot);
+                        try(FileOutputStream out=new FileOutputStream(input)){bytes.writeTo(out);}
+                        saveNewsPhoto(Uri.fromFile(input),staging,slot);
+                        input.delete();
+                    }
+                }
+            }
+            if(script==null||script.isEmpty()||script.length()>60000)throw new IOException("유효한 UTF-8 대본이 없습니다.");
+            int count=NewsBroadcastSegments.newsCount(NewsBroadcastSegments.build(script,""));
+            if(count>12||slots.size()!=count)throw new IOException("대본 기사 수와 사진 수가 일치하지 않습니다.");
+            for(int i=1;i<=count;i++)if(!slots.contains(i))throw new IOException("사진 번호 누락: "+i);
+            File dir=new File(getFilesDir(),"news_images");
+            if(!dir.exists()&&!dir.mkdirs())throw new IOException("사진 저장 폴더 생성 실패");
+            for(int i=1;i<=count;i++){
+                String file=String.format(Locale.US,"news_%03d.webp",i);
+                java.nio.file.Files.move(new File(staging,file).toPath(),new File(dir,file).toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            editor.setText(script);editor.setSelection(editor.length());
+            updateStatus("방송 ZIP 등록 완료 · 뉴스 "+count+"건 / 사진 "+count+"장 번호 연결");
+        }catch(Exception ex){updateStatus("방송 ZIP 등록 실패: "+ex.getMessage());}
+        finally{
+            if(staging!=null){
+                File[] files=staging.listFiles();
+                if(files!=null)for(File file:files)file.delete();
+                staging.delete();
+            }
         }
     }
     private File portraitFile(int request){
@@ -926,6 +1019,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
 
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==NEWS_ZIP_PICKER){
+            if(resultCode==RESULT_OK&&data!=null&&data.getData()!=null)importNewsZip(data.getData());
+            return;
+        }
         if(requestCode==COVER_PICKER){
             if(resultCode==RESULT_OK && data!=null && data.getData()!=null) changeCover(data.getData());
             return;
@@ -954,14 +1051,18 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             if(uris.isEmpty()){updateStatus("선택한 사진이 없습니다.");return;}
             File dir=new File(getFilesDir(),"news_images");
             if(!dir.exists()&&!dir.mkdirs()){updateStatus("사진 저장 폴더를 만들 수 없습니다.");return;}
+            if(uris.size()>12){updateStatus("뉴스 사진은 한 번에 12장까지 등록하세요.");return;}
+            int[] slots=new int[uris.size()];
+            boolean named=true;java.util.HashSet<Integer> used=new java.util.HashSet<>();
+            for(int i=0;i<uris.size();i++){slots[i]=numberedPhotoSlot(uris.get(i));if(slots[i]==0||!used.add(slots[i]))named=false;}
             int saved=0;
             for(int i=0;i<uris.size();i++){
                 try{
-                    saveNewsPhoto(uris.get(i),dir,i+1);
+                    saveNewsPhoto(uris.get(i),dir,named?slots[i]:i+1);
                     saved++;
                 }catch(Exception ex){android.util.Log.e("NewsVoiceImages","뉴스 사진 "+(i+1)+" 저장 실패",ex);}
             }
-            updateStatus("뉴스 사진 "+saved+"/"+uris.size()+"장 내부 저장 완료. 사진 선택 순서를 검토하세요.");
+            updateStatus("뉴스 사진 "+saved+"/"+uris.size()+"장 내부 저장 완료. "+(named?"파일 번호 자동 연결":"선택 순서로 연결; 번호 확인 필요"));
             return;
         }
         if(requestCode>=PORTRAIT_PICKER_COMMON && requestCode<=PORTRAIT_PICKER_CLOSING){
@@ -1093,7 +1194,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.40/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.41/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){

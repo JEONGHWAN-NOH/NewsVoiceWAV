@@ -8,7 +8,6 @@ public final class NewsBroadcastSegments {
     public static final String ANCHOR="마지막으로 앵커 한마디입니다. 오늘 전해드린 소식을 살펴보실 때에는 확정된 사실과 향후 전망을 구분하는 것이 중요하겠습니다. 주요 사안의 후속 소식도 계속 확인하겠습니다.";
     public static final String CLOSING="이상으로 필리핀 뉴스·경제 종합 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
-    private static final String NEXT="다음 뉴스입니다.";
     private static final java.util.regex.Pattern NEXT_CUE=java.util.regex.Pattern.compile(
         "(?m)(?:^|(?<=[.!?])\\s+|\\n+)다음\\s+뉴스입니다[.!]?(?=\\s|$)\\s*");
     private static final java.util.regex.Pattern DIVIDER=java.util.regex.Pattern.compile("(?m)^\\s*(?:===|---)\\s*$");
@@ -36,22 +35,30 @@ public final class NewsBroadcastSegments {
     }
     public static String playback(String raw){
         if(raw.trim().isEmpty())return "";
-        if(!NewsAutoScript.isAutoFormat(raw)&&!DIVIDER.matcher(raw).find())return raw;
+        if(!NewsAutoScript.isAutoFormat(raw)&&!DIVIDER.matcher(raw).find()&&!NEXT_CUE.matcher(raw).find())return raw;
         List<NewsStory> sections;
         try {
-            sections=NewsStory.parse(NewsAutoScript.adapt(raw));
+            sections=NewsStory.parse(structured(raw));
         }catch(IllegalArgumentException ex){
             // The video renderer limits article count. Live reading accepts longer scripts.
             return raw;
         }
         StringBuilder out=new StringBuilder();
         int news=0;
+        int newsTotal=0;
+        for(NewsStory item:sections)if(!item.title.matches("시작 인사|오프닝|마감 인사|클로징|앵커 한마디|앵커 한 말씀"))newsTotal++;
         for(NewsStory item:sections){
             boolean corner=item.title.matches("시작 인사|오프닝|마감 인사|클로징|앵커 한마디|앵커 한 말씀");
             String body=item.spokenText();
             if(body.isEmpty())body=item.narration;
             if(out.length()>0)out.append('\n');
-            if(!corner && news++>0 && !NEXT_CUE.matcher(body).lookingAt() && !NewsAutoScript.startsWithArticleCue(body))out.append(NEXT).append(' ');
+            if(!corner){
+                news++;
+                java.util.regex.Matcher legacy=NEXT_CUE.matcher(body);
+                if(legacy.lookingAt())body=body.substring(legacy.end());
+                if(newsTotal>1 && !NewsAutoScript.startsWithArticleCue(body))
+                    out.append(NewsStory.numberedCue(news)).append(' ');
+            }
             out.append(body);
         }
         return out.toString();
@@ -93,7 +100,7 @@ public final class NewsBroadcastSegments {
             NewsStory item=news.get(i);
             String text=item.spokenText();
             java.util.regex.Matcher cue=NEXT_CUE.matcher(text);
-            if(i>0 && cue.lookingAt())text=text.substring(cue.end());
+            if(cue.lookingAt())text=text.substring(cue.end());
             result.add(item.page(item.title+"\n"+text,i+1,count,1,1));
         }
         result.add(NewsStory.segment(NewsStory.ANCHOR,"앵커 한마디",comment,count));
