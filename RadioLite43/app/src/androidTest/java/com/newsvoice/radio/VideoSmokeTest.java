@@ -1,0 +1,13 @@
+package com.newsvoice.radio;
+import android.app.Instrumentation;import android.os.Bundle;import android.media.*;import android.graphics.Bitmap;import com.newsvoice.tts.RadioVideo;import java.io.*;import java.util.*;
+public final class VideoSmokeTest extends Instrumentation {
+    @Override public void onCreate(Bundle args){super.onCreate(args);start();}
+    @Override public void onStart(){Bundle out=new Bundle();try{
+        File pcm=new File(getTargetContext().getCacheDir(),"test.pcm"),mp4=new File(getTargetContext().getFilesDir(),"broadcast.mp4");
+        try(OutputStream f=new BufferedOutputStream(new FileOutputStream(pcm))){byte[] chunk=new byte[RadioVideo.RATE*2];for(int i=0;i<RadioVideo.RATE;i++){int sample=(int)(5000*Math.sin(i*2*Math.PI*350/RadioVideo.RATE));chunk[i*2]=(byte)sample;chunk[i*2+1]=(byte)(sample>>8);}for(int sec=0;sec<300;sec++)f.write(chunk);}
+        List<RadioVideo.Cue> cues=new ArrayList<>();String phrase="필리핀 뉴스입니다. 오늘의 주요 정책과 경제 뉴스를 전해드립니다. ";for(int i=0;i<120;i++)cues.add(new RadioVideo.Cue(6000+i*2450L,6000+(i+1)*2450L,phrase+(i+1)));
+        RadioVideo.fromPcm(getTargetContext(),pcm,cues,mp4,s->{});if(mp4.length()>5_000_000||mp4.length()<100000)throw new AssertionError("file size: "+mp4.length());
+        MediaMetadataRetriever r=new MediaMetadataRetriever();r.setDataSource(mp4.getAbsolutePath());if(!"360".equals(r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH))||!"640".equals(r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)))throw new AssertionError("dimensions");long duration=Long.parseLong(r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));if(Math.abs(duration-300000)>1000)throw new AssertionError("duration "+duration);Bitmap frame=r.getFrameAtTime(10000000,MediaMetadataRetriever.OPTION_CLOSEST);if(frame==null)throw new AssertionError("no frame");int bright=0;for(int y=0;y<frame.getHeight();y+=2)for(int x=0;x<frame.getWidth();x+=2)if((frame.getPixel(x,y)&0xffffff)>0xcccccc)bright++;if(bright<100)throw new AssertionError("caption missing");frame.recycle();r.release();
+        MediaExtractor e=new MediaExtractor();e.setDataSource(mp4.getAbsolutePath());boolean audio=false,video=false;for(int i=0;i<e.getTrackCount();i++){String mime=e.getTrackFormat(i).getString(MediaFormat.KEY_MIME);audio|=mime.equals("audio/mp4a-latm");video|=mime.equals("video/avc");}e.release();if(!audio||!video)throw new AssertionError("missing tracks");out.putString("radio42","passed; bytes="+mp4.length()+"; duration_ms="+duration+"; captions="+bright);finish(-1,out);
+    }catch(Throwable e){out.putString("radio42","failed: "+e);finish(0,out);}}
+}
