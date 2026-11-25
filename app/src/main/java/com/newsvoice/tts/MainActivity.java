@@ -684,7 +684,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             recoverPlaybackChunk("TTS 요청 거절");
         }else updateStatus("뉴스 낭독 중: "+(playbackIndex+1)+"/"+playbackSegments.size()+" 구간");
     }
-    private void openReadingScreen() {
+    android.app.Dialog openReadingScreen(String body) {
         readingDialog = new android.app.Dialog(this, android.R.style.Theme_Material_NoActionBar_Fullscreen);
         readingText = new TextView(this);
         readingText.setGravity(android.view.Gravity.CENTER);
@@ -694,7 +694,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         readingScroll.setVerticalScrollBarEnabled(false);
         readingScroll.setBackgroundColor(0xff09162a);
         readingText.setTextSize(28);
-        readingText.setText(String.join("\n", playbackSegments));
+        readingText.setText(body);
         displayOffset = nextDisplayOffset = 0;
         readingScroll.addView(readingText);
         readingScroll.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,oright,ob) -> {
@@ -712,6 +712,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             readingDialog = null;
         });
         readingDialog.show();
+        return readingDialog;
     }
 
     private void speakNow(String src,boolean preview){
@@ -731,7 +732,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             playbackToken=taskToken;
             playbackIndex=0;
             lastQueuedIndex=playbackSegments.size()-1;
-            openReadingScreen();
+            openReadingScreen(String.join("\n", playbackSegments));
             speakPlaybackChunk();
         }catch(RuntimeException e){
             playbackSegments.clear();

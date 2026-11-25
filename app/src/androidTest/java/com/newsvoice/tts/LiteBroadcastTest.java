@@ -31,7 +31,21 @@ public class LiteBroadcastTest extends Instrumentation {
             List<NewsStory> all = NewsBroadcastSegments.build(raw);
             check(all.size() > 2, "Numbered cues");
             check(NewsBroadcastSegments.audioScript(all).replaceAll("\\s+","").equals(raw.replaceAll("\\s+","")), "Verbatim script");
-            List<NewsStory> stories = all.subList(0, 3);
+            android.app.Dialog[] preview = new android.app.Dialog[1];
+            runOnMainSync(() -> preview[0] = activity.openReadingScreen(raw));
+            waitForIdleSync();
+            runOnMainSync(() -> {
+                android.view.ViewGroup content = preview[0].findViewById(android.R.id.content);
+                check(content.getChildCount() == 1, "Single broadcast viewport");
+                android.widget.ScrollView viewport = (android.widget.ScrollView) content.getChildAt(0);
+                android.widget.TextView body = (android.widget.TextView) viewport.getChildAt(0);
+                check(body.getText().toString().equals(raw), "Screen contains exactly the script");
+                check((body.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK) == android.view.Gravity.CENTER_HORIZONTAL, "Horizontal center");
+                int firstCenter = body.getTotalPaddingTop() + body.getLayout().getLineBottom(0)/2;
+                check(Math.abs(firstCenter - viewport.getHeight()/2) < body.getLineHeight()/2, "Vertical center");
+                preview[0].dismiss();
+            });
+            List<NewsStory> stories = all;
             File voice=OpeningMusicA.ensureInstalled(c);
             WavTools.Piece pcm=WavTools.inspect(voice);
             long frames=pcm.dataLength/((pcm.format[2]&255)*2L);
@@ -67,8 +81,13 @@ public class LiteBroadcastTest extends Instrumentation {
                     check((lite?"720":"1080").equals(r.extractMetadata(r.METADATA_KEY_VIDEO_WIDTH)),"Width");
                     check((lite?"1280":"1920").equals(r.extractMetadata(r.METADATA_KEY_VIDEO_HEIGHT)),"Height");
                     check("yes".equals(r.extractMetadata(r.METADATA_KEY_HAS_AUDIO)),"Audio track");
-                    Bitmap frame=r.getFrameAtTime(8000000,r.OPTION_CLOSEST);
-                    check(frame!=null,"Decoded frame");assertNoHeader(frame);export(c,frame,lite?"Lite-720.png":"Lite-1080.png");frame.recycle();
+                    Bitmap frame=r.getFrameAtTime(7000000,r.OPTION_CLOSEST);
+                    check(frame!=null,"Decoded frame");assertNoHeader(frame);
+                    boolean ink=false;
+                    for(int y=frame.getHeight()*4/10;y<frame.getHeight()*6/10;y+=2)
+                        for(int x=0;x<frame.getWidth();x+=3)
+                            ink |= android.graphics.Color.green(frame.getPixel(x,y))>150;
+                    check(ink,"Decoded body at center");export(c,frame,lite?"Lite-720.png":"Lite-1080.png");frame.recycle();
                     android.util.Log.i("NewsVoiceLite",(lite?"720p":"1080p")+" bytes="+video.length());
                 }finally{r.release();}
             }
