@@ -62,40 +62,17 @@ public final class NewsVoiceWorker extends Worker {
         super.onStopped();
     }
     private static final class VideoResult {
-        final File wav,mp4,credits;
-        VideoResult(File wav,File mp4,File credits){
-            this.wav=wav;this.mp4=mp4;this.credits=credits;
+        final File wav,mp4;
+        VideoResult(File wav,File mp4){
+            this.wav=wav;this.mp4=mp4;
         }
     }
-    static File makeImageCredits(List<NewsStory> pages,
-                                         List<NewsImageFetcher.Photo> photos,
-                                         File folder,String jobId)throws IOException{
-        StringBuilder b=new StringBuilder("뉴스보이스 WAV · 영상 이미지 출처 및 저작권 표시\n"
-            +"실제 사건의 현장 사진임을 의미하지 않는 Wikimedia Commons 자료 이미지입니다.\n\n");
-        for(int i=0;i<pages.size();i++){
-            NewsImageFetcher.Photo photo=photos.get(i);
-            if(photo==null)continue;
-            b.append("기사 ").append(pages.get(i).articleNumber).append(": ")
-                .append(pages.get(i).title).append("\n")
-                .append("제작자: ").append(photo.credit.isEmpty()?"Commons 기여자":photo.credit).append("\n")
-                .append("라이선스: ").append(photo.license).append("\n")
-                .append("출처: ").append(photo.sourceUrl).append("\n")
-                .append("라이선스 안내: ").append(photo.licenseUrl).append("\n\n");
-        }
-        if(b.indexOf("제작자:")<0)return null;
-        File output=new File(folder,"newsvoice_"+jobId+"_image_credits.txt");
-        try(java.io.OutputStreamWriter w=new java.io.OutputStreamWriter(
-                new java.io.FileOutputStream(output),java.nio.charset.StandardCharsets.UTF_8)){
-            w.write(b.toString());
-        }
-        return output;
-    }
+
     private VideoResult makeVideo(String script,String jobId) throws Exception {
-        List<NewsStory> sections=NewsBroadcastSegments.build(script,AppPrefs.anchorComment(context),NewsImageFetcher.hasOpeningPortrait(context));
+        List<NewsStory> sections=NewsBroadcastSegments.build(script,AppPrefs.anchorComment(context),false);
         List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
         List<File> waveFiles=new ArrayList<>();
         List<List<Long>> sentenceFrames=new ArrayList<>();
-        List<NewsImageFetcher.Photo> photos=new ArrayList<>();
         try {
             for(int i=0;i<pages.size();i++) {
                 if(isStopped())throw new IOException(stopDetail());
@@ -104,31 +81,16 @@ public final class NewsVoiceWorker extends Worker {
                 waveFiles.add(synthesize(pages.get(i).audioText(),jobId+"_page"+(i+1),cues));
                 sentenceFrames.add(cues);
             }
-            // Search relevant openly licensed photo references for each news item.
-            // Network failure is non-fatal: NewsCardPainter draws a neutral icon.
-            for(int i=0;i<pages.size();i++){
-                if(isStopped())throw new IOException(stopDetail());
-                AppPrefs.status(context,"기사 관련 이미지 검색: "+(i+1)+"/"+pages.size());
-                NewsImageFetcher.Photo local=pages.get(i).kind==NewsStory.NEWS?
-                    NewsImageFetcher.localNewsPhoto(context,pages.get(i).articleNumber):null;
-                photos.add(local!=null?local:(pages.get(i).kind==NewsStory.NEWS?
-                    NewsImageFetcher.fetch(pages.get(i)):
-                    NewsImageFetcher.anchorPortrait(context,pages.get(i))));
-            }
-            File credits=makeImageCredits(pages,photos,context.getCacheDir(),jobId);
             File audio=new File(context.getCacheDir(),"newsvoice_"+jobId+"_combined.wav");
             WavTools.concatenate(waveFiles,audio);
             File video=new File(context.getCacheDir(),"newsvoice_"+jobId+".mp4");
             NewsVideoComposer.create(context,pages,waveFiles,sentenceFrames,video,message->{
                 if(isStopped())throw new IOException(stopDetail());
                 AppPrefs.status(context,message);
-            },photos);
-            return new VideoResult(audio,video,credits);
+            });
+            return new VideoResult(audio,video);
         }finally{
             for(File temp:waveFiles)temp.delete();
-            for(NewsImageFetcher.Photo photo:photos)
-                if(photo!=null&&photo.bitmap!=null&&!photo.bitmap.isRecycled())
-                    photo.bitmap.recycle();
         }
     }
     private final Context context;
@@ -152,18 +114,13 @@ public final class NewsVoiceWorker extends Worker {
                     saveDownloads(made.wav,names.wav());
                     AppPrefs.status(context,"MP4 다운로드 폴더에 저장 중...");
                     saveDownloads(made.mp4,names.mp4());
-                    saveDownloads(NewsCoverExporter.coverFile(made.mp4),names.jpg());
-                    if(made.credits!=null){
-                        saveDownloads(made.credits,names.credits());
-                        made.credits.delete();
-                    }
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.41 → "+names.dateFolder+" → WAV · MP4 · JPG");
-                    made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v3.0 → "+names.dateFolder+" → WAV · MP4");
+                    made.wav.delete();made.mp4.delete();
                 }else{
-                    List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context),NewsImageFetcher.hasOpeningPortrait(context));
+                    List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context),false);
                     File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                     saveDownloads(wav,names.wav());
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.41 → "+names.dateFolder+" → "+names.wav());
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v3.0 → "+names.dateFolder+" → "+names.wav());
                     wav.delete();
                 }
                 return Result.success();
@@ -181,16 +138,11 @@ public final class NewsVoiceWorker extends Worker {
                 VideoResult made=makeVideo(broadcast,job.id);
                 saveDownloads(made.wav,names.wav());
                 saveDownloads(made.mp4,names.mp4());
-                saveDownloads(NewsCoverExporter.coverFile(made.mp4),names.jpg());
-                if(made.credits!=null){
-                    saveDownloads(made.credits,names.credits());
-                    made.credits.delete();
-                }
                 upload(base,token,job.id,made.wav);
-                made.wav.delete();NewsCoverExporter.coverFile(made.mp4).delete();made.mp4.delete();
+                made.wav.delete();made.mp4.delete();
                 AppPrefs.status(context,"WAV + MP4 생성 및 WAV 전송 완료: "+job.id);
             }else{
-                List<NewsStory> sections=NewsBroadcastSegments.build(broadcast,AppPrefs.anchorComment(context),NewsImageFetcher.hasOpeningPortrait(context));
+                List<NewsStory> sections=NewsBroadcastSegments.build(broadcast,AppPrefs.anchorComment(context),false);
                 File wav=synthesize(NewsBroadcastSegments.audioScript(sections),job.id);
                 saveDownloads(wav,names.wav());
                 upload(base,token,job.id,wav);

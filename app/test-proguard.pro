@@ -1,1 +1,1 @@
--keep class com.newsvoice.tts.BroadcastCoverTest { *; }
+-keep class com.newsvoice.tts.LiteBroadcastTest { *; }
