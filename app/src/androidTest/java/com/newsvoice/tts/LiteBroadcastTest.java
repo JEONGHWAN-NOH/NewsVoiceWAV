@@ -16,16 +16,22 @@ public class LiteBroadcastTest extends Instrumentation {
         Bundle result=new Bundle();
         try{
             Context c=getTargetContext();
-            check(c.getPackageName().equals("com.newsvoice.tts.textlite"),"Separate package");
-            try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand("pm list packages com.newsvoice.tts.stable.lite541");
+            check(c.getPackageName().equals("com.newsvoice.tts.textlite31"),"Separate package");
+            try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand("pm list packages com.newsvoice.tts.textlite");
                 InputStream in=new FileInputStream(fd.getFileDescriptor())){
-                check(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).contains("package:com.newsvoice.tts.stable.lite541"),"v5.41 remains installed");
+                check(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).lines().anyMatch("package:com.newsvoice.tts.textlite"::equals),"v3.0 remains installed");
             }
             MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
             runOnMainSync(()->checkNoImages(activity.getWindow().getDecorView()));
-            List<NewsStory> stories=NewsBroadcastSegments.build("경제 소식\n필리핀의 경제 소식을 전해드립니다.\n===\n사회 소식\n오늘의 사회 소식을 전해드립니다.","");
-            check(stories.get(0).articleNumber==1 && stories.get(1).articleNumber==2,"Article order");
+            String raw;
+            try (InputStream input = getContext().getAssets().open("v63.txt")) {
+                raw = new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+            List<NewsStory> all = NewsBroadcastSegments.build(raw);
+            check(all.size() > 2, "Numbered cues");
+            check(NewsBroadcastSegments.audioScript(all).replaceAll("\\s+","").equals(raw.replaceAll("\\s+","")), "Verbatim script");
+            List<NewsStory> stories = all.subList(0, 3);
             File voice=OpeningMusicA.ensureInstalled(c);
             WavTools.Piece pcm=WavTools.inspect(voice);
             long frames=pcm.dataLength/((pcm.format[2]&255)*2L);
@@ -45,7 +51,9 @@ public class LiteBroadcastTest extends Instrumentation {
             Bitmap first=NewsCardPainter.renderScrolling(stories.get(0),0,2,meta,0,plan,0,null);
             NewsCardPainter.ScrollPlan nextPlan=NewsCardPainter.prepareScroll(stories.get(1));
             Bitmap next=NewsCardPainter.renderScrolling(stories.get(1),1,2,meta,0,nextPlan,0,null);
-            check(!Bitmap.createBitmap(first,75,220,930,340).sameAs(Bitmap.createBitmap(next,75,220,930,340)),"Headlines change");
+            assertNoHeader(first);
+            assertNoHeader(next);
+            check(!first.sameAs(next), "Body changes");
             next.recycle();
             export(c,first,"Lite-layout.png");first.recycle();
             for(boolean lite:new boolean[]{true,false}){
@@ -60,7 +68,7 @@ public class LiteBroadcastTest extends Instrumentation {
                     check((lite?"1280":"1920").equals(r.extractMetadata(r.METADATA_KEY_VIDEO_HEIGHT)),"Height");
                     check("yes".equals(r.extractMetadata(r.METADATA_KEY_HAS_AUDIO)),"Audio track");
                     Bitmap frame=r.getFrameAtTime(8000000,r.OPTION_CLOSEST);
-                    check(frame!=null,"Decoded frame");export(c,frame,lite?"Lite-720.png":"Lite-1080.png");frame.recycle();
+                    check(frame!=null,"Decoded frame");assertNoHeader(frame);export(c,frame,lite?"Lite-720.png":"Lite-1080.png");frame.recycle();
                     android.util.Log.i("NewsVoiceLite",(lite?"720p":"1080p")+" bytes="+video.length());
                 }finally{r.release();}
             }
@@ -69,10 +77,16 @@ public class LiteBroadcastTest extends Instrumentation {
             result.putString("lite_tests","passed");finish(-1,result);
         }catch(Throwable e){result.putString("error",android.util.Log.getStackTraceString(e));finish(0,result);}
     }
+    private static void assertNoHeader(Bitmap frame) {
+        for (int y=0;y<frame.getHeight()/6;y+=2) {
+            for (int x=0;x<frame.getWidth();x+=2)
+                check(android.graphics.Color.red(frame.getPixel(x,y))<100,"Unexpected header pixels");
+        }
+    }
     private static void checkNoImages(android.view.View v){
         if(v instanceof android.widget.TextView){
             String s=((android.widget.TextView)v).getText().toString();
-            check(!s.contains("사진 선택")&&!s.contains("표지 JPG")&&!s.contains("이미지 검색"),"Image control: "+s);
+            check(!s.contains("앵커 한마디")&&!s.contains("상단 제목")&&!s.contains("사진 선택")&&!s.contains("표지 JPG")&&!s.contains("이미지 검색"),"Image control: "+s);
         }
         if(v instanceof android.view.ViewGroup){android.view.ViewGroup g=(android.view.ViewGroup)v;for(int i=0;i<g.getChildCount();i++)checkNoImages(g.getChildAt(i));}
     }

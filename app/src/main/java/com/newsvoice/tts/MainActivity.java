@@ -83,7 +83,25 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private int selectedPreset = 0;
     private EditText serverEdit, tokenEdit;
     private CheckBox automaticCheck, videoCheck;
-    private EditText anchorEdit;
+    private android.app.Dialog readingDialog;
+    private TextView readingText;
+    private ScrollView readingScroll;
+    private int displayOffset;
+    private int nextDisplayOffset;
+
+    private void followSpeech(String id, int offset) {
+        if (!isCurrentPlayback(id) || readingText == null) return;
+        int target = Math.min(displayOffset + offset, readingText.length());
+        long token = taskToken;
+        main.postDelayed(() -> {
+            if (readingText == null || token != taskToken) return;
+            android.text.Layout layout = readingText.getLayout();
+            if (layout == null) return;
+            int line = layout.getLineForOffset(target);
+            int middle = (layout.getLineTop(line) + layout.getLineBottom(line)) / 2;
+            readingScroll.smoothScrollTo(0, readingText.getTotalPaddingTop() + middle - readingScroll.getHeight()/2);
+        }, 700);
+    }
     private long taskToken = 0;
     private int lastQueuedIndex = -1;
     private List<String> playbackSegments = new ArrayList<>();
@@ -254,25 +272,13 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             pick.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(pick,SCRIPT_PICKER);
         });
-        body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
-        anchorEdit=new EditText(this);
-        anchorEdit.setHint("비워 두면 정중한 기본 멘트가 자동 삽입됩니다. 필요하면 오늘 뉴스에 맞는 앵커 멘트를 작성하세요.");
-        anchorEdit.setText(AppPrefs.anchorComment(this));
-        anchorEdit.setTextSize(14);anchorEdit.setTextColor(DARK);
-        anchorEdit.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        anchorEdit.setMinLines(2);anchorEdit.setMaxLines(5);
-        anchorEdit.setBackgroundResource(R.drawable.bg_editor);
-        anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
-        body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 뉴스입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 상단 제목과 큰 본문이 음성에 맞춰 전환됩니다. 사진 없이 텍스트로 방송합니다.",12,false);
-        note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
         TextView reviewHint=text("쉼표·마침표·일부 명백한 종결어미만 자동 보정합니다. 뜻이 불분명한 반말·하대 표현은 검토 후 수정하셔야 합니다.",12,false);
         reviewHint.setTextColor(0xff61778e);body.addView(reviewHint,lp(-1,-2,7));
         reviewButton.setOnClickListener(v->reviewEditorScript());
         Button sample=btn("예시 뉴스 넣기",0xffe7f2f3,MINT);body.addView(sample,lp(-1,46,10));
-        sample.setOnClickListener(v->editor.setText("경제 뉴스 1\n필리핀 정부는 오늘 산업 투자와 고용 관련 계획을 발표했습니다. 구체적인 집행 일정은 추가 발표를 통해 확인해야 합니다.\n===\n사회 뉴스 2\n교육부는 학교 지원 현황을 점검하고 있다고 밝혔습니다. 후속 일정은 공식 발표를 통해 확인하겠습니다."));
+        sample.setOnClickListener(v->editor.setText("첫 번째 뉴스입니다.\n필리핀 정부는 오늘 산업 투자와 고용 관련 계획을 발표했습니다. 구체적인 집행 일정은 추가 발표를 통해 확인해야 합니다.\n\n두 번째 뉴스입니다.\n교육부는 학교 지원 현황을 점검하고 있다고 밝혔습니다. 후속 일정은 공식 발표를 통해 확인하겠습니다."));
         body.addView(text("03  활기찬 오프닝 음악 · MP4 자동 적용",17,true),lp(-1,-2,23));
         TextView openingHelp=text("새롭게 제작한 밝고 활기찬 6초 오프닝 음악이 기본 설치되며 MP4를 제작할 때마다 자동으로 재생됩니다. 직접 준비한 다른 오프닝 WAV가 있으면 아래 버튼으로 교체할 수 있습니다.",12,false);
         openingHelp.setTextColor(0xff61778e);body.addView(openingHelp,lp(-1,-2,7));
@@ -323,7 +329,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         liteVideo.setChecked(AppPrefs.liteVideo(this));
         liteVideo.setOnCheckedChangeListener((button,checked)->AppPrefs.setLiteVideo(this,checked));
         body.addView(liteVideo,lp(-1,-2,4));
-        TextView formatHelp=text("v3.0 · 자막이 있는 라디오 뉴스. 상단 제목과 큰 본문, 순번별 제목 전환, 음성 우선 0.7초 스크롤, 오프닝 음악, WAV·MP4 저장을 지원합니다.",12,false);
+        TextView formatHelp=text("v3.1 · 자막이 있는 라디오 뉴스. 중앙 정렬 본문, 순번별 뉴스 전환, 음성 우선 0.7초 스크롤, 오프닝 음악, WAV·MP4 저장을 지원합니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
@@ -379,7 +385,20 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             }
             tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                 @Override public void onStart(String utteranceId) {
+                    main.post(() -> {
+                        if (!isCurrentPlayback(utteranceId) || readingText == null) return;
+                        String part = playbackSegments.get(playbackIndex);
+                        int position = readingText.getText().toString().indexOf(part, nextDisplayOffset);
+                        if (position >= 0) {
+                            displayOffset = position;
+                            nextDisplayOffset = position + part.length();
+                        }
+                        followSpeech(utteranceId, 0);
+                    });
                     updateStatus(utteranceId.startsWith("save_") ? "WAV 음성을 생성하는 중..." : "뉴스를 낭독하고 있습니다.");
+                }
+                @Override public void onRangeStart(String id, int start, int end, int frame) {
+                    main.post(() -> followSpeech(id, start));
                 }
                 @Override public void onDone(String utteranceId) {
                     if(utteranceId.startsWith("save_")) updateStatus("WAV 구간 생성 완료");
@@ -546,7 +565,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v3.0/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v3.1/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -622,6 +641,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             playbackSegments.clear();
             playbackIndex=-1;
             playbackToken=-1;
+            main.postDelayed(() -> { if (playbackIndex == -1 && readingDialog != null) readingDialog.dismiss(); }, 900);
             updateStatus("낭독 완료");
         }else{
             playbackIndex++;
@@ -664,6 +684,36 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             recoverPlaybackChunk("TTS 요청 거절");
         }else updateStatus("뉴스 낭독 중: "+(playbackIndex+1)+"/"+playbackSegments.size()+" 구간");
     }
+    private void openReadingScreen() {
+        readingDialog = new android.app.Dialog(this, android.R.style.Theme_Material_NoActionBar_Fullscreen);
+        readingText = new TextView(this);
+        readingText.setGravity(android.view.Gravity.CENTER);
+        readingText.setTextColor(Color.WHITE);
+        readingText.setBackgroundColor(0xff09162a);
+        readingScroll = new ScrollView(this);
+        readingScroll.setVerticalScrollBarEnabled(false);
+        readingScroll.setBackgroundColor(0xff09162a);
+        readingText.setTextSize(28);
+        readingText.setText(String.join("\n", playbackSegments));
+        displayOffset = nextDisplayOffset = 0;
+        readingScroll.addView(readingText);
+        readingScroll.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,oright,ob) -> {
+            int pad = Math.max(0, (b - t - readingText.getLineHeight())/2);
+            if (pad != readingText.getPaddingTop()) readingText.setPadding(24, pad, 24, pad);
+        });
+        readingDialog.setContentView(readingScroll);
+        readingDialog.setOnDismissListener(dialog -> {
+            taskToken++;
+            playbackSegments.clear();
+            playbackIndex = -1;
+            playbackToken = -1;
+            if (tts != null) tts.stop();
+            readingText = null;
+            readingDialog = null;
+        });
+        readingDialog.show();
+    }
+
     private void speakNow(String src,boolean preview){
         if(!ready){updateStatus("TTS 엔진이 아직 준비되지 않았습니다.");return;}
         if(src.trim().isEmpty()){updateStatus("원고를 입력하세요.");return;}
@@ -676,11 +726,12 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             configure();
             persistVoiceSettings();
             // Only one chunk is queued at a time to avoid overwhelming TTS engines.
-            playbackSegments=chunks(src);
+            for (String sentence : NewsSentenceTimeline.split(src)) playbackSegments.addAll(chunks(sentence));
             if(playbackSegments.isEmpty()){updateStatus("읽을 원고가 없습니다.");return;}
             playbackToken=taskToken;
             playbackIndex=0;
             lastQueuedIndex=playbackSegments.size()-1;
+            openReadingScreen();
             speakPlaybackChunk();
         }catch(RuntimeException e){
             playbackSegments.clear();
@@ -719,7 +770,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v3.0 → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v3.1 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -790,9 +841,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         String text=editor.getText().toString();
         if(text.trim().isEmpty()){updateStatus("원고를 입력하세요.");return;}
         try {
-            String comment=anchorEdit.getText().toString().trim();
-            NewsBroadcastSegments.build(text,comment);
-            AppPrefs.get(this).edit().putString("anchor_comment",comment).apply();
+            NewsBroadcastSegments.build(text);
             persistVoiceSettings();
             File inbox=new File(getFilesDir(),"inbox");
             if(!inbox.exists()&&!inbox.mkdirs())throw new IOException("원고 저장 폴더 오류");
@@ -837,7 +886,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v3.0/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v3.1/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){

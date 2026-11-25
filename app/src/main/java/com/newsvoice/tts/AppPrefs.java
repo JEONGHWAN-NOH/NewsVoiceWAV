@@ -20,7 +20,6 @@ public final class AppPrefs {
     static void setLiteVideo(Context context,boolean enabled) {
         get(context).edit().putBoolean("lite_video",enabled).apply();
     }
-    public static String anchorComment(Context c) {return get(c).getString("anchor_comment","");}
     public static String voiceName(Context c) {return get(c).getString("voice", "");}
     public static float speed(Context c) {return get(c).getFloat("speed", 0.95f);}
     public static float pitch(Context c) {return get(c).getFloat("pitch", 1.00f);}

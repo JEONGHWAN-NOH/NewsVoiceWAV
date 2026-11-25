@@ -57,12 +57,11 @@ public final class BroadcastScriptReview {
         List<String> warnings=new ArrayList<>();
         StringBuilder out=new StringBuilder();
         int corrections=0;
-        boolean articleStart=true;
         for(int i=0;i<lines.length;i++){
             String before=lines[i];
             String line=before.replace('\t',' ').replaceAll(" {2,}"," ").trim();
             if(line.equals("===")||line.equals("---")){
-                addLine(out,line);articleStart=true;
+                addLine(out,line);
                 if(!before.equals(line))corrections++;
                 continue;
             }
@@ -70,10 +69,7 @@ public final class BroadcastScriptReview {
                 addLine(out,"");
                 continue;
             }
-            // A one-line article is spoken text, not automatically a noun-ending title.
-            boolean title=articleStart && hasFollowingBodyLine(lines,i) && (!line.matches(".*[.!?]$") || line.matches("(?s).{1,80}(?:뉴스|소식)[.!?]"));
-            articleStart=false;
-            if(!title){
+            {
                 line=line.replaceAll(" +([,，。!?])","$1")
                     .replace('，',',').replace('。','.')
                     .replaceAll("(?<=[가-힣A-Za-z]),(?=[가-힣A-Za-z])",", ")
@@ -103,14 +99,6 @@ public final class BroadcastScriptReview {
     private static void addLine(StringBuilder out,String line){
         if(out.length()>0)out.append('\n');
         out.append(line);
-    }
-    private static boolean hasFollowingBodyLine(String[] lines,int index){
-        for(int n=index+1;n<lines.length;n++){
-            String next=lines[n].trim();
-            if(next.equals("===")||next.equals("---"))return false;
-            if(!next.isEmpty())return true;
-        }
-        return false;
     }
     private static void checkSentenceEndings(String line,int number,List<String> warnings){
         Matcher m=ENDING_WORD.matcher(line);
