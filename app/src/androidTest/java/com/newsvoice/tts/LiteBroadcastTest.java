@@ -16,7 +16,7 @@ public class LiteBroadcastTest extends Instrumentation {
         Bundle result=new Bundle();
         try{
             Context c=getTargetContext();
-            check(c.getPackageName().equals("com.newsvoice.tts.textlite31"),"Separate package");
+            check(c.getPackageName().equals("com.newsvoice.tts.textlite32"),"Separate package");
             try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand("pm list packages com.newsvoice.tts.textlite");
                 InputStream in=new FileInputStream(fd.getFileDescriptor())){
                 check(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).lines().anyMatch("package:com.newsvoice.tts.textlite"::equals),"v3.0 remains installed");
@@ -29,46 +29,41 @@ public class LiteBroadcastTest extends Instrumentation {
                 raw = new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             }
             List<NewsStory> all = NewsBroadcastSegments.build(raw);
-            check(all.size() > 2, "Numbered cues");
+            check(all.size() == 1 && raw.split("번째 뉴스입니다", -1).length == 13 && raw.trim().endsWith("감사합니다."), "Numbered cues");
             check(NewsBroadcastSegments.audioScript(all).replaceAll("\\s+","").equals(raw.replaceAll("\\s+","")), "Verbatim script");
-            android.app.Dialog[] preview = new android.app.Dialog[1];
-            runOnMainSync(() -> preview[0] = activity.openReadingScreen(raw));
-            waitForIdleSync();
-            runOnMainSync(() -> {
-                android.view.ViewGroup content = preview[0].findViewById(android.R.id.content);
-                check(content.getChildCount() == 1, "Single broadcast viewport");
-                android.widget.ScrollView viewport = (android.widget.ScrollView) content.getChildAt(0);
-                android.widget.TextView body = (android.widget.TextView) viewport.getChildAt(0);
-                check(body.getText().toString().equals(raw), "Screen contains exactly the script");
-                check((body.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK) == android.view.Gravity.CENTER_HORIZONTAL, "Horizontal center");
-                int firstCenter = body.getTotalPaddingTop() + body.getLayout().getLineBottom(0)/2;
-                check(Math.abs(firstCenter - viewport.getHeight()/2) < body.getLineHeight()/2, "Vertical center");
-                preview[0].dismiss();
-            });
             List<NewsStory> stories = all;
-            File voice=OpeningMusicA.ensureInstalled(c);
-            WavTools.Piece pcm=WavTools.inspect(voice);
-            long frames=pcm.dataLength/((pcm.format[2]&255)*2L);
-            List<File> waves=new ArrayList<>();List<List<Long>> cues=new ArrayList<>();
-            for(NewsStory story:stories){
-                waves.add(voice);
-                int n=NewsSentenceTimeline.split(story.audioText()).size();
-                List<Long> lengths=new ArrayList<>();
-                for(int i=0;i<n;i++)lengths.add(frames/n+(i==n-1?frames%n:0));
-                cues.add(lengths);
+            File voice=new File(c.getCacheDir(),"spoken.wav");
+            try(InputStream in=getContext().getAssets().open("spoken.wav"); OutputStream out=new FileOutputStream(voice)){
+                in.transferTo(out);
             }
+            WavTools.Piece pcm=WavTools.inspect(voice);
+            List<File> waves=Collections.singletonList(voice);
+            List<Long> lengths=new ArrayList<>();
+            try(Scanner scanner=new Scanner(getContext().getAssets().open("frames.txt"))){
+                while(scanner.hasNextLong()) lengths.add(scanner.nextLong());
+            }
+            List<List<Long>> cues=Collections.singletonList(lengths);
             File merged=new File(c.getCacheDir(),"lite-test.wav");
             WavTools.concatenate(waves,merged);
             check(WavTools.inspect(merged).dataLength==pcm.dataLength*waves.size(),"WAV preserved");
             NewsCoverMeta meta=NewsCoverMeta.now();
             NewsCardPainter.ScrollPlan plan=NewsCardPainter.prepareScroll(stories.get(0));
             Bitmap first=NewsCardPainter.renderScrolling(stories.get(0),0,2,meta,0,plan,0,null);
-            NewsCardPainter.ScrollPlan nextPlan=NewsCardPainter.prepareScroll(stories.get(1));
-            Bitmap next=NewsCardPainter.renderScrolling(stories.get(1),1,2,meta,0,nextPlan,0,null);
-            assertNoHeader(first);
-            assertNoHeader(next);
-            check(!first.sameAs(next), "Body changes");
-            next.recycle();
+            check(plan.totalCharacters==NewsSentenceTimeline.visibleLength(raw),"All 12 articles and closing");
+            long[] ends=new long[lengths.size()];
+            long frames=0;
+            for(int i=0;i<ends.length;i++){
+                frames+=lengths.get(i);
+                ends[i]=6000000+frames*1000000/22050;
+            }
+            NewsScrollMath.AudioCurve curve=plan.centeredAudioCurve(6000000,ends);
+            float previous=0;
+            for(long us=0;us<=ends[ends.length-1]+800000;us+=10000){
+                float now=curve.delayedPosition(us,700000);
+                check(now>=previous && (us>6700000 || now==0),"Continuous 700ms delayed scroll");
+                previous=now;
+            }
+            check(previous==plan.maxOffset,"Closing centered");
             export(c,first,"Lite-layout.png");first.recycle();
             for(boolean lite:new boolean[]{true,false}){
                 AppPrefs.setLiteVideo(c,lite);
@@ -82,7 +77,7 @@ public class LiteBroadcastTest extends Instrumentation {
                     check((lite?"1280":"1920").equals(r.extractMetadata(r.METADATA_KEY_VIDEO_HEIGHT)),"Height");
                     check("yes".equals(r.extractMetadata(r.METADATA_KEY_HAS_AUDIO)),"Audio track");
                     Bitmap frame=r.getFrameAtTime(7000000,r.OPTION_CLOSEST);
-                    check(frame!=null,"Decoded frame");assertNoHeader(frame);
+                    check(frame!=null,"Decoded frame");
                     boolean ink=false;
                     for(int y=frame.getHeight()*4/10;y<frame.getHeight()*6/10;y+=2)
                         for(int x=0;x<frame.getWidth();x+=3)
@@ -117,3 +112,4 @@ public class LiteBroadcastTest extends Instrumentation {
         try(OutputStream out=c.getContentResolver().openOutputStream(uri)){check(b.compress(Bitmap.CompressFormat.PNG,100,out),"Test preview");}
     }
 }
+

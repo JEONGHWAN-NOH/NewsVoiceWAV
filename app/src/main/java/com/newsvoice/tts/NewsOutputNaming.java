@@ -14,7 +14,7 @@ public final class NewsOutputNaming {
     private static final DateTimeFormatter DATE=DateTimeFormatter.ofPattern("yyyy-MM-dd",Locale.ROOT);
     // Seconds avoid most duplicate filenames while keeping the clock readable.
     private static final DateTimeFormatter TIME=DateTimeFormatter.ofPattern("HHmmss",Locale.ROOT);
-    public static final String DIRECTORY_NAME="1. 필리핀뉴스 v3.1";
+    public static final String DIRECTORY_NAME="1. 필리핀뉴스 v3.2";
 
     public static final class Names {
         public final String dateFolder,base;
@@ -46,3 +46,4 @@ public final class NewsOutputNaming {
         return DATE.format(fallback.atZone(MANILA));
     }
 }
+

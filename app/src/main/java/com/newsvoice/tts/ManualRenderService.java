@@ -80,8 +80,9 @@ public final class ManualRenderService extends Service {
             AppPrefs.status(context,"전경 제작 시작 실패: "+e.getClass().getSimpleName()+" - "+e.getMessage());
             busy.set(false);stopSelfResult(startId);return START_NOT_STICKY;
         }
+        boolean preview=intent.getBooleanExtra("preview",false);
         executor.execute(()->{
-            try{render(file);}
+            try{render(file,preview);}
             catch(Exception e){
                 String last=AppPrefs.get(context).getString("status","시작");
                 AppPrefs.get(context).edit().putBoolean("render_active",false).putLong("render_eta_ms",-1).apply();
@@ -96,7 +97,7 @@ public final class ManualRenderService extends Service {
         });
         return START_NOT_STICKY;
     }
-    private void render(String filename)throws Exception{
+    private void render(String filename,boolean preview)throws Exception{
         if(filename==null||!filename.matches("news_[a-zA-Z0-9_-]{1,80}\\.txt"))
             throw new IOException("원고 파일 이름이 잘못됐습니다.");
         File input=new File(new File(context.getFilesDir(),"inbox"),filename);
@@ -112,12 +113,12 @@ public final class ManualRenderService extends Service {
         File wav=null,mp4=null;
         boolean success=false;
         try{
-            if(!AppPrefs.videoEnabled(context)){
+            if(!preview && !AppPrefs.videoEnabled(context)){
                 progress("WAV 음성 생성 중",10);
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                 DownloadsPublisher.publish(context,wav,names.wav());
                 progress("WAV 저장 완료",100);
-                report("저장 완료: 다운로드/1. 필리핀뉴스 v3.1/"+names.dateFolder+"/"+names.wav());
+                report("저장 완료: 다운로드/1. 필리핀뉴스 v3.2/"+names.dateFolder+"/"+names.wav());
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
@@ -153,7 +154,8 @@ public final class ManualRenderService extends Service {
             Uri saved=DownloadsPublisher.publish(context,mp4,names.mp4());
             AppPrefs.get(context).edit().putString("last_mp4_uri",saved.toString())
                 .putString("last_mp4_name",names.mp4()).apply();
-            progress("저장 완료: 다운로드/1. 필리핀뉴스 v3.1/"+names.dateFolder+" → MP4 · WAV",100);
+            if(preview) AppPrefs.get(context).edit().putString("finished_preview",filename).apply();
+            progress("저장 완료: 다운로드/1. 필리핀뉴스 v3.2/"+names.dateFolder+" → MP4 · WAV",100);
             success=true;
         }finally{
             for(File f:parts)f.delete();
@@ -250,3 +252,4 @@ public final class ManualRenderService extends Service {
     @Override public IBinder onBind(Intent intent){return null;}
     @Override public void onDestroy(){executor.shutdownNow();super.onDestroy();}
 }
+

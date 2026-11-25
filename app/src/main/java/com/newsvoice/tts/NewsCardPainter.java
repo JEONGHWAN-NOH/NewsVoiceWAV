@@ -161,11 +161,13 @@ public final class NewsCardPainter {
         c.drawRect(0,0,WIDTH,HEIGHT,background);
         Paint body=p(Color.WHITE,SCROLL_FONT,true);
         float centerBaseline=(HEIGHT-body.ascent()-body.descent())/2f;
-        for(int row=0;row<scroll.lines.size();row++){
+        int first=Math.max(0,(int)((scrollPixels-centerBaseline-body.descent())/SCROLL_STEP));
+        int end=Math.min(scroll.lines.size(),2+(int)((HEIGHT+scrollPixels-centerBaseline-body.ascent())/SCROLL_STEP));
+        for(int row=first;row<end;row++){
             float y=centerBaseline+row*SCROLL_STEP-scrollPixels;
             if(y+body.descent()<0 || y+body.ascent()>HEIGHT)continue;
             String text=scroll.lines.get(row);
-            drawProseLine(c,text,(WIDTH-body.measureText(text))/2f,y,body);
+            c.drawText(text,(WIDTH-body.measureText(text))/2f,y,body);
         }
         return bitmap;
     }
@@ -201,3 +203,4 @@ public final class NewsCardPainter {
         return bitmap;
     }
 }
+

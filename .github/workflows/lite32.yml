@@ -1,0 +1,78 @@
+name: Build and verify v3.2
+on:
+  push:
+    branches: [feature/newsvoice-lite-v3.2]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  lite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify preserved audio and article algorithms
+        run: |
+          mkdir -p /tmp/lite-tests
+          javac -encoding UTF-8 -d /tmp/lite-tests app/src/main/java/com/newsvoice/tts/{WavTools,NewsSentenceTimeline,NewsScrollMath}.java tests/{WavToolsTest,NewsSentenceTimelineTest,NewsScrollMathTest}.java
+          for t in WavToolsTest NewsSentenceTimelineTest NewsScrollMathTest; do java -cp /tmp/lite-tests "$t"; done
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Generate offline spoken Korean fixture for instrumentation only
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng
+          python3 tests/korean_fixture.py
+      - name: Build installable APK and device tests
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Preserve baseline APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fL 'https://github.com/JEONGHWAN-NOH/NewsVoiceWAV/releases/download/newsvoice-lite-v3.0-45559308953-1/NewsVoice-Lite-v3.0.apk' -o baseline.apk
+          tag=$(gh release list --limit 100 --json tagName --jq '[.[] | select(.tagName|startswith("newsvoice-lite-v3.1-"))][0].tagName')
+          gh release download "$tag" --pattern 'NewsVoice-Lite-v3.1.apk'
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify parallel install and WAV MP4 on Android 35
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: |
+            adb install baseline.apk
+            adb install NewsVoice-Lite-v3.1.apk
+            adb install app/build/outputs/apk/debug/NewsVoice-Lite-v3.2-debug.apk
+            adb install "$(find app/build/outputs/apk/androidTest -name '*.apk' -print -quit)"
+            adb shell am instrument -w com.newsvoice.tts.textlite32.test/com.newsvoice.tts.LiteBroadcastTest | tee instrumentation.txt
+            grep -F 'lite_tests=passed' instrumentation.txt
+            adb pull /sdcard/Download/Lite-layout.png
+            adb pull /sdcard/Download/Lite-720.png
+            adb pull /sdcard/Download/Lite-1080.png
+            adb logcat -d -s NewsVoiceLite:I > video-sizes.txt
+      - name: Verify signature and publish tested preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/NewsVoice-Lite-v3.2-debug.apk NewsVoice-Lite-v3.2.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs NewsVoice-Lite-v3.2.apk > signature.txt
+          sha256sum baseline.apk NewsVoice-Lite-v3.2.apk > SHA256SUMS.txt
+          stat -c '%n %s bytes' baseline.apk NewsVoice-Lite-v3.1.apk NewsVoice-Lite-v3.2.apk > apk-sizes.txt
+          git archive --format=zip --output=NewsVoice-Lite-v3.2-source.zip HEAD app build.gradle settings.gradle gradle.properties tests .github/workflows/lite32.yml
+          gh release create "newsvoice-lite-v3.2-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoice-Lite-v3.2-source.zip NewsVoice-Lite-v3.2.apk Lite-layout.png Lite-720.png Lite-1080.png instrumentation.txt video-sizes.txt signature.txt SHA256SUMS.txt apk-sizes.txt --target "$GITHUB_SHA" --prerelease --title 'NewsVoice WAV v3.2 · 텍스트 라디오 뉴스' --notes 'v3.0·v3.1 병행 설치, 전체 원고 연속 스크롤. Android 35 에뮬레이터 WAV/MP4 검증. 디버그 서명 시험판이며 실제 Galaxy 한국어 TTS·청취 품질은 미검증.'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lite32-build-evidence
+          path: |
+            app/build/outputs/apk/
+            *.txt
+            NewsVoice-Lite-v3.2-source.zip
+            Lite-*.png

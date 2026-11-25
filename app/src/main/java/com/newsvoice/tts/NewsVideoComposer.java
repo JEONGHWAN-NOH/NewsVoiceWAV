@@ -147,7 +147,7 @@ public final class NewsVideoComposer {
     private static Timeline makeTimeline(Context context,List<NewsStory> stories,
                                          List<File> waves,List<List<Long>> sentenceFrames,
                                          File pcm) throws IOException {
-        if(stories.size()!=waves.size()||stories.isEmpty()||
+        if(stories.size()!=waves.size()||stories.size()!=1||
            sentenceFrames.size()!=waves.size())throw new IOException("뉴스 카드와 WAV의 개수가 일치하지 않습니다.");
         List<WavTools.Piece> pieces=new ArrayList<>();byte[] expected=null;
         for(File wav:waves){
@@ -167,8 +167,6 @@ public final class NewsVideoComposer {
             frameCount+=introFrames;
             for(int i=0;i<pieces.size();i++){
                 long start=toUs(frameCount,rate);
-                long gapFrames=rate*3L/4; // 0.75s pre-roll leaves 0.05s before narration after a 0.7s card handoff.
-                writeSilence(out,gapFrames*frameBytes);frameCount+=gapFrames;
                 WavTools.Piece part=pieces.get(i);
                 if(part.dataLength%frameBytes!=0)throw new IOException("WAV 데이터의 샘플 경계가 맞지 않습니다.");
                 List<Long> lengths=sentenceFrames.get(i);
@@ -202,24 +200,23 @@ public final class NewsVideoComposer {
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
         Quality quality=AppPrefs.liteVideo(context)?Quality.LITE:Quality.FULL;
-        Bitmap cover=null;
+
         try {
             Timeline timeline=makeTimeline(context,stories,waves,sentenceFrames,raw);
-            if(timeline.endUs>12L*60*US_PER_S)throw new IOException("한 영상은 12분 이내 원고를 사용하세요.");
             progress.message("WAV 음성을 AAC로 변환 중");
             encodeAudio(raw,aac,timeline.sampleRate,timeline.channels,quality);
             progress.message("뉴스 카드 영상 렌더링 중");
             NewsCoverMeta coverMeta=NewsCoverMeta.now();
             int articleCount=stories.get(0).articleCount>0?stories.get(0).articleCount:stories.size();
-            cover=NewsCardPainter.render(context,null,0,articleCount,0,coverMeta);
-            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,cover,quality);
+
+            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,quality);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
             progress.message("MP4 생성 완료");
             return output;
         } finally {
-            if(cover!=null)cover.recycle();
+
             File[] files=folder.listFiles();if(files!=null)for(File f:files)f.delete();folder.delete();
         }
     }
@@ -274,7 +271,7 @@ public final class NewsVideoComposer {
     }
     private static void encodeVideo(Context context,File output,Timeline t,int articleCount,
                                     NewsCoverMeta meta,Progress progress,
-                                    Bitmap cover,Quality quality)throws Exception {
+                                    Quality quality)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
         Bitmap reusableSlide=null;
@@ -300,69 +297,19 @@ public final class NewsVideoComposer {
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
             int frames=(int)((t.endUs*quality.fps+US_PER_S-1)/US_PER_S);
             reusableSlide=Bitmap.createBitmap(VIDEO_WIDTH,VIDEO_HEIGHT,Bitmap.Config.ARGB_8888);
-            int previousCard=-10;float previousScroll=Float.NaN;
-            float previousProgress=Float.NaN;
-            long firstNews=-1,lastNews=-1;
-            for(Span span:t.spans)if(span.story.kind==NewsStory.NEWS){
-                if(firstNews<0)firstNews=span.audioStartUs;
-                lastNews=span.endUs;
-            }
-            if(firstNews<0||lastNews<=firstNews)throw new IOException("영상의 뉴스 구간이 없습니다.");
-            NewsCardPainter.ScrollPlan scrollPlan=null;
-            NewsScrollMath.AudioCurve scrollCurve=null;
-            long cardStart=0,cardEnd=0;
+            Span broadcast=t.spans.get(0);
+            NewsCardPainter.ScrollPlan plan=NewsCardPainter.prepareScroll(broadcast.story);
+            NewsScrollMath.AudioCurve curve=plan.centeredAudioCurve(broadcast.audioStartUs,broadcast.sentenceEndUs);
+            float previous=Float.NaN;
             for(int f=0;f<frames;f++) {
                 long us=f*US_PER_S/quality.fps;
-                int which;
-                // Four-second cover. The first card appears during the final two seconds of music.
-                if(us<4L*US_PER_S)which=-2;
-                else {
-                    which=0;
-                    // Advance title and body together at the start of the incoming WAV.
-                    for(int i=0;i<t.spans.size();i++)
-                        if(us>=t.spans.get(i).audioStartUs)which=i;
+                float offset=curve.delayedPosition(us,SCROLL_DELAY_US);
+                if(Float.compare(offset,previous)!=0){
+                    NewsCardPainter.renderScrolling(broadcast.story,0,1,meta,-1,plan,offset,reusableSlide);
+                    renderer.upload(reusableSlide);
+                    previous=offset;
                 }
-                Span current=which>=0?t.spans.get(which):null;
-                int activeSentence=current!=null?current.activeSentence(us):-1;
-                if(which!=previousCard){
-                    if(which==-2) {cardStart=0;cardEnd=4L*US_PER_S;}
-                    else {
-                        cardStart=current.startUs;
-                        cardEnd=which+1<t.spans.size()?t.spans.get(which+1).startUs:t.endUs;
-                    }
-                    // Prepare text layout and voice-aligned smoothing once per article.
-                    scrollPlan=current!=null?NewsCardPainter.prepareScroll(current.story):null;
-                    scrollCurve=current!=null?scrollPlan.centeredAudioCurve(
-                        current.audioStartUs,current.sentenceEndUs):null;
-                }
-                // Measured sentence WAV lengths plus actual wrapped-row positions
-                // drive variable scroll speeds; the focused spoken row stays near center.
-                // Preserve the approved 700ms voice-first lag and smooth transitions.
-                float scrollPixels=scrollCurve==null?0f:
-                    scrollCurve.delayedPosition(us,SCROLL_DELAY_US);
-                float totalProgress=Math.max(0f,Math.min(1f,
-                    (float)(us-firstNews)/(lastNews-firstNews)));
-                if(current!=null&&current.story.kind!=NewsStory.NEWS&&
-                   current.story.kind!=NewsStory.OPENING)totalProgress=1f;
-                if(which!=previousCard || Float.isNaN(previousScroll) ||
-                   Math.abs(scrollPixels-previousScroll)>0.0001f ||
-                   Float.isNaN(previousProgress) ||
-                   Math.abs(totalProgress-previousProgress)>=0.002f){
-                    Bitmap card=current!=null?
-                        NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
-                            articleCount,meta,activeSentence,scrollPlan,scrollPixels,
-                            totalProgress,reusableSlide):
-                        cover;
-                    renderer.upload(card);
-                    if(card!=reusableSlide && card!=cover)card.recycle();
-                    previousCard=which;
-                    previousScroll=scrollPixels;
-                    previousProgress=totalProgress;
-                }
-                float motion=cardEnd<=cardStart?1f:(float)(us-cardStart)/(cardEnd-cardStart);
-                // Keep news text stable and sharp during smooth upward scroll.
-                float zoom=1.0f; // Stable cover/thumbnail and legible scrolling text.
-                renderer.draw(us*1000L,zoom);
+                renderer.draw(us*1000L,1f);
                 int newTrack=drainVideo(codec,mux,track,info,false);
                 if(newTrack>=0){track=newTrack;muxStarted=true;}
                 if(f%Math.max(1,quality.fps*8)==0)progress.message("뉴스 화면 렌더링 " +(100L*f/Math.max(1,frames))+"%");
@@ -443,3 +390,4 @@ public final class NewsVideoComposer {
         buffer.position(0);buffer.limit(n);mux.writeSampleData(index,buffer,info);
     }
 }
+
