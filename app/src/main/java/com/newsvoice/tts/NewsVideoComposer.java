@@ -198,14 +198,6 @@ public final class NewsVideoComposer {
     }
     public static File create(Context context,List<NewsStory> stories,List<File> waves,
                               List<List<Long>> sentenceFrames,File output,Progress progress)throws Exception {
-        return create(context,stories,waves,sentenceFrames,output,progress,
-            java.util.Collections.emptyList());
-    }
-    public static File create(Context context,List<NewsStory> stories,List<File> waves,
-                              List<List<Long>> sentenceFrames,File output,Progress progress,
-                              List<NewsImageFetcher.Photo> photos)throws Exception {
-        if(!photos.isEmpty()&&photos.size()!=stories.size())
-            throw new IOException("뉴스 화면과 사진 목록의 개수가 일치하지 않습니다.");
         File folder=new File(context.getCacheDir(),"video_work_"+System.nanoTime());
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
@@ -220,13 +212,11 @@ public final class NewsVideoComposer {
             NewsCoverMeta coverMeta=NewsCoverMeta.now();
             int articleCount=stories.get(0).articleCount>0?stories.get(0).articleCount:stories.size();
             cover=NewsCardPainter.render(context,null,0,articleCount,0,coverMeta);
-            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,photos,cover,quality);
+            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,cover,quality);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
-            // Save a JPEG with the same cover pixels and date as the video's first frame.
-            NewsCoverExporter.save(cover,output);
-            progress.message("MP4와 카카오톡용 표지 JPG 생성 완료");
+            progress.message("MP4 생성 완료");
             return output;
         } finally {
             if(cover!=null)cover.recycle();
@@ -284,7 +274,7 @@ public final class NewsVideoComposer {
     }
     private static void encodeVideo(Context context,File output,Timeline t,int articleCount,
                                     NewsCoverMeta meta,Progress progress,
-                                    List<NewsImageFetcher.Photo> photos,Bitmap cover,Quality quality)throws Exception {
+                                    Bitmap cover,Quality quality)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
         Bitmap reusableSlide=null;
@@ -328,7 +318,7 @@ public final class NewsVideoComposer {
                 if(us<4L*US_PER_S)which=-2;
                 else {
                     which=0;
-                    // Advance title, photo and body together at the start of the incoming WAV.
+                    // Advance title and body together at the start of the incoming WAV.
                     for(int i=0;i<t.spans.size();i++)
                         if(us>=t.spans.get(i).audioStartUs)which=i;
                 }
@@ -358,12 +348,10 @@ public final class NewsVideoComposer {
                    Math.abs(scrollPixels-previousScroll)>0.0001f ||
                    Float.isNaN(previousProgress) ||
                    Math.abs(totalProgress-previousProgress)>=0.002f){
-                    NewsImageFetcher.Photo photo=which>=0&&which<photos.size()?
-                        photos.get(which):null;
                     Bitmap card=current!=null?
                         NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
                             articleCount,meta,activeSentence,scrollPlan,scrollPixels,
-                            photo,totalProgress,reusableSlide):
+                            totalProgress,reusableSlide):
                         cover;
                     renderer.upload(card);
                     if(card!=reusableSlide && card!=cover)card.recycle();
