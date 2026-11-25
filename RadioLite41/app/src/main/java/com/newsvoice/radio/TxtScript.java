@@ -15,7 +15,7 @@ final class TxtScript {
         if(content.indexOf('\u0000')>=0)throw new IllegalArgumentException("Invalid text encoding");
         List<String> rows=new ArrayList<>();
         for(String line:content.replace("\r","").split("\\n+")){
-            for(String p:line.trim().split("(?<=[.!?������])\\s+")){
+            for(String p:line.trim().split("(?<=[.!?。！？])\\s+")){
                 String t=p.trim();while(t.length()>250){int n=t.lastIndexOf(' ',250);if(n<30)n=250;rows.add(t.substring(0,n).trim());t=t.substring(n).trim();}if(!t.isEmpty())rows.add(t);
             }
         }
