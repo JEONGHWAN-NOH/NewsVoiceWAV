@@ -25,7 +25,7 @@ public class RadioService extends Service {
     int duration(){return ready()?player.getDuration():0;}
     void seek(int at){if(ready()) player.seekTo(at);}
     void speed(float rate){if(ready()){boolean was=playing(); player.setPlaybackParams(new PlaybackParams().setSpeed(rate).setPitch(1)); if(!was)player.pause();}}
-    void toggle(){if(!ready())return; if(playing()){player.pause();stopForeground(STOP_FOREGROUND_REMOVE);}else{startService(new Intent(this,RadioService.class));startForeground(4,new Notification.Builder(this,"radio").setSmallIcon(android.R.drawable.ic_media_play).setContentTitle("NewsVoice Radio Lite").setContentText("���� ��� ��").setContentIntent(PendingIntent.getActivity(this,0,new Intent(this,MainActivity.class),PendingIntent.FLAG_IMMUTABLE)).setOngoing(true).build());player.start();}}
+    void toggle(){if(!ready())return; if(playing()){player.pause();stopForeground(STOP_FOREGROUND_REMOVE);}else{startService(new Intent(this,RadioService.class));startForeground(4,new Notification.Builder(this,"radio").setSmallIcon(android.R.drawable.ic_media_play).setContentTitle("NewsVoice Radio Lite").setContentText("방송 재생 중").setContentIntent(PendingIntent.getActivity(this,0,new Intent(this,MainActivity.class),PendingIntent.FLAG_IMMUTABLE)).setOngoing(true).build());player.start();}}
     public int onStartCommand(Intent i,int f,int id){return START_NOT_STICKY;}
     public void onDestroy(){if(player!=null)player.release();super.onDestroy();}
 }
