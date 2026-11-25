@@ -114,7 +114,7 @@ public final class NewsVoiceWorker extends Worker {
                     saveDownloads(made.wav,names.wav());
                     AppPrefs.status(context,"MP4 다운로드 폴더에 저장 중...");
                     saveDownloads(made.mp4,names.mp4());
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.42 Lite → "+names.dateFolder+" → WAV · MP4 · JPG");
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.42 Lite → "+names.dateFolder+" → WAV · MP4");
                     made.wav.delete();made.mp4.delete();
                 }else{
                     List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context),false);

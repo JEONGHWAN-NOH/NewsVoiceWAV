@@ -17,7 +17,10 @@ public class LiteBroadcastTest extends Instrumentation {
         try{
             Context c=getTargetContext();
             check(c.getPackageName().equals("com.newsvoice.tts.lite"),"Separate package");
-            c.getPackageManager().getPackageInfo("com.newsvoice.tts.stable.lite541",0);
+            try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand("pm list packages com.newsvoice.tts.stable.lite541");
+                InputStream in=new FileInputStream(fd.getFileDescriptor())){
+                check(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).contains("package:com.newsvoice.tts.stable.lite541"),"v5.41 remains installed");
+            }
             MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
             runOnMainSync(()->checkNoImages(activity.getWindow().getDecorView()));
@@ -40,6 +43,10 @@ public class LiteBroadcastTest extends Instrumentation {
             NewsCoverMeta meta=NewsCoverMeta.now();
             NewsCardPainter.ScrollPlan plan=NewsCardPainter.prepareScroll(stories.get(0));
             Bitmap first=NewsCardPainter.renderScrolling(stories.get(0),0,2,meta,0,plan,0,null);
+            NewsCardPainter.ScrollPlan nextPlan=NewsCardPainter.prepareScroll(stories.get(1));
+            Bitmap next=NewsCardPainter.renderScrolling(stories.get(1),1,2,meta,0,nextPlan,0,null);
+            check(!Bitmap.createBitmap(first,75,220,930,340).sameAs(Bitmap.createBitmap(next,75,220,930,340)),"Headlines change");
+            next.recycle();
             export(c,first,"Lite-layout.png");first.recycle();
             for(boolean lite:new boolean[]{true,false}){
                 AppPrefs.setLiteVideo(c,lite);
