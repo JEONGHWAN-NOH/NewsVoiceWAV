@@ -22,7 +22,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Install Android SDK 35
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -1)"
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
       - run: gradle -p RadioLite --no-daemon :app:assembleDebug
       - name: Verify APK and publish install file
         env:
