@@ -1,0 +1,41 @@
+name: Build NewsVoice Radio Lite v4.0
+on:
+  push:
+    branches: [feature/radio-lite-v4.0]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Test SRT parser
+        run: |
+          mkdir /tmp/radio-tests
+          javac -encoding UTF-8 -d /tmp/radio-tests RadioLite/app/src/main/java/com/newsvoice/radio/Captions.java RadioLite/CaptionsTest.java
+          java -cp /tmp/radio-tests com.newsvoice.radio.CaptionsTest
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - run: gradle -p RadioLite --no-daemon :app:assembleDebug
+      - name: Verify APK and publish install file
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp RadioLite/app/build/outputs/apk/debug/app-debug.apk NewsVoice-Radio-Lite-v4.0.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs NewsVoice-Radio-Lite-v4.0.apk
+          sha256sum NewsVoice-Radio-Lite-v4.0.apk > SHA256SUMS.txt
+          stat -c '%n %s bytes' NewsVoice-Radio-Lite-v4.0.apk
+          gh release create "radio-v4.0-${GITHUB_RUN_ID}" NewsVoice-Radio-Lite-v4.0.apk SHA256SUMS.txt --target "$GITHUB_SHA" --prerelease --title 'NewsVoice Radio Lite v4.0 test APK' --notes 'Independent Android install. MP3/SRT playback; test build, device verification pending.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NewsVoice-Radio-Lite-v4.0
+          path: |
+            NewsVoice-Radio-Lite-v4.0.apk
+            SHA256SUMS.txt
