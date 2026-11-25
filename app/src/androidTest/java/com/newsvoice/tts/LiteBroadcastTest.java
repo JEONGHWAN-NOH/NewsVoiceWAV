@@ -19,7 +19,9 @@ public class LiteBroadcastTest extends Instrumentation {
             check(c.getPackageName().equals("com.newsvoice.tts.textlite32"),"Separate package");
             try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand("pm list packages com.newsvoice.tts.textlite");
                 InputStream in=new FileInputStream(fd.getFileDescriptor())){
-                check(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).lines().anyMatch("package:com.newsvoice.tts.textlite"::equals),"v3.0 remains installed");
+                String packages=new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);
+                for(String pkg:new String[]{"textlite","textlite31","textlite32"})
+                    check(packages.lines().anyMatch(("package:com.newsvoice.tts."+pkg)::equals),"Parallel installation "+pkg);
             }
             MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -83,6 +85,28 @@ public class LiteBroadcastTest extends Instrumentation {
                         for(int x=0;x<frame.getWidth();x+=3)
                             ink |= android.graphics.Color.green(frame.getPixel(x,y))>150;
                     check(ink,"Decoded body at center");export(c,frame,lite?"Lite-720.png":"Lite-1080.png");frame.recycle();
+                    Bitmap last=r.getFrameAtTime(ends[ends.length-1]+740000,r.OPTION_CLOSEST);
+                    check(last!=null,"Decoded closing frame");
+                    Bitmap expected=NewsCardPainter.renderScrolling(stories.get(0),0,1,meta,-1,plan,plan.maxOffset,null);
+                    double overlap=0,union=0;
+                    for(int y=0;y<last.getHeight();y+=4) for(int x=0;x<last.getWidth();x+=4){
+                        boolean actual=android.graphics.Color.green(last.getPixel(x,y))>140;
+                        boolean wanted=android.graphics.Color.green(expected.getPixel(x*expected.getWidth()/last.getWidth(),y*expected.getHeight()/last.getHeight()))>140;
+                        if(actual && wanted) overlap++;
+                        if(actual || wanted) union++;
+                    }
+                    check(union>0 && overlap/union>0.65,"Decoded final greeting matches layout");
+                    last.recycle();expected.recycle();
+                    android.widget.VideoView[] player=new android.widget.VideoView[1];
+                    runOnMainSync(()->player[0]=activity.showPreview(android.net.Uri.fromFile(video)));
+                    long until=android.os.SystemClock.elapsedRealtime()+15000;
+                    java.util.concurrent.atomic.AtomicInteger position=new java.util.concurrent.atomic.AtomicInteger();
+                    while(android.os.SystemClock.elapsedRealtime()<until && position.get()<250){
+                        android.os.SystemClock.sleep(100);
+                        runOnMainSync(()->position.set(player[0].getCurrentPosition()));
+                    }
+                    check(position.get()>=250,"App preview plays exported MP4");
+                    runOnMainSync(()->player[0].stopPlayback());
                     android.util.Log.i("NewsVoiceLite",(lite?"720p":"1080p")+" bytes="+video.length());
                 }finally{r.release();}
             }

@@ -314,7 +314,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         body.addView(text("05  뉴스 영상 공유",17,true),lp(-1,-2,18));
         Button shareVideo=btn("뉴스 영상 MP4 공유",0xffd8edf6,DARK);
         body.addView(shareVideo,lp(-1,49,8));
-        shareVideo.setOnClickListener(v->shareLast());
+        shareVideo.setOnClickListener(v->shareLast(true));
+        Button shareWav=btn("뉴스 음성 WAV 공유",0xffd8edf6,DARK);
+        body.addView(shareWav,lp(-1,49,8));
+        shareWav.setOnClickListener(v->shareLast(false));
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
             save.setText(isChecked?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장");
@@ -566,15 +569,15 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         AppPrefs.get(this).edit().putString("engine",currentEngine).putString("voice",voice)
             .putFloat("speed",rate()).putFloat("pitch",pitch()).putInt("preset",selectedPreset).apply();
     }
-    private void shareLast(){
-        String raw=AppPrefs.get(this).getString("last_mp4_uri", "");
-        if(raw.isEmpty()){updateStatus("먼저 MP4를 제작하세요.");return;}
+    private void shareLast(boolean video){
+        String raw=AppPrefs.get(this).getString(video?"last_mp4_uri":"last_wav_uri", "");
+        if(raw.isEmpty()){updateStatus(video?"먼저 MP4를 제작하세요.":"먼저 WAV를 제작하세요.");return;}
         try{
             Intent send=new Intent(Intent.ACTION_SEND);
-            send.setType("video/mp4");
+            send.setType(video?"video/mp4":"audio/wav");
             send.putExtra(Intent.EXTRA_STREAM,Uri.parse(raw));
             send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(send,"뉴스 동영상 공유"));
+            startActivity(Intent.createChooser(send,video?"뉴스 영상 공유":"뉴스 음성 공유"));
         }catch(Exception e){updateStatus("영상 공유 실패: "+e.getMessage());}
     }
     private void openLastVideo(){
@@ -583,15 +586,28 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             updateStatus("저장된 MP4 기록이 없습니다. 아래 제작 상태를 확인하세요.");
             return;
         }
-        try {
-            Intent view=new Intent(Intent.ACTION_VIEW);
-            view.setDataAndType(Uri.parse(value),"video/mp4");
-            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(view);
-        }catch(ActivityNotFoundException | SecurityException ex){
-            updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v3.2 → 날짜별 폴더에서 확인하세요.");
-        }
+        showPreview(Uri.parse(value));
+    }
+    android.widget.VideoView showPreview(Uri uri){
+        android.app.Dialog dialog=new android.app.Dialog(this,android.R.style.Theme_Material_NoActionBar_Fullscreen);
+        android.widget.FrameLayout frame=new android.widget.FrameLayout(this);
+        frame.setBackgroundColor(Color.BLACK);
+        android.widget.VideoView video=new android.widget.VideoView(this);
+        frame.addView(video,new android.widget.FrameLayout.LayoutParams(-1,-1,android.view.Gravity.CENTER));
+        android.widget.MediaController controls=new android.widget.MediaController(this);
+        video.setMediaController(controls);
+        dialog.setContentView(frame);
+        dialog.setOnDismissListener(ignored->video.stopPlayback());
+        video.setOnErrorListener((player,what,extra)->{
+            dialog.dismiss();
+            updateStatus("영상을 재생할 수 없습니다. 저장된 MP4를 확인하세요.");
+            return true;
+        });
+        video.setOnCompletionListener(player->dialog.dismiss());
+        dialog.show();
+        video.setVideoURI(uri);
+        video.start();
+        return video;
     }
     private String reviewEditorScript(){
         BroadcastScriptReview.Result result=BroadcastScriptReview.review(editor.getText().toString());

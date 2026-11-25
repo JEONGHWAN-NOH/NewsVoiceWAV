@@ -296,9 +296,6 @@ public final class NewsVoiceWorker extends Worker {
         if(filename.endsWith(".mp4"))
             AppPrefs.get(context).edit().putString("last_mp4_uri",uri.toString())
                 .putString("last_mp4_name",filename).apply();
-        if(filename.endsWith(".jpg"))
-            AppPrefs.get(context).edit().putString("last_cover_uri",uri.toString())
-                .putString("last_cover_name",filename).apply();
         AppPrefs.status(context,"다운로드에 저장됨: "+filename);
         return uri;
     }

@@ -58,9 +58,12 @@ public final class DownloadsPublisher {
             if(resolver.update(entry,values,null,null)!=1)
                 throw new IOException("다운로드 완료 상태를 기록하지 못했습니다.");
             complete=true;
+            if(filename.endsWith(".wav")) AppPrefs.get(context).edit()
+                .putString("last_wav_uri",entry.toString()).apply();
             return entry;
         }finally {
             if(!complete)resolver.delete(entry,null,null);
         }
     }
 }
+
