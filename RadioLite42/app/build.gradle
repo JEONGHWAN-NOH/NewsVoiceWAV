@@ -1,0 +1,15 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.newsvoice.radio'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.newsvoice.radio.v42'
+        minSdk 29
+        targetSdk 34
+        versionCode 420
+        versionName '4.2'
+        testInstrumentationRunner 'com.newsvoice.radio.VideoSmokeTest'
+    }
+    buildTypes { release { minifyEnabled true; shrinkResources true; proguardFiles getDefaultProguardFile('proguard-android-optimize.txt') } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
