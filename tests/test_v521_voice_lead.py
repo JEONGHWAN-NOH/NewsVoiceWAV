@@ -21,22 +21,22 @@ assert 'scrollCurve.delayedPosition(us,SCROLL_DELAY_US)' in video
 assert 'public float delayedPosition(long playbackUs,long delayUs)' in math
 assert 'return position(queryUs);' in math
 assert 'if(delayUs<0)' in math
-assert 'i==0?0L:SCROLL_DELAY_US' in video
+assert 'us>=t.spans.get(i).audioStartUs' in video
 assert 'current.audioStartUs,current.sentenceEndUs):null;' in video
 assert 'FPS=30;' in video
-assert 'if(us<6L*US_PER_S)which=-2;' in video
+assert 'if(us<4L*US_PER_S)which=-2;' in video
 assert '56px·줄 간격 84px' in ui
 assert '0.7초(700ms)' in ui
 assert 'Paint highlight=' not in p
 assert 'Paint underline=' not in p
 assert 'MUSIC_REVISION=2' in music
-assert 'NewsCoverExporter.save(context,coverMeta,' in video
+assert 'NewsCoverExporter.save(cover,output)' in video
 assert 'Bitmap.CompressFormat.JPEG,95,stream' in poster
 assert 'shareLast(true)' in ui and 'shareLast(false)' in ui
 assert 'NewsCoverExporter.coverFile(' in worker
 assert 'NewsCoverExporter.coverFile(' in manual
-assert "def releaseVersion = '5.31'" in gradle
+assert "def releaseVersion = '5.41'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert 'versionCode 37' in gradle
-assert 'NewsVoiceWAV-v5.31-release-unsigned' in workflow
+assert 'versionCode 49' in gradle
+assert 'NewsVoiceWAV-v5.41-release-unsigned' in workflow
 print("PASS: 56px body, 84px leading, measured WAV alignment with 700ms scroll lag and complete final card")

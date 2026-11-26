@@ -7,9 +7,9 @@ painter=Path("app/src/main/java/com/newsvoice/tts/NewsCardPainter.java").read_te
 ui=Path("app/src/main/java/com/newsvoice/tts/MainActivity.java").read_text(encoding="utf-8")
 assert "String spokenText()" in story
 assert "return pos<0?\"\":text.substring(pos+1).trim();" in story
-assert "result.append(s.spokenText());" in sections
-assert 'synthesize(pages.get(i).spokenText()' in manual
-assert 'synthesize(pages.get(i).spokenText()' in worker
+assert "result.append(s.audioText());" in sections
+assert 'synthesize(pages.get(i).audioText()' in manual
+assert 'synthesize(pages.get(i).audioText()' in worker
 assert "return story.spokenText();" in painter
 assert "A안: 아나운서 대본만" in ui
 assert 'synthesize(pages.get(i).narration' not in manual

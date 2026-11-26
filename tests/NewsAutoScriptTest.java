@@ -40,6 +40,20 @@ public final class NewsAutoScriptTest {
             +"다음은 한국과 필리핀 관련 특별뉴스입니다.\n양국은 협력했습니다.";
         check(NewsBroadcastSegments.newsCount(
             NewsBroadcastSegments.build(special,""))==3,"special Korean news counts in progress");
+        String one="안녕하십니까. 오늘의 주요 뉴스를 전해드립니다.\n첫 번째 소식입니다.\n필리핀 금융시장에서 경기 둔화 우려가 이어지고 있습니다.";
+        check(NewsAutoScript.isAutoFormat(one),"single story auto detected");
+        List<NewsStory> oneSections=NewsBroadcastSegments.build(one,"");
+        check(NewsBroadcastSegments.newsCount(oneSections)==1,"single story recognized");
+        check(oneSections.get(1).title.contains("필리핀 금융시장"),"single story headline from news, not greeting");
+        check(!oneSections.get(1).title.contains("안녕하십니까"),"greeting excluded from headline");
+        String numbered="안녕하십니까. ";
+        for(String n:new String[]{"첫","두","세","네","다섯","여섯","일곱","여덟","아홉","열","열 한","열두"})
+            numbered+=n+" 번째 뉴스입니다. 기사 본문입니다. ";
+        numbered+="오늘의 뉴스, 앵커 한마디입니다. 내용입니다. 이상 필리핀 뉴스였습니다. 감사합니다.";
+        List<NewsStory> all=NewsBroadcastSegments.build(numbered,"");
+        check(all.size()==15 && all.get(0).kind==NewsStory.OPENING,"numbered opening and twelve stories");
+        for(int i=1;i<=12;i++)check(all.get(i).articleNumber==i && !all.get(i).audioText().startsWith("다음 뉴스"),"slot "+i);
+        check(all.get(13).kind==NewsStory.ANCHOR && all.get(14).kind==NewsStory.CLOSING,"spoken endings");
         System.out.println("NewsAutoScript PASS");
     }
 }

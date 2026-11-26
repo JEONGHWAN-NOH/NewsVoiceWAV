@@ -49,8 +49,14 @@ import java.util.Locale;
 public final class MainActivity extends Activity implements TextToSpeech.OnInitListener {
     private static final int DARK = 0xff0e2942;
     private static final int OPENING_PICKER=5110;
+
+
     private static final int SCRIPT_PICKER=5111;
-    private static final int PORTRAIT_PICKER_OPENING=5121, PORTRAIT_PICKER_ANCHOR=5122, PORTRAIT_PICKER_CLOSING=5123;
+
+
+
+
+
     private TextView openingAStatus;
     private static final int MINT = 0xff157e71;
     private TextToSpeech tts;
@@ -80,6 +86,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private EditText anchorEdit;
     private long taskToken = 0;
     private int lastQueuedIndex = -1;
+    private List<String> playbackSegments = new ArrayList<>();
+    private int playbackIndex = -1;
+    private long playbackToken = -1;
     private final Handler main = new Handler(Looper.getMainLooper());
 
     private static int dp(Activity a, int d) { return Math.round(d*a.getResources().getDisplayMetrics().density); }
@@ -207,9 +216,38 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         editor = new EditText(this);editor.setTextSize(16);editor.setTextColor(DARK);editor.setGravity(Gravity.TOP);editor.setPadding(dp(this,14),dp(this,14),dp(this,14),dp(this,14));
         editor.setHint("아나운서 대본 전체를 붙여 넣으세요. 첫 번째 소식입니다. 등 순서가 있으면 자동으로 뉴스를 분리합니다.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        LinearLayout scriptActions=new LinearLayout(this);
+        body.addView(scriptActions,lp(-1,52,8));
+        Button importScript=btn("대본 불러오기",0xffe3eff2,DARK);
+        Button clearScript=btn("대본 지우기",0xffffeeee,0xff90252b);
+        scriptActions.addView(importScript,new LinearLayout.LayoutParams(0,-1,1));
+        scriptActions.addView(clearScript,new LinearLayout.LayoutParams(0,-1,1));
         body.addView(editor,lp(-1,-2,10));
-        Button importScript=btn("휴대폰에서 대본 TXT 파일 불러오기",0xffffe78b,DARK);
-        body.addView(importScript,lp(-1,50,8));
+        Button undo=btn("되돌리기",0xffe7f2f3,MINT);
+        body.addView(undo,lp(-1,48,4));
+        undo.setVisibility(View.GONE);
+        editor.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            public void onTextChanged(CharSequence s,int start,int before,int count){
+                undo.setTag(null);
+                undo.setVisibility(View.GONE);
+            }
+            public void afterTextChanged(android.text.Editable s){}
+        });
+        clearScript.setOnClickListener(v->{
+            String previous=editor.getText().toString();
+            if(previous.isEmpty())return;
+            taskToken++; playbackIndex=-1; playbackToken=-1; playbackSegments.clear();
+            if(tts!=null)tts.stop();
+            editor.setText("");
+            undo.setTag(previous);
+            undo.setVisibility(View.VISIBLE);
+            updateStatus("대본을 지웠습니다.");
+        });
+        undo.setOnClickListener(v->{
+            String previous=(String)undo.getTag();
+            if(previous!=null){editor.setText(previous);editor.setSelection(editor.length());}
+        });
         importScript.setOnClickListener(v->{
             Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             pick.setType("text/*");
@@ -226,7 +264,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 소식입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 상단 자료 이미지 검색과 하단 전체 뉴스 진행률은 MP4 생성 시 자동 적용되며, 사진을 찾지 못하면 중립 이미지를 사용합니다.",12,false);
+        TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 뉴스입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 상단 제목과 큰 본문이 음성에 맞춰 전환됩니다. 사진 없이 텍스트로 방송합니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
@@ -257,25 +295,6 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             pick.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(pick,OPENING_PICKER);
         });
-        body.addView(text("아나운서 이미지 · 갤러리 등록",17,true),lp(-1,-2,22));
-        LinearLayout portraitButtons=new LinearLayout(this);
-        portraitButtons.setOrientation(LinearLayout.HORIZONTAL);
-        body.addView(portraitButtons,lp(-1,49,8));
-        String[] portraitNames={"1 시작 인사","2 앵커 한마디","3 마감 인사"};
-        int[] portraitCodes={PORTRAIT_PICKER_OPENING,PORTRAIT_PICKER_ANCHOR,PORTRAIT_PICKER_CLOSING};
-        for(int k=0;k<3;k++){
-            final int request=portraitCodes[k];
-            Button pick=btn(portraitNames[k],0xffdfeef4,DARK);
-            LinearLayout.LayoutParams param=new LinearLayout.LayoutParams(0,-1,1);
-            if(k>0)param.leftMargin=dp(this,5);
-            portraitButtons.addView(pick,param);
-            pick.setOnClickListener(v->{
-                Intent gallery=new Intent(Intent.ACTION_GET_CONTENT);
-                gallery.setType("image/*");
-                gallery.addCategory(Intent.CATEGORY_OPENABLE);
-                startActivityForResult(gallery,request);
-            });
-        }
         body.addView(text("04  재생 · 저장",17,true),lp(-1,-2,25));
         status=text("음성 엔진을 준비하고 있습니다.",13,false);status.setTextColor(0xff61778e);body.addView(status,lp(-1,-2,8));
         jobStatus=text("제작 상태: "+AppPrefs.get(this).getString("status","작업 기록 없음"),14,true);
@@ -298,38 +317,32 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
-        TextView formatHelp=text("v5.30 날짜별 자동 저장·이미지·진행률: 상단 노란 뉴스 번호 배지를 제거하고 관련 자료 이미지(검색 실패 시 중립 이미지)를 표시합니다. 뉴스 전체 진행률은 실제 영상 재생시간에 맞춰 증가합니다. 본문 56px·줄 간격 84px, 30fps, 중앙 추종 가변 스크롤, 음성 우선 0.7초(700ms), 6초 표지·JPG·오프닝 음악·카카오톡 공유를 유지합니다. 음성·영상·표지·자료출처 파일은 필리핀 현지 날짜별 하위 폴더에 같은 회차명과 제작시각으로 저장됩니다.",12,false);
+        CheckBox liteVideo=new CheckBox(this);
+        liteVideo.setText("경량 MP4 · 720p (해제하면 고화질 1080p)");
+        liteVideo.setTextColor(DARK);
+        liteVideo.setChecked(AppPrefs.liteVideo(this));
+        liteVideo.setOnCheckedChangeListener((button,checked)->AppPrefs.setLiteVideo(this,checked));
+        body.addView(liteVideo,lp(-1,-2,4));
+        TextView formatHelp=text("v3.0 · 자막이 있는 라디오 뉴스. 상단 제목과 큰 본문, 순번별 제목 전환, 음성 우선 0.7초 스크롤, 오프닝 음악, WAV·MP4 저장을 지원합니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
         Button lastVideo=btn("최근 저장된 MP4 바로 열기",0xffe7f2f3,DARK);
         body.addView(lastVideo,lp(-1,50,9));
         lastVideo.setOnClickListener(v->openLastVideo());
-        body.addView(text("05  카카오톡 공유 · 표지 먼저",17,true),lp(-1,-2,18));
-        TextView shareHelp=text("① 표지를 먼저 사진으로 공유하면 채팅방에 뉴스 카드가 표시됩니다. ② 이어서 MP4를 공유하세요. MP4 자체의 미리보기 선택은 카카오톡이 결정하므로 100% 고정은 보장되지 않습니다.",12,false);
-        shareHelp.setTextColor(0xff61778e);body.addView(shareHelp,lp(-1,-2,7));
-        Button shareCover=btn("① 카카오톡용 뉴스 표지 JPG 공유",0xffffe78b,DARK);
-        body.addView(shareCover,lp(-1,49,8));
-        shareCover.setOnClickListener(v->shareLast(true));
-        Button shareVideo=btn("② 뉴스 영상 MP4 공유",0xffd8edf6,DARK);
+        body.addView(text("05  뉴스 영상 공유",17,true),lp(-1,-2,18));
+        Button shareVideo=btn("뉴스 영상 MP4 공유",0xffd8edf6,DARK);
         body.addView(shareVideo,lp(-1,49,8));
-        shareVideo.setOnClickListener(v->shareLast(false));
+        shareVideo.setOnClickListener(v->shareLast());
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
             save.setText(isChecked?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장");
         });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
-        preview.setOnClickListener(v->speakNow("안녕하십니까. 오늘의 주요 뉴스를 전해드리겠습니다.",true));
-        play.setOnClickListener(v->{
-            String checked=reviewEditorScript();
-            if(checked==null)return;
-            try{
-                List<NewsStory> sections=NewsBroadcastSegments.build(checked,anchorEdit.getText().toString());
-                speakNow(NewsBroadcastSegments.audioScript(sections),false);
-            }catch(IllegalArgumentException e){updateStatus("방송 멘트 검수: "+e.getMessage());}
-        });
-        stop.setOnClickListener(v->{taskToken++;if(tts!=null)tts.stop();updateStatus("낭독 정지됨");});
+        preview.setOnClickListener(v->speakNow(NewsBroadcastSegments.playback(editor.getText().toString()),true));
+        play.setOnClickListener(v->speakNow(NewsBroadcastSegments.playback(editor.getText().toString()),false));
+        stop.setOnClickListener(v->{taskToken++;playbackSegments.clear();playbackIndex=-1;playbackToken=-1;if(tts!=null)tts.stop();updateStatus("낭독 정지됨");});
         save.setOnClickListener(v->queueManualSave());
         buildAutomationControls(body);
         setContentView(sc);
@@ -370,10 +383,15 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 }
                 @Override public void onDone(String utteranceId) {
                     if(utteranceId.startsWith("save_")) updateStatus("WAV 구간 생성 완료");
-                    else if(utteranceId.equals("play_"+taskToken+"_"+lastQueuedIndex)) updateStatus("낭독 완료");
+                    else if(utteranceId.startsWith("play_")) main.post(() -> advancePlayback(utteranceId));
                 }
                 @Override public void onError(String utteranceId) {
-                    updateStatus("음성 합성 오류. 다른 한국어 음성을 선택해 주세요.");
+                    main.post(() -> {
+                        if(utteranceId.startsWith("play_")) {
+                            if(!isCurrentPlayback(utteranceId))return;
+                            recoverPlaybackChunk("TTS 엔진 오류");
+                        }else updateStatus("음성 합성 오류. 다른 한국어 음성을 선택해 주세요.");
+                    });
                 }
             });
             String active=currentEngine.isEmpty()?tts.getDefaultEngine():currentEngine;
@@ -528,7 +546,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v3.0/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -594,23 +612,81 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             result.add(remaining.substring(0,cut).trim());remaining=remaining.substring(cut).trim();
         }return result;
     }
+    private boolean isCurrentPlayback(String utteranceId){
+        return playbackIndex>=0 && playbackToken==taskToken &&
+            utteranceId.equals("play_"+playbackToken+"_"+playbackIndex);
+    }
+    private void advancePlayback(String utteranceId){
+        if(!isCurrentPlayback(utteranceId))return;
+        if(playbackIndex+1>=playbackSegments.size()){
+            playbackSegments.clear();
+            playbackIndex=-1;
+            playbackToken=-1;
+            updateStatus("낭독 완료");
+        }else{
+            playbackIndex++;
+            speakPlaybackChunk();
+        }
+    }
+    // Read the supplied script verbatim. Splitting is only a TTS engine transport detail.
+    // On a rejected segment, retry smaller fragments without rewriting the user's words.
+    private void recoverPlaybackChunk(String reason){
+        if(playbackIndex<0||playbackIndex>=playbackSegments.size())return;
+        String failed=playbackSegments.get(playbackIndex);
+        if(failed.length()>1){
+            int midpoint=failed.length()/2;
+            int cut=midpoint;
+            for(int d=0;d<Math.min(80,midpoint);d++){
+                if(midpoint+d<failed.length() && Character.isWhitespace(failed.charAt(midpoint+d))){cut=midpoint+d+1;break;}
+                if(midpoint-d>0 && Character.isWhitespace(failed.charAt(midpoint-d))){cut=midpoint-d+1;break;}
+            }
+            if(cut<=0||cut>=failed.length())cut=midpoint;
+            playbackSegments.set(playbackIndex,failed.substring(0,cut));
+            playbackSegments.add(playbackIndex+1,failed.substring(cut));
+            speakPlaybackChunk();
+        }else{
+            // A single unsupported character cannot block the rest of the script.
+            updateStatus("읽을 수 없는 문자 1개를 건너뛰고 낭독을 계속합니다.");
+            advancePlayback("play_"+playbackToken+"_"+playbackIndex);
+        }
+    }
+    private void speakPlaybackChunk(){
+        if(playbackToken!=taskToken||playbackIndex<0||playbackIndex>=playbackSegments.size())return;
+        int result;
+        try{
+            result=tts.speak(playbackSegments.get(playbackIndex),TextToSpeech.QUEUE_ADD,
+                new Bundle(),"play_"+playbackToken+"_"+playbackIndex);
+        }catch(RuntimeException ex){
+            recoverPlaybackChunk("TTS 실행 오류");
+            return;
+        }
+        if(result!=TextToSpeech.SUCCESS){
+            recoverPlaybackChunk("TTS 요청 거절");
+        }else updateStatus("뉴스 낭독 중: "+(playbackIndex+1)+"/"+playbackSegments.size()+" 구간");
+    }
     private void speakNow(String src,boolean preview){
         if(!ready){updateStatus("TTS 엔진이 아직 준비되지 않았습니다.");return;}
         if(src.trim().isEmpty()){updateStatus("원고를 입력하세요.");return;}
         try {
             taskToken++;
+            playbackSegments.clear();
+            playbackIndex=-1;
+            playbackToken=-1;
             tts.stop();
             configure();
             persistVoiceSettings();
-            List<String> segments = chunks(src);
-            lastQueuedIndex = segments.size()-1;
-            for(int i=0;i<segments.size();i++) {
-                int code = tts.speak(segments.get(i), i==0 ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, new Bundle(), "play_"+taskToken+"_"+i);
-                if(code==TextToSpeech.ERROR) {updateStatus("낭독 명령을 실행하지 못했습니다.");return;}
-            }
-            updateStatus(preview ? "목소리 미리 듣기 중..." : "총 "+segments.size()+"개 구간으로 나누어 낭독합니다.");
-        } catch(RuntimeException e) {
-            updateStatus("낭독 실행 오류: " + e.getClass().getSimpleName());
+            // Only one chunk is queued at a time to avoid overwhelming TTS engines.
+            playbackSegments=chunks(src);
+            if(playbackSegments.isEmpty()){updateStatus("읽을 원고가 없습니다.");return;}
+            playbackToken=taskToken;
+            playbackIndex=0;
+            lastQueuedIndex=playbackSegments.size()-1;
+            speakPlaybackChunk();
+        }catch(RuntimeException e){
+            playbackSegments.clear();
+            playbackIndex=-1;
+            playbackToken=-1;
+            updateStatus("낭독 실행 오류: "+e.getClass().getSimpleName());
         }
     }
     private void persistVoiceSettings(){
@@ -619,25 +695,16 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         AppPrefs.get(this).edit().putString("engine",currentEngine).putString("voice",voice)
             .putFloat("speed",rate()).putFloat("pitch",pitch()).putInt("preset",selectedPreset).apply();
     }
-    /** Native chooser: share JPG first so a cover message is visible in KakaoTalk. */
-    private void shareLast(boolean cover){
-        String key=cover?"last_cover_uri":"last_mp4_uri";
-        String value=AppPrefs.get(this).getString(key,"");
-        if(value.isEmpty()){
-            updateStatus(cover?"먼저 MP4를 제작해 표지 JPG를 저장하세요.":
-                "먼저 뉴스 MP4를 제작하고 저장하세요.");
-            return;
-        }
+    private void shareLast(){
+        String raw=AppPrefs.get(this).getString("last_mp4_uri", "");
+        if(raw.isEmpty()){updateStatus("먼저 MP4를 제작하세요.");return;}
         try{
             Intent send=new Intent(Intent.ACTION_SEND);
-            send.setType(cover?"image/jpeg":"video/mp4");
-            send.putExtra(Intent.EXTRA_STREAM,Uri.parse(value));
+            send.setType("video/mp4");
+            send.putExtra(Intent.EXTRA_STREAM,Uri.parse(raw));
             send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(send,
-                cover?"표지 사진 공유 · 카카오톡 선택":"뉴스 동영상 공유 · 카카오톡 선택"));
-        }catch(ActivityNotFoundException | SecurityException ex){
-            updateStatus("공유할 앱이 없거나 접근 권한이 없습니다: "+ex.getClass().getSimpleName());
-        }
+            startActivity(Intent.createChooser(send,"뉴스 동영상 공유"));
+        }catch(Exception e){updateStatus("영상 공유 실패: "+e.getMessage());}
     }
     private void openLastVideo(){
         String value=AppPrefs.get(this).getString("last_mp4_uri","");
@@ -652,7 +719,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v3.0 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -666,25 +733,6 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
-        if(requestCode>=PORTRAIT_PICKER_OPENING&&requestCode<=PORTRAIT_PICKER_CLOSING){
-            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
-            String slot=requestCode==PORTRAIT_PICKER_OPENING?"opening":
-                requestCode==PORTRAIT_PICKER_ANCHOR?"anchor":"closing";
-            try(InputStream in=getContentResolver().openInputStream(data.getData())){
-                if(in==null)throw new IOException("갤러리 사진을 읽을 수 없습니다.");
-                android.graphics.BitmapFactory.Options opt=new android.graphics.BitmapFactory.Options();
-                opt.inSampleSize=2;
-                android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in,null,opt);
-                if(bitmap==null)throw new IOException("지원되지 않는 사진 형식입니다.");
-                File dest=new File(getFilesDir(),"portrait_"+slot+".jpg");
-                try(FileOutputStream out=new FileOutputStream(dest)){
-                    if(!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,87,out))
-                        throw new IOException("사진 저장 실패");
-                }finally{bitmap.recycle();}
-                updateStatus("아나운서 사진 등록 완료: "+slot+" · 다음 MP4부터 적용");
-            }catch(Exception ex){updateStatus("아나운서 이미지 오류: "+ex.getMessage());}
-            return;
-        }
         if(requestCode==SCRIPT_PICKER){
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
             try(InputStream input=getContentResolver().openInputStream(data.getData())){
@@ -739,8 +787,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     private void queueManualSave(){
         if(!ready){updateStatus("한국어 음성 엔진이 준비되지 않았습니다.");return;}
-        String text=reviewEditorScript();
-        if(text==null)return;
+        String text=editor.getText().toString();
+        if(text.trim().isEmpty()){updateStatus("원고를 입력하세요.");return;}
         try {
             String comment=anchorEdit.getText().toString().trim();
             NewsBroadcastSegments.build(text,comment);
@@ -789,7 +837,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v3.0/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){
@@ -824,6 +872,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         if(samsungTestTts!=null){
             try{samsungTestTts.stop();samsungTestTts.shutdown();}catch(RuntimeException ignored){}
         }
+
         super.onDestroy();
     }
 }

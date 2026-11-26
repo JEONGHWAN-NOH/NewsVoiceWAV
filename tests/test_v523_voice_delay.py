@@ -20,19 +20,19 @@ assert "current.audioStartUs,current.sentenceEndUs" in video
 # A longer voice-first delay must not cause the previous article to be cut off.
 assert "long gapFrames=rate*3L/4;" in video, "750ms pre-roll needed for 700ms scroll completion"
 assert "long tailFrames=rate*4L/5;" in video, "final 800ms tail needed for 700ms scroll"
-assert "i==0?0L:SCROLL_DELAY_US" in video, "defer next card transition 700ms"
+assert "us>=t.spans.get(i).audioStartUs" in video, "switch on audio onset"
 assert "56px·줄 간격 84px" in ui
 assert "0.7초(700ms)" in ui
 assert "Paint highlight=" not in card
 assert "Paint underline=" not in card
 assert "FPS=30;" in video
-assert "if(us<6L*US_PER_S)which=-2;" in video
+assert "if(us<4L*US_PER_S)which=-2;" in video
 assert "MUSIC_REVISION=2" in opening
-assert "NewsCoverExporter.save(context,coverMeta," in video
+assert "NewsCoverExporter.save(cover,output)" in video
 assert "Bitmap.CompressFormat.JPEG,95,stream" in poster
 assert "shareLast(true)" in ui and "shareLast(false)" in ui
-assert "def releaseVersion = '5.31'" in gradle
+assert "def releaseVersion = '5.41'" in gradle
 assert "applicationId 'com.newsvoice.tts.stable'" in gradle
-assert "versionCode 37" in gradle
-assert "NewsVoiceWAV-v5.31-release-unsigned" in workflow
-print("PASS: v5.31 56px text, 84px line spacing and 700ms voice lead with safe scene transitions")
+assert "versionCode 49" in gradle
+assert "NewsVoiceWAV-v5.41-release-unsigned" in workflow
+print("PASS: v5.41 56px text, 84px line spacing and 700ms voice lead with safe scene transitions")
