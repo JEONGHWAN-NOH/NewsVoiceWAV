@@ -344,6 +344,16 @@ public final class NewsCardPainter {
         return bitmap;
     }
     /** Pixel artwork is an original offline image; date/slot/count are live Android overlays. */
+    public static Bitmap renderCover(Context context,int count,NewsCoverMeta meta,Bitmap selected){
+        if(selected==null||selected.isRecycled())return render(context,null,0,count,0,meta);
+        Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(bitmap);
+        c.drawColor(NAVY);
+        float scale=Math.min((float)WIDTH/selected.getWidth(),(float)HEIGHT/selected.getHeight());
+        float w=selected.getWidth()*scale,h=selected.getHeight()*scale;
+        c.drawBitmap(selected,null,new RectF((WIDTH-w)/2,(HEIGHT-h)/2,(WIDTH+w)/2,(HEIGHT+h)/2),new Paint(Paint.FILTER_BITMAP_FLAG));
+        return bitmap;
+    }
 
 
     public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,

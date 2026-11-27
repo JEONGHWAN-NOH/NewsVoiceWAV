@@ -25,7 +25,7 @@ public final class NewsImagePack {
     public static synchronized Map<Integer,Bitmap> snapshot(Context c,List<NewsStory> stories){
         Map<Integer,Bitmap> images=new HashMap<>();
         if(matches(c,stories))for(int i=1;i<=8;i++){Bitmap b=load(c,i);if(b!=null)images.put(i,b);}
-        for(int slot:new int[]{OPENING_SLOT,CLOSING_SLOT}){
+        for(int slot:new int[]{OPENING_SLOT,CLOSING_SLOT,COVER_SLOT}){
             Bitmap portrait=load(c,slot);
             if(portrait!=null)images.put(slot,portrait);
         }
@@ -35,30 +35,30 @@ public final class NewsImagePack {
         try{return new String(Files.readAllBytes(new File(folder(c),"fingerprint.txt").toPath()),StandardCharsets.UTF_8).equals(fingerprint(stories));}
         catch(Exception e){return false;}
     }
-    public static final int OPENING_SLOT=0, CLOSING_SLOT=9;
+    public static final int OPENING_SLOT=0, CLOSING_SLOT=9, COVER_SLOT=10;
     private static File photoFile(File base,int number){
         return new File(base,String.format(Locale.US,"news_%03d.webp",number));
     }
-    private static boolean portrait(int slot){return slot==OPENING_SLOT||slot==CLOSING_SLOT;}
+    private static boolean portrait(int slot){return slot==OPENING_SLOT||slot==CLOSING_SLOT||slot==COVER_SLOT;}
     public static int slotFor(NewsStory story){
         if(story.kind==NewsStory.OPENING)return OPENING_SLOT;
         if(story.kind==NewsStory.CLOSING)return CLOSING_SLOT;
         return story.articleNumber<=8?story.articleNumber:-1;
     }
     public static synchronized Bitmap load(Context c,int slot){
-        if(slot<0||slot>CLOSING_SLOT)return null;
+        if(slot<0||slot>COVER_SLOT)return null;
         File file=photoFile(portrait(slot)?c.getFilesDir():folder(c),slot);
         return file.isFile()?BitmapFactory.decodeFile(file.getPath()):null;
     }
     public static synchronized void replace(Context c,int slot,Uri uri,String script)throws Exception{
-        if(slot<0||slot>CLOSING_SLOT)throw new IOException("사진 번호 오류");
+        if(slot<0||slot>COVER_SLOT)throw new IOException("사진 번호 오류");
         List<NewsStory> stories=portrait(slot)?Collections.emptyList():NewsBroadcastSegments.build(script,"");
         if(!portrait(slot)&&NewsBroadcastSegments.newsCount(stories)<slot)
             throw new IOException("해당 번호의 뉴스 대본을 먼저 등록하세요");
         Bitmap image=ImageDecoder.decodeBitmap(ImageDecoder.createSource(c.getContentResolver(),uri),
             (decoder,info,source)->{
                 int w=info.getSize().getWidth(),h=info.getSize().getHeight();
-                float scale=Math.min(1f,480f/Math.max(w,h));
+                float scale=Math.min(1f,(slot==COVER_SLOT?1920f:480f)/Math.max(w,h));
                 decoder.setTargetSize(Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale)));
                 decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
             });
@@ -77,6 +77,9 @@ public final class NewsImagePack {
     }
     private static void clear(File dir){File[] files=dir.listFiles();if(files!=null)for(File f:files)f.delete();dir.delete();}
     public static synchronized void remove(Context c){clear(folder(c));}
+    public static synchronized void resetCover(Context c)throws IOException{
+        Files.deleteIfExists(photoFile(c.getFilesDir(),COVER_SLOT).toPath());
+    }
     public static synchronized String install(Context c,Uri uri)throws Exception{
         File stage=new File(c.getFilesDir(),"image_pack_stage_"+System.nanoTime());
         if(!stage.mkdir())throw new IOException("임시 자료 폴더 생성 실패");

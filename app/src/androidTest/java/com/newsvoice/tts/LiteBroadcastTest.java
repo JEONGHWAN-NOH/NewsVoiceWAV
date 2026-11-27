@@ -16,7 +16,7 @@ public class LiteBroadcastTest extends Instrumentation {
         Bundle result=new Bundle();
         try{
             Context c=getTargetContext();
-            check(c.getPackageName().equals("com.newsvoice.tts.lite544"),"Separate package");
+            check(c.getPackageName().equals("com.newsvoice.tts.lite545"),"Separate package");
             try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand("pm list packages com.newsvoice.tts.lite");
                 InputStream in=new FileInputStream(fd.getFileDescriptor())){
                 check(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).contains("package:com.newsvoice.tts.lite543"),"v5.43 remains installed");
@@ -30,6 +30,14 @@ public class LiteBroadcastTest extends Instrumentation {
             android.net.Uri outro=fixturePhoto(c,"outro",android.graphics.Color.MAGENTA,480,240);
             NewsImagePack.replace(c,0,intro,"");
             NewsImagePack.replace(c,9,outro,"");
+            android.net.Uri selectedCover=fixturePhoto(c,"cover",android.graphics.Color.YELLOW,720,960);
+            NewsImagePack.replace(c,NewsImagePack.COVER_SLOT,selectedCover,"");
+            Bitmap coverPhoto=NewsImagePack.load(c,NewsImagePack.COVER_SLOT);
+            check(coverPhoto.getWidth()==720&&coverPhoto.getHeight()==960,"Cover preserves original proportions");
+            Bitmap coverFrame=NewsCardPainter.renderCover(c,2,NewsCoverMeta.now(),coverPhoto);
+            check(closeColor(coverFrame.getPixel(540,960),android.graphics.Color.YELLOW),"Custom cover rendered");
+            check(!closeColor(coverFrame.getPixel(540,10),android.graphics.Color.YELLOW),"Cover letterboxed without cropping");
+            coverFrame.recycle();coverPhoto.recycle();
             StringBuilder eight=new StringBuilder();
             for(int i=1;i<=8;i++)eight.append(i==1?"":"\n===\n").append("기사 "+i+"\n기사 내용입니다.");
             for(int i=1;i<=8;i++)NewsImagePack.replace(c,i,intro,eight.toString());
@@ -91,6 +99,9 @@ public class LiteBroadcastTest extends Instrumentation {
                     Bitmap frame=r.getFrameAtTime(8000000,r.OPTION_CLOSEST);
                     check(frame!=null,"Decoded frame");export(c,frame,mode==0?"Lite-720.png":mode==1?"Lite-scroll.png":"Lite-1080.png");frame.recycle();
                     if(mode==0){
+                        Bitmap openingCover=r.getFrameAtTime(1000000L,r.OPTION_CLOSEST);
+                        check(openingCover!=null&&closeColor(openingCover.getPixel(openingCover.getWidth()/2,openingCover.getHeight()/2),android.graphics.Color.YELLOW),"Selected cover in MP4 opening");
+                        openingCover.recycle();
                         int[] colors={android.graphics.Color.BLUE,android.graphics.Color.RED,android.graphics.Color.GREEN,android.graphics.Color.MAGENTA};
                         for(int i=0;i<colors.length;i++){
                             Bitmap sample=r.getFrameAtTime(8000000L+i*6750000L,r.OPTION_CLOSEST);
@@ -108,7 +119,9 @@ public class LiteBroadcastTest extends Instrumentation {
                 }finally{r.release();}
             }
             AppPrefs.setLiteVideo(c,true);AppPrefs.get(c).edit().putBoolean("page_mode",true).commit();
-            NewsImagePack.remove(c);check(NewsImagePack.snapshot(c,stories).size()==2,"Portraits survive article removal");
+            NewsImagePack.remove(c);check(NewsImagePack.snapshot(c,stories).size()==3,"Cover and portraits survive article removal");
+            NewsImagePack.resetCover(c);check(NewsImagePack.load(c,NewsImagePack.COVER_SLOT)==null,"Default cover restored");
+            check(NewsImagePack.snapshot(c,stories).size()==2,"Reset preserves portraits");
             runOnMainSync(activity::finish);
             result.putString("lite_tests","passed");finish(-1,result);
         }catch(Throwable e){result.putString("error",android.util.Log.getStackTraceString(e));finish(0,result);}

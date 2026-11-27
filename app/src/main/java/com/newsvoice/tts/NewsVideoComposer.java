@@ -214,7 +214,7 @@ public final class NewsVideoComposer {
             progress.message("뉴스 카드 영상 렌더링 중");
             NewsCoverMeta coverMeta=NewsCoverMeta.now();
             int articleCount=stories.get(0).articleCount>0?stories.get(0).articleCount:stories.size();
-            cover=NewsCardPainter.render(context,null,0,articleCount,0,coverMeta);
+            cover=NewsCardPainter.renderCover(context,articleCount,coverMeta,photos.get(NewsImagePack.COVER_SLOT));
             encodeVideo(context,video,timeline,articleCount,coverMeta,progress,cover,quality,photos,paged);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
