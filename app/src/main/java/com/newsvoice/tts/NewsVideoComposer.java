@@ -25,6 +25,7 @@ public final class NewsVideoComposer {
     private NewsVideoComposer() { }
     public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=30;
     private enum Quality {
+        ULTRA(720,1280,15,280_000),
         LITE(720,1280,24,700_000),
         FULL(VIDEO_WIDTH,VIDEO_HEIGHT,FPS,3_000_000);
 
@@ -201,7 +202,9 @@ public final class NewsVideoComposer {
         File folder=new File(context.getCacheDir(),"video_work_"+System.nanoTime());
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
-        Quality quality=AppPrefs.liteVideo(context)?Quality.LITE:Quality.FULL;
+        boolean paged=AppPrefs.pageMode(context);
+        Quality quality=AppPrefs.liteVideo(context)?(paged?Quality.ULTRA:Quality.LITE):Quality.FULL;
+        java.util.Map<Integer,Bitmap> photos=NewsImagePack.snapshot(context,stories);
         Bitmap cover=null;
         try {
             Timeline timeline=makeTimeline(context,stories,waves,sentenceFrames,raw);
@@ -212,13 +215,14 @@ public final class NewsVideoComposer {
             NewsCoverMeta coverMeta=NewsCoverMeta.now();
             int articleCount=stories.get(0).articleCount>0?stories.get(0).articleCount:stories.size();
             cover=NewsCardPainter.render(context,null,0,articleCount,0,coverMeta);
-            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,cover,quality);
+            encodeVideo(context,video,timeline,articleCount,coverMeta,progress,cover,quality,photos,paged);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
             progress.message("MP4 생성 완료");
             return output;
         } finally {
+            for(Bitmap photo:photos.values())photo.recycle();
             if(cover!=null)cover.recycle();
             File[] files=folder.listFiles();if(files!=null)for(File f:files)f.delete();folder.delete();
         }
@@ -227,9 +231,10 @@ public final class NewsVideoComposer {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC);
         MediaMuxer mux=null;FileInputStream in=null;boolean muxStarted=false;
         try {
-            MediaFormat format=MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC,rate,channels);
+            int outputChannels=quality==Quality.ULTRA?1:channels;
+            MediaFormat format=MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC,rate,outputChannels);
             format.setInteger(MediaFormat.KEY_AAC_PROFILE,MediaCodecInfo.CodecProfileLevel.AACObjectLC);
-            format.setInteger(MediaFormat.KEY_BIT_RATE,quality==Quality.LITE?64000:(channels==1?96000:128000));
+            format.setInteger(MediaFormat.KEY_BIT_RATE,quality==Quality.ULTRA?48000:quality==Quality.LITE?64000:(channels==1?96000:128000));
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE,PCM_CHUNK);
             codec.configure(format,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
             codec.start();in=new FileInputStream(pcm);
@@ -247,7 +252,17 @@ public final class NewsVideoComposer {
                         int got=0;while(got<max){int n=in.read(buf,got,max-got);if(n<0)break;got+=n;}
                         if(got>0 && got%frameBytes!=0)throw new IOException("AAC PCM input misaligned");
                         if(got==0){codec.queueInputBuffer(index,0,0,toUs(sentFrames,rate),MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputDone=true;}
-                        else {dst.put(buf,0,got);codec.queueInputBuffer(index,0,got,toUs(sentFrames,rate),0);sentFrames+=got/frameBytes;}
+                        else {
+                            int encodedBytes=got;
+                            if(outputChannels==1&&channels==2){
+                                encodedBytes=got/2;
+                                for(int at=0;at<got;at+=4){
+                                    short sample=(short)(((short)shortLE(buf,at)+(short)shortLE(buf,at+2))/2);
+                                    buf[at/2]=(byte)sample;buf[at/2+1]=(byte)(sample>>8);
+                                }
+                            }
+                            dst.put(buf,0,encodedBytes);codec.queueInputBuffer(index,0,encodedBytes,toUs(sentFrames,rate),0);sentFrames+=got/frameBytes;
+                        }
                     }
                 }
                 int i=codec.dequeueOutputBuffer(info,10000);
@@ -274,7 +289,7 @@ public final class NewsVideoComposer {
     }
     private static void encodeVideo(Context context,File output,Timeline t,int articleCount,
                                     NewsCoverMeta meta,Progress progress,
-                                    Bitmap cover,Quality quality)throws Exception {
+                                    Bitmap cover,Quality quality,java.util.Map<Integer,Bitmap> photos,boolean paged)throws Exception {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
         MediaMuxer mux=null;Surface inputSurface=null;EglFrameRenderer renderer=null;
         Bitmap reusableSlide=null;
@@ -283,7 +298,7 @@ public final class NewsVideoComposer {
             MediaFormat fmt=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,quality.width,quality.height);
             fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
             fmt.setInteger(MediaFormat.KEY_BIT_RATE,quality.videoBitrate);
-            if(quality==Quality.LITE) {
+            if(quality==Quality.LITE||quality==Quality.ULTRA) {
                 MediaCodecInfo.EncoderCapabilities caps=codec.getCodecInfo()
                     .getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC).getEncoderCapabilities();
                 if(caps.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR))
@@ -340,18 +355,20 @@ public final class NewsVideoComposer {
                 // Preserve the approved 700ms voice-first lag and smooth transitions.
                 float scrollPixels=scrollCurve==null?0f:
                     scrollCurve.delayedPosition(us,SCROLL_DELAY_US);
+                if(paged&&current!=null)scrollPixels=scrollPlan.pageOffset(us,current.audioStartUs,current.sentenceEndUs);
                 float totalProgress=Math.max(0f,Math.min(1f,
                     (float)(us-firstNews)/(lastNews-firstNews)));
                 if(current!=null&&current.story.kind!=NewsStory.NEWS&&
                    current.story.kind!=NewsStory.OPENING)totalProgress=1f;
+                if(paged)totalProgress=(float)Math.floor(totalProgress*100f)/100f;
                 if(which!=previousCard || Float.isNaN(previousScroll) ||
                    Math.abs(scrollPixels-previousScroll)>0.0001f ||
                    Float.isNaN(previousProgress) ||
                    Math.abs(totalProgress-previousProgress)>=0.002f){
                     Bitmap card=current!=null?
-                        NewsCardPainter.renderScrolling(current.story,Math.max(0,which),
+                        NewsCardPainter.renderBroadcast(current.story,Math.max(0,which),
                             articleCount,meta,activeSentence,scrollPlan,scrollPixels,
-                            totalProgress,reusableSlide):
+                            totalProgress,current.story.kind==NewsStory.NEWS?photos.get(current.story.articleNumber):null,paged,reusableSlide):
                         cover;
                     renderer.upload(card);
                     if(card!=reusableSlide && card!=cover)card.recycle();

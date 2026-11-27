@@ -111,16 +111,16 @@ public final class NewsVoiceWorker extends Worker {
                 NewsOutputNaming.Names names=NewsOutputNaming.at(java.time.Instant.now());
                 if(AppPrefs.videoEnabled(context)){
                     VideoResult made=makeVideo(text,"manual_"+stamp);
-                    saveDownloads(made.wav,names.wav());
+                    if(AppPrefs.keepWav(context))saveDownloads(made.wav,names.wav());
                     AppPrefs.status(context,"MP4 다운로드 폴더에 저장 중...");
                     saveDownloads(made.mp4,names.mp4());
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.42 Lite → "+names.dateFolder+" → WAV · MP4");
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.43 Lite → "+names.dateFolder+(AppPrefs.keepWav(context)?" → WAV · MP4":" → MP4"));
                     made.wav.delete();made.mp4.delete();
                 }else{
                     List<NewsStory> sections=NewsBroadcastSegments.build(text,AppPrefs.anchorComment(context),false);
                     File wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                     saveDownloads(wav,names.wav());
-                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.42 Lite → "+names.dateFolder+" → "+names.wav());
+                    AppPrefs.status(context,"저장 완료: 다운로드 → 1. 필리핀뉴스 v5.43 Lite → "+names.dateFolder+" → "+names.wav());
                     wav.delete();
                 }
                 return Result.success();
@@ -136,7 +136,7 @@ public final class NewsVoiceWorker extends Worker {
             AppPrefs.status(context,"자동 음성 생성: "+job.id);
             if(AppPrefs.videoEnabled(context)){
                 VideoResult made=makeVideo(broadcast,job.id);
-                saveDownloads(made.wav,names.wav());
+                if(AppPrefs.keepWav(context))saveDownloads(made.wav,names.wav());
                 saveDownloads(made.mp4,names.mp4());
                 upload(base,token,job.id,made.wav);
                 made.wav.delete();made.mp4.delete();

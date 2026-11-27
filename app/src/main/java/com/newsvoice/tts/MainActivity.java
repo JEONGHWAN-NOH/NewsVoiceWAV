@@ -51,7 +51,8 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private static final int OPENING_PICKER=5110;
 
 
-    private static final int SCRIPT_PICKER=5111;
+    private static final int SCRIPT_PICKER=5111, PACK_PICKER=5430;
+    private final java.util.concurrent.ExecutorService packTasks=java.util.concurrent.Executors.newSingleThreadExecutor();
 
 
 
@@ -254,6 +255,15 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             pick.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(pick,SCRIPT_PICKER);
         });
+        body.addView(text("기사별 AI 이미지 · 대본과 함께 등록",16,true),lp(-1,-2,14));
+        Button pack=btn("방송 자료 ZIP 불러오기 · 대본 + 이미지 8장",0xffe3eff2,DARK);
+        body.addView(pack,lp(-1,52,8));
+        pack.setOnClickListener(v->{Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            pick.setType("application/zip");pick.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(pick,PACK_PICKER);});
+        Button clearPack=btn("등록 이미지 제거",0xffe3eff2,DARK);body.addView(clearPack,lp(-1,48,5));
+        clearPack.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setMessage("등록한 기사 이미지를 제거할까요? 대본은 유지됩니다.")
+            .setNegativeButton("취소",null).setPositiveButton("제거",(d,w)->{NewsImagePack.remove(this);updateStatus("이미지 제거 완료");}).show());
+        body.addView(text("대본을 변경하면 이미지 연결을 다시 확인합니다. 일치하지 않거나 이미지가 없으면 본문만 표시합니다.",12,false),lp(-1,-2,5));
         body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
         anchorEdit=new EditText(this);
         anchorEdit.setHint("비워 두면 정중한 기본 멘트가 자동 삽입됩니다. 필요하면 오늘 뉴스에 맞는 앵커 멘트를 작성하세요.");
@@ -264,7 +274,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         anchorEdit.setBackgroundResource(R.drawable.bg_editor);
         anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
         body.addView(anchorEdit,lp(-1,-2,8));
-        TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 뉴스입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 상단 제목과 큰 본문이 음성에 맞춰 전환됩니다. 사진 없이 텍스트로 방송합니다.",12,false);
+        TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 뉴스입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 기사별 이미지와 큰 본문이 음성에 맞춰 전환됩니다. 기사 제목 글자는 표시하지 않습니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
         body.addView(reviewButton,lp(-1,52,7));
@@ -313,7 +323,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button stop=btn("정지",0xffe3eff2,DARK);LinearLayout.LayoutParams stopP=new LinearLayout.LayoutParams(0,-1,1);stopP.leftMargin=dp(this,6);controls.addView(stop,stopP);
         Button play=btn("읽기 시작",0xff63ddbd,0xff0b2936);LinearLayout.LayoutParams playP=new LinearLayout.LayoutParams(0,-1,1);playP.leftMargin=dp(this,6);controls.addView(play,playP);
         videoCheck=new CheckBox(this);
-        videoCheck.setText("뉴스 카드 MP4까지 자동 제작 (WAV + MP4)");
+        videoCheck.setText("뉴스 MP4 제작 (해제하면 WAV만 저장)");
         videoCheck.setTextColor(DARK);
         videoCheck.setChecked(AppPrefs.videoEnabled(this));
         body.addView(videoCheck,lp(-1,-2,12));
@@ -323,9 +333,15 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         liteVideo.setChecked(AppPrefs.liteVideo(this));
         liteVideo.setOnCheckedChangeListener((button,checked)->AppPrefs.setLiteVideo(this,checked));
         body.addView(liteVideo,lp(-1,-2,4));
-        TextView formatHelp=text("v5.42 Lite · 자막이 있는 라디오 뉴스. 상단 제목과 큰 본문, 순번별 제목 전환, 음성 우선 0.7초 스크롤, 오프닝 음악, WAV·MP4 저장을 지원합니다.",12,false);
+        CheckBox pageMode=new CheckBox(this);pageMode.setText("최대 경량 · 본문 페이지 전환 (해제하면 부드러운 스크롤)");
+        pageMode.setChecked(AppPrefs.pageMode(this));pageMode.setOnCheckedChangeListener((b,on)->AppPrefs.get(this).edit().putBoolean("page_mode",on).apply());
+        body.addView(pageMode,lp(-1,-2,4));
+        CheckBox keepWav=new CheckBox(this);keepWav.setText("MP4와 함께 WAV 원본도 저장");
+        keepWav.setChecked(AppPrefs.keepWav(this));keepWav.setOnCheckedChangeListener((b,on)->AppPrefs.get(this).edit().putBoolean("keep_wav",on).apply());
+        body.addView(keepWav,lp(-1,-2,4));
+        TextView formatHelp=text("v5.43 Lite · AI 이미지와 큰 본문. 최대 경량 720p·15fps, 페이지 전환 및 기존 스크롤 선택. 오프닝 음악 유지. WAV만 저장하거나 MP4와 함께 보관할 수 있습니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
-        Button save=btn(videoCheck.isChecked()?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
+        Button save=btn(videoCheck.isChecked()?"MP4 제작 · WAV 보관은 선택":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
         Button lastVideo=btn("최근 저장된 MP4 바로 열기",0xffe7f2f3,DARK);
         body.addView(lastVideo,lp(-1,50,9));
@@ -336,7 +352,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         shareVideo.setOnClickListener(v->shareLast());
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
-            save.setText(isChecked?"WAV + MP4 자동 생성 및 다운로드 저장":"WAV 음성 자동 생성 및 다운로드 저장");
+            save.setText(isChecked?"MP4 제작 · WAV 보관은 선택":"WAV 음성 자동 생성 및 다운로드 저장");
         });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
@@ -546,7 +562,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.42 Lite/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.43 Lite/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -719,7 +735,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.42 Lite → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.43 Lite → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -733,6 +749,13 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==PACK_PICKER){
+            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+            Uri uri=data.getData();updateStatus("방송 자료 확인 및 이미지 압축 중");
+            packTasks.execute(()->{try{String script=NewsImagePack.install(this,uri);
+                runOnUiThread(()->{if(!isFinishing()){editor.setText(script);updateStatus("대본·이미지 등록 완료 · 제작 버튼을 누르세요");}});
+            }catch(Exception e){runOnUiThread(()->updateStatus("자료 등록 실패: "+e.getMessage()));}});return;
+        }
         if(requestCode==SCRIPT_PICKER){
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
             try(InputStream input=getContentResolver().openInputStream(data.getData())){
@@ -837,7 +860,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.42 Lite/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.43 Lite/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){
@@ -873,6 +896,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             try{samsungTestTts.stop();samsungTestTts.shutdown();}catch(RuntimeException ignored){}
         }
 
+        packTasks.shutdown();
         super.onDestroy();
     }
 }

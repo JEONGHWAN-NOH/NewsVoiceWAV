@@ -20,6 +20,8 @@ public final class AppPrefs {
     static void setLiteVideo(Context context,boolean enabled) {
         get(context).edit().putBoolean("lite_video",enabled).apply();
     }
+    static boolean pageMode(Context c){return get(c).getBoolean("page_mode",true);}
+    static boolean keepWav(Context c){return get(c).getBoolean("keep_wav",false);}
     public static String anchorComment(Context c) {return get(c).getString("anchor_comment","");}
     public static String voiceName(Context c) {return get(c).getString("voice", "");}
     public static float speed(Context c) {return get(c).getFloat("speed", 0.95f);}

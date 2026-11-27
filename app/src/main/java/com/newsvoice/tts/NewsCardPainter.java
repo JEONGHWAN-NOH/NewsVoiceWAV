@@ -173,6 +173,23 @@ public final class NewsCardPainter {
             return NewsScrollMath.centeredAudioCurve(voiceStartUs,
                 sentenceEndsUs,sentenceStarts,rowLengths,SCROLL_STEP,maxOffset);
         }
+        public float pageOffset(long presentationUs,long audioStartUs,long[] cueEnds){
+            long time=presentationUs-700000L;
+            int skip=story.hasTransition()?1:0;
+            long start=skip==1?cueEnds[0]:audioStartUs;
+            if(time<=start)return 0f;
+            float position=totalCharacters;
+            for(int i=skip;i<cueEnds.length;i++){
+                if(time<cueEnds[i]){
+                    int sentence=i-skip;
+                    float fraction=NewsScrollMath.clamp((float)(time-start)/Math.max(1L,cueEnds[i]-start),0f,1f);
+                    position=sentenceStarts[sentence]+fraction*(sentenceStarts[sentence+1]-sentenceStarts[sentence]);break;
+                }
+                start=cueEnds[i];
+            }
+            int row=0;while(row+1<rowStarts.length&&position>=rowStarts[row+1])row++;
+            return (row/10)*10*SCROLL_STEP;
+        }
         public float offset(int sentence,float fraction,boolean narrationFinished){
             if(sentence<0){
                 if(!narrationFinished)return 0f;
@@ -246,7 +263,7 @@ public final class NewsCardPainter {
                                             NewsCoverMeta meta,int activeSentence,
                                             ScrollPlan scroll,float scrollPixels,
                                             float broadcastProgress,
-                                            Bitmap reusable){
+                                            Bitmap photo,boolean paged,Bitmap reusable){
         Bitmap bitmap=reusable==null?
             Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888):reusable;
         if(bitmap.getWidth()!=WIDTH||bitmap.getHeight()!=HEIGHT||
@@ -267,17 +284,13 @@ public final class NewsCardPainter {
         c.drawText(english,51,93,p(white,33,true));
         c.drawText("오늘의 주요 뉴스",50,178,p(yellow,69,true));
         rounded(c,yellow,51,196,1031,204,3);
-        String title=story.title;
-        Paint headline=null;List<String> headlines=null;
-        for(int size=72;size>=27;size--){
-            headline=p(white,size,true);
-            headlines=wrapComplete(title,headline,900f);
-            if(headlines.size()*size*1.18f<=260)break;
+        if(photo!=null&&!photo.isRecycled()){
+            c.drawBitmap(photo,null,new RectF(60,230,1020,550),new Paint(Paint.FILTER_BITMAP_FLAG));
+            rounded(c,Color.argb(180,0,0,0),60,510,290,550,0);
+            c.drawText("AI 참고 이미지",74,539,p(white,26,true));
+        }else{
+            c.drawText(story.kind==NewsStory.NEWS?"이미지 없이 방송 중":"NEWSVOICE WAV",88,410,p(WHITE,42,true));
         }
-        if(headlines.size()*headline.getTextSize()*1.18f>260)
-            throw new IllegalArgumentException("제목이 너무 깁니다: "+title);
-        float titleY=285;
-        for(String row:headlines){c.drawText(row,88,titleY,headline);titleY+=headline.getTextSize()*1.18f;}
         line(c,yellow,88,560,992,560,6);
         // No active-sentence shading or underline: steady white large print.
         // Sentence cues only determine the gradual vertical movement.
@@ -285,14 +298,14 @@ public final class NewsCardPainter {
         c.clipRect(75f,600f,1002f,SCROLL_BOTTOM);
         Paint body=p(Color.WHITE,SCROLL_FONT,true);
         for(int row=0;row<scroll.lines.size();row++){
-            float y=SCROLL_TOP+row*SCROLL_STEP-scrollPixels;
+            float y=(paged?660f:SCROLL_TOP)+row*SCROLL_STEP-scrollPixels;
             if(y<600f-SCROLL_STEP || y>SCROLL_BOTTOM+SCROLL_STEP)continue;
             String text=scroll.lines.get(row);
             if(!text.isEmpty())drawProseLine(c,text,92f,y,body);
         }
         c.restore();
         // A quiet progress rail makes the scroll position visible without subtitles.
-        if(scroll.maxOffset>0){
+        if(!paged&&scroll.maxOffset>0){
             rounded(c,Color.rgb(48,79,128),1014,610,1020,1542,3);
             float scrollRatio=NewsScrollMath.clamp(scrollPixels/scroll.maxOffset,0f,1f);
             float thumbTop=610+834f*scrollRatio;
@@ -348,12 +361,16 @@ public final class NewsCardPainter {
                                          Bitmap reusable){
         if(plan.story!=story)throw new IllegalArgumentException("기사와 스크롤 레이아웃이 다릅니다.");
         return renderFullArticle(story,index,count,meta,activeSentence,plan,
-            scrollPixels,broadcastProgress,reusable);
+            scrollPixels,broadcastProgress,null,false,reusable);
+    }
+    public static Bitmap renderBroadcast(NewsStory story,int index,int count,NewsCoverMeta meta,
+        int sentence,ScrollPlan plan,float offset,float progress,Bitmap photo,boolean paged,Bitmap reusable){
+        return renderFullArticle(story,index,count,meta,sentence,plan,offset,progress,photo,paged,reusable);
     }
     public static Bitmap render(Context context,NewsStory story,int index,int count,int stage,
                                 NewsCoverMeta meta,int activeSentence){
         if(stage>=2 && story!=null)return renderFullArticle(story,index,count,meta,
-            activeSentence,prepareScroll(story),0,-1f,null);
+            activeSentence,prepareScroll(story),0,-1f,null,false,null);
         Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bitmap);
         c.drawColor(NAVY);

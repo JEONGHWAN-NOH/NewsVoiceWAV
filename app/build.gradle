@@ -1,14 +1,14 @@
 plugins { id 'com.android.application' }
-def releaseVersion = '5.42-Lite'
+def releaseVersion = '5.43-Lite'
 
 android {
     namespace 'com.newsvoice.tts'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.newsvoice.tts.lite'
+        applicationId 'com.newsvoice.tts.lite543'
         minSdk 29
         targetSdk 35
-        versionCode 50
+        versionCode 51
         versionName releaseVersion
         testInstrumentationRunner 'com.newsvoice.tts.LiteBroadcastTest'
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
