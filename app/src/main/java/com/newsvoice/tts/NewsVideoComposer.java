@@ -24,7 +24,9 @@ import java.util.List;
 public final class NewsVideoComposer {
     private NewsVideoComposer() { }
     public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=30;
-    private enum Quality {
+    enum Quality {
+        KAKAO(360,640,10,80000),
+        YOUTUBE(720,1280,24,800000),
         ULTRA(720,1280,15,280_000),
         LITE(720,1280,24,700_000),
         FULL(VIDEO_WIDTH,VIDEO_HEIGHT,FPS,3_000_000);
@@ -199,11 +201,15 @@ public final class NewsVideoComposer {
     }
     public static File create(Context context,List<NewsStory> stories,List<File> waves,
                               List<List<Long>> sentenceFrames,File output,Progress progress)throws Exception {
+        boolean paged=AppPrefs.pageMode(context);
+        return create(context,stories,waves,sentenceFrames,output,progress,AppPrefs.liteVideo(context)?(paged?Quality.ULTRA:Quality.LITE):Quality.FULL);
+    }
+    static File create(Context context,List<NewsStory> stories,List<File> waves,
+                       List<List<Long>> sentenceFrames,File output,Progress progress,Quality quality)throws Exception {
         File folder=new File(context.getCacheDir(),"video_work_"+System.nanoTime());
         if(!folder.mkdirs())throw new IOException("임시 영상 폴더를 만들 수 없습니다.");
         File raw=new File(folder,"audio.pcm"),aac=new File(folder,"audio.m4a"),video=new File(folder,"cards.mp4");
         boolean paged=AppPrefs.pageMode(context);
-        Quality quality=AppPrefs.liteVideo(context)?(paged?Quality.ULTRA:Quality.LITE):Quality.FULL;
         java.util.Map<Integer,Bitmap> photos=NewsImagePack.snapshot(context,stories);
         Bitmap cover=null;
         try {
@@ -218,6 +224,7 @@ public final class NewsVideoComposer {
             encodeVideo(context,video,timeline,articleCount,coverMeta,progress,cover,quality,photos,paged);
             progress.message("MP4 음성·영상 결합 중");
             join(video,aac,output);
+            Mp4FastStart.optimize(output);
             if(!output.isFile()||output.length()<1024)throw new IOException("MP4가 완성되지 않았습니다.");
             progress.message("MP4 생성 완료");
             return output;
@@ -231,10 +238,10 @@ public final class NewsVideoComposer {
         MediaCodec codec=MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC);
         MediaMuxer mux=null;FileInputStream in=null;boolean muxStarted=false;
         try {
-            int outputChannels=quality==Quality.ULTRA?1:channels;
+            int outputChannels=(quality==Quality.ULTRA||quality==Quality.KAKAO)?1:channels;
             MediaFormat format=MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC,rate,outputChannels);
             format.setInteger(MediaFormat.KEY_AAC_PROFILE,MediaCodecInfo.CodecProfileLevel.AACObjectLC);
-            format.setInteger(MediaFormat.KEY_BIT_RATE,quality==Quality.ULTRA?48000:quality==Quality.LITE?64000:(channels==1?96000:128000));
+            format.setInteger(MediaFormat.KEY_BIT_RATE,quality==Quality.KAKAO?40000:quality==Quality.ULTRA?48000:quality==Quality.LITE?64000:(channels==1?96000:128000));
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE,PCM_CHUNK);
             codec.configure(format,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
             codec.start();in=new FileInputStream(pcm);
@@ -298,7 +305,7 @@ public final class NewsVideoComposer {
             MediaFormat fmt=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,quality.width,quality.height);
             fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
             fmt.setInteger(MediaFormat.KEY_BIT_RATE,quality.videoBitrate);
-            if(quality==Quality.LITE||quality==Quality.ULTRA) {
+            if(quality==Quality.LITE||quality==Quality.ULTRA||quality==Quality.KAKAO||quality==Quality.YOUTUBE) {
                 MediaCodecInfo.EncoderCapabilities caps=codec.getCodecInfo()
                     .getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC).getEncoderCapabilities();
                 if(caps.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR))

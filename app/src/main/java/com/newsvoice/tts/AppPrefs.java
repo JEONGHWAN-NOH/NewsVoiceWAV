@@ -23,6 +23,6 @@ public final class AppPrefs {
     static boolean pageMode(Context c){return get(c).getBoolean("page_mode",true);}
     static boolean keepWav(Context c){return get(c).getBoolean("keep_wav",false);}
     public static String voiceName(Context c) {return get(c).getString("voice", "");}
-    public static float speed(Context c) {return get(c).getFloat("speed", 0.95f);}
+    public static float speed(Context c) {return get(c).getFloat("speed", 1.25f);}
     public static float pitch(Context c) {return get(c).getFloat("pitch", 1.00f);}
 }

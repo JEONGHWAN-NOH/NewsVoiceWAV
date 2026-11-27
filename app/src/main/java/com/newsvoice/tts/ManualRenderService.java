@@ -148,11 +148,20 @@ public final class ManualRenderService extends Service {
                 }else if(step.contains("AAC"))progress(step,54);
                 else if(step.contains("결합"))progress(step,93);
                 else progress(step,Math.max(52,percent));
-            });
-            progress("MP4 다운로드 폴더에 기록하는 중",95);
-            Uri saved=DownloadsPublisher.publish(context,mp4,names.mp4());
+            },NewsVideoComposer.Quality.KAKAO);
+            progress("카카오톡용 저장 중",95);
+            Uri saved=DownloadsPublisher.publish(context,mp4,names.base+"_kakao.mp4");
             AppPrefs.get(context).edit().putString("last_mp4_uri",saved.toString())
-                .putString("last_mp4_name",names.mp4()).apply();
+                .putString("last_mp4_name",names.base+"_kakao.mp4").remove("last_youtube_uri").remove("youtube_url").remove("last_share_cover").apply();
+            progress("YouTube용 영상 제작 중",96);
+            NewsVideoComposer.create(context,pages,parts,sentenceFrames,mp4,step->report("YouTube · "+step),NewsVideoComposer.Quality.YOUTUBE);
+            Uri youtube=DownloadsPublisher.publish(context,mp4,names.base+"_youtube.mp4");
+            AppPrefs.get(context).edit().putString("last_youtube_uri",youtube.toString()).apply();
+            File card=new File(context.getCacheDir(),"share_"+stamp+".jpg");
+            try { ShareCover.write(context,card,java.time.Instant.ofEpochMilli(Long.parseLong(stamp)));
+                Uri cover=DownloadsPublisher.publish(context,card,names.base+"_cover.jpg");
+                AppPrefs.get(context).edit().putString("last_share_cover",cover.toString()).apply();
+            } finally {card.delete();}
             progress("저장 완료: 다운로드/1. 필리핀뉴스 v5.45 Lite/"+names.dateFolder+(AppPrefs.keepWav(context)?" → MP4 · WAV":" → MP4"),100);
             success=true;
         }finally{

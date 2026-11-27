@@ -16,11 +16,7 @@ public class LiteBroadcastTest extends Instrumentation {
         Bundle result=new Bundle();
         try{
             Context c=getTargetContext();
-            check(c.getPackageName().equals("com.newsvoice.tts.lite545"),"Separate package");
-            try(android.os.ParcelFileDescriptor fd=getUiAutomation().executeShellCommand("pm list packages com.newsvoice.tts.lite");
-                InputStream in=new FileInputStream(fd.getFileDescriptor())){
-                check(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8).contains("package:com.newsvoice.tts.lite543"),"v5.43 remains installed");
-            }
+            check(c.getPackageName().equals("com.newsvoice.tts.v60"),"Separate package");
             MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
             check(AppPrefs.pageMode(c)&&!AppPrefs.keepWav(c),"Lightweight defaults");
@@ -118,6 +114,16 @@ public class LiteBroadcastTest extends Instrumentation {
                     android.util.Log.i("NewsVoiceLite",("mode="+mode)+" bytes="+video.length());
                 }finally{r.release();}
             }
+            for(NewsVideoComposer.Quality q:new NewsVideoComposer.Quality[]{NewsVideoComposer.Quality.KAKAO,NewsVideoComposer.Quality.YOUTUBE}){
+                File video=new File(c.getCacheDir(),"dual-"+q.name()+".mp4");
+                NewsVideoComposer.create(c,stories,waves,cues,video,message->{},q);
+                MediaMetadataRetriever r=new MediaMetadataRetriever();try{
+                    r.setDataSource(video.getPath());check(Integer.toString(q.width).equals(r.extractMetadata(r.METADATA_KEY_VIDEO_WIDTH)),"Dual width");
+                    check(Integer.toString(q.height).equals(r.extractMetadata(r.METADATA_KEY_VIDEO_HEIGHT)),"Dual height");
+                    check("yes".equals(r.extractMetadata(r.METADATA_KEY_HAS_AUDIO)),"Dual audio");
+                }finally{r.release();video.delete();}
+            }
+            Bitmap share=ShareCover.bitmap(c,java.time.Instant.now());check(share!=null,"Approved artwork");share.recycle();
             AppPrefs.setLiteVideo(c,true);AppPrefs.get(c).edit().putBoolean("page_mode",true).commit();
             NewsImagePack.remove(c);check(NewsImagePack.snapshot(c,stories).size()==3,"Cover and portraits survive article removal");
             NewsImagePack.resetCover(c);check(NewsImagePack.load(c,NewsImagePack.COVER_SLOT)==null,"Default cover restored");

@@ -178,9 +178,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         ScrollView sc = new ScrollView(this);sc.setFillViewport(true);sc.setBackgroundColor(0xfff7fbff);
         LinearLayout body = new LinearLayout(this);body.setPadding(dp(this,20),dp(this,27),dp(this,20),dp(this,30));body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);
         TextView brand=text("●  "+getString(R.string.app_display_name),19,true);brand.setTextColor(MINT);body.addView(brand);
-        TextView headline=text("한국어 뉴스 음성 자동 생성",24,true);body.addView(headline,lp(-1,-2,14));
+        TextView headline=text("오늘의 종합뉴스",24,true);body.addView(headline,lp(-1,-2,14));
         TextView sub=text("원고를 입력하고 한국어 음성을 선택해 낭독하세요.",13,false);sub.setTextColor(0xff61778e);body.addView(sub,lp(-1,-2,5));
-        body.addView(text("01  TTS 엔진과 한국어 목소리 · 미리 듣기",17,true),lp(-1,-2,25));
+        TextView voiceHeader=text("01  음성 등록 · TTS 설정",17,true);body.addView(voiceHeader,lp(-1,-2,25));
         TextView enginesHelp=text("설치된 삼성·구글 등 TTS 엔진 중 선택합니다. 표시되는 엔진과 음성 개수는 휴대폰마다 다릅니다.",12,false);
         enginesHelp.setTextColor(0xff61778e);body.addView(enginesHelp,lp(-1,-2,6));
         enginesSpinner = new Spinner(this); enginesSpinner.setBackground(rounded(0xffe7f1f6,dp(this,12)));
@@ -259,11 +259,12 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent){}
         });
-        body.addView(text("02  뉴스 원고 · 대본만 입력하면 자동 제작",17,true),lp(-1,-2,21));
+        TextView scriptHeader=text("방송 자료 등록 · 대본",20,true);body.addView(scriptHeader,lp(-1,-2,21));
         editor = new EditText(this);editor.setTextSize(16);editor.setTextColor(DARK);editor.setGravity(Gravity.TOP);editor.setPadding(dp(this,14),dp(this,14),dp(this,14),dp(this,14));
         editor.setHint("아나운서 대본 전체를 붙여 넣으세요. 첫 번째 소식입니다. 등 순서가 있으면 자동으로 뉴스를 분리합니다.");editor.setMinLines(8);editor.setBackgroundResource(R.drawable.bg_editor);
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         LinearLayout scriptActions=new LinearLayout(this);
+        Button voiceSettings=btn("음성 등록 · 설정",0xffe3eff2,DARK);body.addView(voiceSettings,lp(-1,52,8));voiceSettings.setOnClickListener(v->sc.smoothScrollTo(0,voiceHeader.getTop()));
         body.addView(scriptActions,lp(-1,52,8));
         Button importScript=btn("대본 불러오기",0xffe3eff2,DARK);
         Button clearScript=btn("대본 지우기",0xffffeeee,0xff90252b);
@@ -357,7 +358,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             pick.addCategory(Intent.CATEGORY_OPENABLE);
             startActivityForResult(pick,OPENING_PICKER);
         });
-        body.addView(text("04  재생 · 저장",17,true),lp(-1,-2,25));
+        TextView productionHeader=text("방송 영상 제작",20,true);body.addView(productionHeader,lp(-1,-2,25));
+        ImageView coverPreview=new ImageView(this);coverPreview.setAdjustViewBounds(true);body.addView(coverPreview,lp(-1,240,8));
+        try{coverPreview.setImageBitmap(ShareCover.bitmap(this,java.time.Instant.now()));}catch(IOException ignored){}
         status=text("음성 엔진을 준비하고 있습니다.",13,false);status.setTextColor(0xff61778e);body.addView(status,lp(-1,-2,8));
         jobStatus=text("제작 상태: "+AppPrefs.get(this).getString("status","작업 기록 없음"),14,true);
         jobStatus.setTextColor(0xffe01616);
@@ -384,27 +387,33 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         liteVideo.setTextColor(DARK);
         liteVideo.setChecked(AppPrefs.liteVideo(this));
         liteVideo.setOnCheckedChangeListener((button,checked)->AppPrefs.setLiteVideo(this,checked));
-        body.addView(liteVideo,lp(-1,-2,4));
+        body.addView(liteVideo,lp(-1,-2,4));liteVideo.setVisibility(View.GONE);
         CheckBox pageMode=new CheckBox(this);pageMode.setText("최대 경량 · 본문 페이지 전환 (해제하면 부드러운 스크롤)");
         pageMode.setChecked(AppPrefs.pageMode(this));pageMode.setOnCheckedChangeListener((b,on)->AppPrefs.get(this).edit().putBoolean("page_mode",on).apply());
         body.addView(pageMode,lp(-1,-2,4));
         CheckBox keepWav=new CheckBox(this);keepWav.setText("MP4와 함께 WAV 원본도 저장");
         keepWav.setChecked(AppPrefs.keepWav(this));keepWav.setOnCheckedChangeListener((b,on)->AppPrefs.get(this).edit().putBoolean("keep_wav",on).apply());
         body.addView(keepWav,lp(-1,-2,4));
-        TextView formatHelp=text("v5.45 Lite · AI 이미지와 큰 본문. 최대 경량 720p·15fps, 페이지 전환 및 기존 스크롤 선택. 오프닝 음악 유지. WAV만 저장하거나 MP4와 함께 보관할 수 있습니다.",12,false);
+        TextView formatHelp=text("카카오톡 360×640 · 10fps / YouTube 720×1280 · 24fps\nFast Start 자동 적용 · 음성은 한 번 생성합니다.",14,true);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
-        Button save=btn(videoCheck.isChecked()?"MP4 제작 · WAV 보관은 선택":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
+        Button save=btn(videoCheck.isChecked()?"영상 일괄 제작":"WAV 음성 자동 생성 및 다운로드 저장",0xff0756dc,Color.WHITE);
         body.addView(save,lp(-1,55,12));
         Button lastVideo=btn("최근 저장된 MP4 바로 열기",0xffe7f2f3,DARK);
         body.addView(lastVideo,lp(-1,50,9));
         lastVideo.setOnClickListener(v->openLastVideo());
-        body.addView(text("05  뉴스 영상 공유",17,true),lp(-1,-2,18));
-        Button shareVideo=btn("뉴스 영상 MP4 공유",0xffd8edf6,DARK);
+        TextView distributionHeader=text("방송 배포",20,true);body.addView(distributionHeader,lp(-1,-2,18));
+        Button shareVideo=btn("카카오톡 영상 공유",0xffffd500,DARK);
         body.addView(shareVideo,lp(-1,49,8));
         shareVideo.setOnClickListener(v->shareLast());
+        Button youtube=btn("YouTube 업로드용 공유",0xffe61119,Color.WHITE);body.addView(youtube,lp(-1,52,8));
+        youtube.setOnClickListener(v->shareUri("last_youtube_uri","video/mp4","YouTube 업로드용 영상"));
+        EditText url=new EditText(this);url.setSingleLine(true);url.setHint("YouTube 시청 주소 등록");url.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);url.setText(AppPrefs.get(this).getString("youtube_url",""));body.addView(url,lp(-1,52,8));
+        Button register=btn("주소 등록",0xffe3eff2,DARK);body.addView(register,lp(-1,48,4));register.setOnClickListener(v->{String value=url.getText().toString().trim();Uri u=Uri.parse(value);String host=u.getHost();if(!"https".equals(u.getScheme())||host==null||!(host.equalsIgnoreCase("youtu.be")||host.equalsIgnoreCase("www.youtube.com")||host.equalsIgnoreCase("youtube.com")||host.equalsIgnoreCase("m.youtube.com"))){updateStatus("올바른 YouTube HTTPS 주소를 입력하세요.");return;}AppPrefs.get(this).edit().putString("youtube_url",value).apply();Toast.makeText(this,"주소 등록 완료",Toast.LENGTH_SHORT).show();});
+        Button shareCover=btn("최종 공유 표지 및 링크",DARK,Color.WHITE);body.addView(shareCover,lp(-1,56,8));shareCover.setOnClickListener(v->shareUri("last_share_cover","image/jpeg","방송 표지 공유"));
+        Button shareLink=btn("YouTube 시청 링크 공유",0xffe3eff2,DARK);body.addView(shareLink,lp(-1,48,8));shareLink.setOnClickListener(v->{String value=AppPrefs.get(this).getString("youtube_url","");if(value.isEmpty()){Toast.makeText(this,"YouTube 주소를 등록하세요.",Toast.LENGTH_SHORT).show();return;}Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+value);startActivity(Intent.createChooser(send,"시청 링크 공유"));});
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
-            save.setText(isChecked?"MP4 제작 · WAV 보관은 선택":"WAV 음성 자동 생성 및 다운로드 저장");
+            save.setText(isChecked?"영상 일괄 제작":"WAV 음성 자동 생성 및 다운로드 저장");
         });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
@@ -413,7 +422,11 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         stop.setOnClickListener(v->{taskToken++;playbackSegments.clear();playbackIndex=-1;playbackToken=-1;if(tts!=null)tts.stop();updateStatus("낭독 정지됨");});
         save.setOnClickListener(v->queueManualSave());
         buildAutomationControls(body);
-        setContentView(sc);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout tabs=new LinearLayout(this);root.addView(tabs,lp(-1,52,0));
+        String[] labels={"자료 등록","영상 제작","방송 배포"};View[] targets={scriptHeader,productionHeader,distributionHeader};
+        for(int i=0;i<3;i++){final View target=targets[i];Button tab=btn(labels[i],DARK,Color.WHITE);tabs.addView(tab,new LinearLayout.LayoutParams(0,-1,1));tab.setOnClickListener(v->sc.smoothScrollTo(0,target.getTop()));}
+        root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);sc.post(()->sc.scrollTo(0,scriptHeader.getTop()));
         jobListener=(prefs,key)->{
             if("status".equals(key)||"render_percent".equals(key)||"render_eta_ms".equals(key)||"render_stage".equals(key)||"render_active".equals(key))
                 main.post(this::refreshRenderProgress);
@@ -773,6 +786,12 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivity(Intent.createChooser(send,"뉴스 동영상 공유"));
         }catch(Exception e){updateStatus("영상 공유 실패: "+e.getMessage());}
+    }
+    private void shareUri(String key,String mime,String title){
+        String raw=AppPrefs.get(this).getString(key,"");if(raw.isEmpty()){Toast.makeText(this,"먼저 방송 영상을 제작하세요.",Toast.LENGTH_SHORT).show();return;}
+        Intent send=new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM,Uri.parse(raw)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if(key.equals("last_share_cover")){String link=AppPrefs.get(this).getString("youtube_url","");if(!link.isEmpty())send.putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+link);}
+        startActivity(Intent.createChooser(send,title));
     }
     private void openLastVideo(){
         String value=AppPrefs.get(this).getString("last_mp4_uri","");
