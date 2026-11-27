@@ -408,9 +408,15 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button youtube=btn("YouTube 업로드용 공유",0xffe61119,Color.WHITE);body.addView(youtube,lp(-1,52,8));
         youtube.setOnClickListener(v->shareUri("last_youtube_uri","video/mp4","YouTube 업로드용 영상"));
         EditText url=new EditText(this);url.setSingleLine(true);url.setHint("YouTube 시청 주소 등록");url.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);url.setText(AppPrefs.get(this).getString("youtube_url",""));body.addView(url,lp(-1,52,8));
-        Button register=btn("주소 등록",0xffe3eff2,DARK);body.addView(register,lp(-1,48,4));register.setOnClickListener(v->{String value=url.getText().toString().trim();Uri u=Uri.parse(value);String host=u.getHost();if(!"https".equals(u.getScheme())||host==null||!(host.equalsIgnoreCase("youtu.be")||host.equalsIgnoreCase("www.youtube.com")||host.equalsIgnoreCase("youtube.com")||host.equalsIgnoreCase("m.youtube.com"))){updateStatus("올바른 YouTube HTTPS 주소를 입력하세요.");return;}AppPrefs.get(this).edit().putString("youtube_url",value).apply();Toast.makeText(this,"주소 등록 완료",Toast.LENGTH_SHORT).show();});
-        Button shareCover=btn("최종 공유 표지 및 링크",DARK,Color.WHITE);body.addView(shareCover,lp(-1,56,8));shareCover.setOnClickListener(v->shareUri("last_share_cover","image/jpeg","방송 표지 공유"));
-        Button shareLink=btn("YouTube 시청 링크 공유",0xffe3eff2,DARK);body.addView(shareLink,lp(-1,48,8));shareLink.setOnClickListener(v->{String value=AppPrefs.get(this).getString("youtube_url","");if(value.isEmpty()){Toast.makeText(this,"YouTube 주소를 등록하세요.",Toast.LENGTH_SHORT).show();return;}Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+value);startActivity(Intent.createChooser(send,"시청 링크 공유"));});
+        TextView linkStatus=text("YouTube 주소를 입력하고 등록하세요.",14,true);body.addView(linkStatus,lp(-1,-2,4));
+        Button register=btn("YouTube 주소 등록 · 저장",0xffe3eff2,DARK);body.addView(register,lp(-1,48,4));
+        register.setOnClickListener(v->{String value=ShareLinks.youtube(url.getText().toString());if(value.isEmpty()){url.setError("영상 주소를 확인하세요 (youtu.be, watch, Shorts)");linkStatus.setText("등록 실패: 영상 링크가 필요합니다.");return;}AppPrefs.get(this).edit().putString("youtube_url",value).commit();url.setText(value);url.setError(null);linkStatus.setText("등록 완료 · "+value);});
+        Button verify=btn("등록된 YouTube 영상 열기",0xffe61119,Color.WHITE);body.addView(verify,lp(-1,48,4));verify.setOnClickListener(v->{String value=AppPrefs.get(this).getString("youtube_url","");if(value.isEmpty()){url.setError("주소를 먼저 등록하세요.");return;}try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(value)));}catch(Exception e){linkStatus.setText("주소 열기 실패: "+e.getClass().getSimpleName());}});
+        EditText kakaoUrl=new EditText(this);kakaoUrl.setSingleLine(true);kakaoUrl.setHint("경량 MP4 HTTPS 주소 (선택)");kakaoUrl.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);kakaoUrl.setText(AppPrefs.get(this).getString("kakao_url",""));body.addView(kakaoUrl,lp(-1,52,8));
+        Button registerKakao=btn("경량 영상 주소 등록",0xffffd500,DARK);body.addView(registerKakao,lp(-1,48,4));registerKakao.setOnClickListener(v->{String raw=kakaoUrl.getText().toString().trim();String value=ShareLinks.mp4(raw);if(!raw.isEmpty()&&value.isEmpty()){kakaoUrl.setError("외부에서 열 수 있는 HTTPS MP4 주소를 입력하세요.");return;}AppPrefs.get(this).edit().putString("kakao_url",value).commit();kakaoUrl.setError(null);linkStatus.setText(value.isEmpty()?"MP4 주소 없이 첨부 영상으로 공유합니다.":"MP4 주소 등록 완료");});
+        body.addView(text("① 카카오톡 경량 영상 공유 → ② 아래 시청 안내를 별도 메시지로 공유. MP4 주소가 있다면 두 링크 모두 메시지에서 누를 수 있습니다.",14,false),lp(-1,-2,8));
+        Button shareCover=btn("방송 표지 이미지 공유",DARK,Color.WHITE);body.addView(shareCover,lp(-1,56,8));shareCover.setOnClickListener(v->shareUri("last_share_cover","image/jpeg","방송 표지 공유"));
+        Button shareLink=btn("카카오톡 · YouTube 시청 안내 공유",0xffe3eff2,DARK);body.addView(shareLink,lp(-1,56,8));shareLink.setOnClickListener(v->{String value=AppPrefs.get(this).getString("youtube_url","");if(value.isEmpty()){linkStatus.setText("YouTube 주소를 먼저 등록하세요.");url.setError("등록 필요");return;}String message=ShareLinks.message(AppPrefs.get(this).getString("kakao_url",""),value);Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,message);startActivity(Intent.createChooser(send,"두 가지 시청 방법 공유"));});
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
             save.setText(isChecked?"영상 일괄 제작":"WAV 음성 자동 생성 및 다운로드 저장");
@@ -627,7 +633,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.45 Lite/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/NewsVoice v6.1/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -806,7 +812,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.45 Lite → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → NewsVoice v6.1 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -942,7 +948,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.45 Lite/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/NewsVoice v6.1/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){
