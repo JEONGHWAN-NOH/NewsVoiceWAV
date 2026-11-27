@@ -20,17 +20,17 @@ public final class NewsAutoScriptTest {
         check(NewsAutoScript.isAutoFormat(raw),"full numbered script detected");
         String converted=NewsAutoScript.adapt(raw);
         check(converted.contains("시작 인사\n"),"original introduction is opening");
-        check(converted.contains("앵커 한마디\n"),"anchor preserved");
+        check(!converted.contains("앵커 한마디\n"),"anchor removed");
         check(converted.contains("마감 인사\n"),"closing preserved");
         List<NewsStory> sections=NewsBroadcastSegments.build(raw,"");
-        check(sections.size()==5,"opening + two articles + anchor + closing");
+        check(sections.size()==4,"opening + two articles + anchor + closing");
         check(NewsBroadcastSegments.newsCount(sections)==2,"two news images");
         check(sections.get(1).title.contains("필리핀 정부가"),"title from input facts only");
         check(sections.get(2).title.contains("칼락스"),"second title from input");
         String spoken=NewsBroadcastSegments.audioScript(sections);
         check(spoken.contains("첫 번째 소식입니다."),"original spoken article cue retained");
         check(spoken.contains("두 번째 소식입니다."),"second spoken cue retained");
-        check(spoken.contains("정부 발표와 실제 사업을"),"anchor spoken");
+        check(!spoken.contains("정부 발표와 실제 사업을"),"anchor skipped");
         check(spoken.contains("감사합니다."),"closing spoken");
         check(!spoken.contains("뉴스 1 ·"),"display headline not spoken");
         String legacy="정치 뉴스\n정부는 발표했습니다.\n===\n경제 뉴스\n시장은 반응했습니다.";
@@ -51,9 +51,9 @@ public final class NewsAutoScriptTest {
             numbered+=n+" 번째 뉴스입니다. 기사 본문입니다. ";
         numbered+="오늘의 뉴스, 앵커 한마디입니다. 내용입니다. 이상 필리핀 뉴스였습니다. 감사합니다.";
         List<NewsStory> all=NewsBroadcastSegments.build(numbered,"");
-        check(all.size()==15 && all.get(0).kind==NewsStory.OPENING,"numbered opening and twelve stories");
+        check(all.size()==14 && all.get(0).kind==NewsStory.OPENING,"numbered opening and twelve stories");
         for(int i=1;i<=12;i++)check(all.get(i).articleNumber==i && !all.get(i).audioText().startsWith("다음 뉴스"),"slot "+i);
-        check(all.get(13).kind==NewsStory.ANCHOR && all.get(14).kind==NewsStory.CLOSING,"spoken endings");
+        check(all.get(13).kind==NewsStory.CLOSING,"spoken endings");
         System.out.println("NewsAutoScript PASS");
     }
 }

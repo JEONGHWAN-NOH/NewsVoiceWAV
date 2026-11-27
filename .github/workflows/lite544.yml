@@ -1,0 +1,67 @@
+name: Build and verify v5.44 Lite
+on:
+  push:
+    branches: [feature/v5.44-photo]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  lite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify preserved audio and article algorithms
+        run: |
+          mkdir -p /tmp/lite-tests
+          javac -encoding UTF-8 -d /tmp/lite-tests app/src/main/java/com/newsvoice/tts/{WavTools,NewsStory,NewsAutoScript,NewsBroadcastSegments,BroadcastScriptReview,NewsSentenceTimeline,NewsScrollMath,NewsPageSplitter,NewsCoverMeta}.java tests/{WavToolsTest,NewsStoryTest,NewsAutoScriptTest,NewsBroadcastSegmentsTest,BroadcastScriptReviewTest,NewsSentenceTimelineTest,NewsScrollMathTest,NewsPageSplitterTest,NewsCoverMetaTest}.java
+          for t in WavToolsTest NewsStoryTest NewsAutoScriptTest NewsBroadcastSegmentsTest BroadcastScriptReviewTest NewsSentenceTimelineTest NewsScrollMathTest NewsPageSplitterTest NewsCoverMetaTest; do java -cp /tmp/lite-tests "$t"; done
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build installable APK and device tests
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Preserve baseline APK
+        run: curl -fL 'https://github.com/JEONGHWAN-NOH/NewsVoiceWAV/releases/download/v5.43-lite-45951834531-1/NewsVoiceWAV-v5.43-Lite.apk' -o baseline.apk
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify parallel install and WAV MP4 on Android 35
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: |
+            adb install baseline.apk
+            adb install app/build/outputs/apk/debug/NewsVoiceWAV-v5.44-Lite-debug.apk
+            adb install "$(find app/build/outputs/apk/androidTest -name '*.apk' -print -quit)"
+            adb shell am instrument -w com.newsvoice.tts.lite544.test/com.newsvoice.tts.LiteBroadcastTest | tee instrumentation.txt
+            grep -F 'lite_tests=passed' instrumentation.txt
+            adb pull /sdcard/Download/Lite-layout.png
+            adb pull /sdcard/Download/Lite-720.png
+            adb pull /sdcard/Download/Lite-1080.png
+            adb pull /sdcard/Download/Lite-scroll.png
+            adb logcat -d -s NewsVoiceLite:I > video-sizes.txt
+      - name: Verify signature and publish tested preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/NewsVoiceWAV-v5.44-Lite-debug.apk NewsVoiceWAV-v5.44-Lite.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs NewsVoiceWAV-v5.44-Lite.apk > signature.txt
+          sha256sum baseline.apk NewsVoiceWAV-v5.44-Lite.apk > SHA256SUMS.txt
+          stat -c '%n %s bytes' baseline.apk NewsVoiceWAV-v5.44-Lite.apk > apk-sizes.txt
+          gh release create "v5.44-lite-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoiceWAV-v5.44-Lite.apk Lite-layout.png Lite-720.png Lite-1080.png Lite-scroll.png instrumentation.txt video-sizes.txt signature.txt SHA256SUMS.txt apk-sizes.txt --target "$GITHUB_SHA" --prerelease --title 'NewsVoice WAV v5.44 Lite · AI 이미지 경량 방송' --notes 'v5.43 병행 설치. 시작·마감 사진, 기사별 개별 교체, 원본 비율 유지, 앵커 한마디 제거. 로컬 AI 이미지 자료, 최대 경량 페이지 전환, 기존 스크롤, WAV 선택 보관. Android 35 에뮬레이터 WAV/MP4 검증. 디버그 서명 시험판이며 실제 Galaxy 한국어 TTS·청취 품질은 미검증.'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lite544-build-evidence
+          path: |
+            app/build/outputs/apk/
+            *.txt
+            Lite-*.png

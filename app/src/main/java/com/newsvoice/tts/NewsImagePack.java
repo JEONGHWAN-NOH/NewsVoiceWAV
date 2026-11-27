@@ -25,22 +25,55 @@ public final class NewsImagePack {
     public static synchronized Map<Integer,Bitmap> snapshot(Context c,List<NewsStory> stories){
         Map<Integer,Bitmap> images=new HashMap<>();
         if(matches(c,stories))for(int i=1;i<=8;i++){Bitmap b=load(c,i);if(b!=null)images.put(i,b);}
+        for(int slot:new int[]{OPENING_SLOT,CLOSING_SLOT}){
+            Bitmap portrait=load(c,slot);
+            if(portrait!=null)images.put(slot,portrait);
+        }
         return images;
     }
     public static synchronized boolean matches(Context c,List<NewsStory> stories){
         try{return new String(Files.readAllBytes(new File(folder(c),"fingerprint.txt").toPath()),StandardCharsets.UTF_8).equals(fingerprint(stories));}
         catch(Exception e){return false;}
     }
-    public static synchronized Bitmap load(Context c,int number){
-        if(number<1||number>8)return null;
+    public static final int OPENING_SLOT=0, CLOSING_SLOT=9;
+    private static File photoFile(File base,int number){
+        return new File(base,String.format(Locale.US,"news_%03d.webp",number));
+    }
+    private static boolean portrait(int slot){return slot==OPENING_SLOT||slot==CLOSING_SLOT;}
+    public static int slotFor(NewsStory story){
+        if(story.kind==NewsStory.OPENING)return OPENING_SLOT;
+        if(story.kind==NewsStory.CLOSING)return CLOSING_SLOT;
+        return story.articleNumber<=8?story.articleNumber:-1;
+    }
+    public static synchronized Bitmap load(Context c,int slot){
+        if(slot<0||slot>CLOSING_SLOT)return null;
+        File file=photoFile(portrait(slot)?c.getFilesDir():folder(c),slot);
+        return file.isFile()?BitmapFactory.decodeFile(file.getPath()):null;
+    }
+    public static synchronized void replace(Context c,int slot,Uri uri,String script)throws Exception{
+        if(slot<0||slot>CLOSING_SLOT)throw new IOException("사진 번호 오류");
+        List<NewsStory> stories=portrait(slot)?Collections.emptyList():NewsBroadcastSegments.build(script,"");
+        if(!portrait(slot)&&NewsBroadcastSegments.newsCount(stories)<slot)
+            throw new IOException("해당 번호의 뉴스 대본을 먼저 등록하세요");
+        Bitmap image=ImageDecoder.decodeBitmap(ImageDecoder.createSource(c.getContentResolver(),uri),
+            (decoder,info,source)->{
+                int w=info.getSize().getWidth(),h=info.getSize().getHeight();
+                float scale=Math.min(1f,480f/Math.max(w,h));
+                decoder.setTargetSize(Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale)));
+                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
+            });
+        File stage=Files.createTempDirectory(c.getFilesDir().toPath(),"photo-stage").toFile();
         try{
-            File f=new File(folder(c),String.format(Locale.US,"news_%03d.webp",number));
-            if(!f.isFile()||f.length()>25600)return null;
-            BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;
-            BitmapFactory.decodeFile(f.getPath(),bounds);
-            if(bounds.outWidth!=480||bounds.outHeight!=160)return null;
-            return BitmapFactory.decodeFile(f.getPath());
-        }catch(RuntimeException e){return null;}
+            File imageFile=photoFile(stage,slot);
+            save(image,imageFile);
+            if(portrait(slot)||matches(c,stories)){
+                File dest=photoFile(portrait(slot)?c.getFilesDir():folder(c),slot);
+                Files.move(imageFile.toPath(),dest.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+            }else{
+                Files.write(new File(stage,"fingerprint.txt").toPath(),fingerprint(stories).getBytes(StandardCharsets.UTF_8));
+                activate(c,stage);
+            }
+        }finally{image.recycle();clear(stage);}
     }
     private static void clear(File dir){File[] files=dir.listFiles();if(files!=null)for(File f:files)f.delete();dir.delete();}
     public static synchronized void remove(Context c){clear(folder(c));}
@@ -55,6 +88,8 @@ public final class NewsImagePack {
                     if(++entries>24)throw new IOException("ZIP 파일 수 초과");
                     String name=entry.getName();
                     if(entry.isDirectory()||name.contains("/")||name.contains("\\")||name.contains(".."))throw new IOException("ZIP 안에는 파일만 넣어 주세요");
+                    if(name.matches("0[1-8]\\.webp"))name="news_0"+name;
+                    if(name.endsWith(".txt")&&!name.equals("sources.txt"))name="script.txt";
                     boolean text=name.equals("script.txt"),photo=name.matches("news_00[1-8]\\.webp");
                     if(!text&&!photo&&!name.equals("sources.txt"))throw new IOException("지원하지 않는 자료: "+name);
                     if(!seen.add(name))throw new IOException("중복 파일: "+name);
@@ -74,12 +109,20 @@ public final class NewsImagePack {
             for(int i=1;i<=count;i++)if(!seen.contains(String.format(Locale.US,"news_%03d.webp",i)))throw new IOException("뉴스 "+i+" 이미지 누락");
             if(seen.stream().filter(x->x.endsWith(".webp")).count()!=count)throw new IOException("대본과 이미지 수가 다릅니다");
             Files.write(new File(stage,"fingerprint.txt").toPath(),fingerprint(stories).getBytes(StandardCharsets.UTF_8));
+            activate(c,stage);
+            return script;
+        }finally{clear(stage);}
+    }
+    private static void activate(Context c,File stage)throws IOException{
             File live=folder(c),backup=new File(c.getFilesDir(),"image_pack_backup_"+System.nanoTime());
             boolean old=live.exists();if(old&&!live.renameTo(backup))throw new IOException("기존 자료 보존 실패");
             if(!stage.renameTo(live)){if(old)backup.renameTo(live);throw new IOException("자료 적용 실패");}
             if(old)clear(backup);
-            return script;
-        }finally{clear(stage);}
+    }
+    private static void save(Bitmap image,File output)throws IOException{
+        try(OutputStream stream=new FileOutputStream(output)){
+            if(!image.compress(Bitmap.CompressFormat.WEBP,40,stream))throw new IOException("사진 저장 실패");
+        }
     }
     private static void compress(byte[] bytes,File output)throws IOException{
         BitmapFactory.Options options=new BitmapFactory.Options();options.inJustDecodeBounds=true;
@@ -88,16 +131,9 @@ public final class NewsImagePack {
         options.inSampleSize=Math.max(1,Math.max(options.outWidth,options.outHeight)/960);options.inJustDecodeBounds=false;
         Bitmap original=BitmapFactory.decodeByteArray(bytes,0,bytes.length,options);
         if(original==null)throw new IOException("이미지를 읽을 수 없습니다");
-        Bitmap resized=Bitmap.createBitmap(480,160,Bitmap.Config.ARGB_8888);
-        try{
-            int w=original.getWidth(),h=original.getHeight(),cw=w,ch=h;
-            if(w>h*3)cw=h*3;else ch=Math.max(1,w/3);
-            new Canvas(resized).drawBitmap(original,new Rect((w-cw)/2,(h-ch)/2,(w+cw)/2,(h+ch)/2),new Rect(0,0,480,160),new Paint(Paint.FILTER_BITMAP_FLAG));
-            for(int quality:new int[]{60,50,40,30,20,10}){
-                ByteArrayOutputStream encoded=new ByteArrayOutputStream();resized.compress(Bitmap.CompressFormat.WEBP,quality,encoded);
-                if(encoded.size()<=25600){Files.write(output.toPath(),encoded.toByteArray());return;}
-            }
-            throw new IOException("이미지를 25KB 이하로 줄일 수 없습니다");
-        }finally{original.recycle();resized.recycle();}
+        float scale=Math.min(1f,480f/Math.max(original.getWidth(),original.getHeight()));
+        Bitmap resized=Bitmap.createScaledBitmap(original,Math.max(1,Math.round(original.getWidth()*scale)),
+            Math.max(1,Math.round(original.getHeight()*scale)),true);
+        try{save(resized,output);}finally{if(original!=resized)resized.recycle();original.recycle();}
     }
 }

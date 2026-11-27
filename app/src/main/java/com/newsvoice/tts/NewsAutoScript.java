@@ -18,11 +18,11 @@ public final class NewsAutoScript {
         +"|(?:다음은\\s*(?:한국(?:과 필리핀)?\\s*(?:관련\\s*)?특별\\s*뉴스입니다[.!]?))"
         +"|(?:다음은\\s*필리핀\\s*기업\\s*운영[^\\n]*입니다[.!]?)"
         +"|(?:마지막으로\\s*필리핀\\s*경제[^\\n]*전망입니다[.!]?)"
-        +"|(?:오늘의\\s*(?:뉴스[,，]?\\s*)?앵커\\s*한마디입니다[.!]?)"
-        +"|(?:마지막으로\\s*앵커\\s*한마디입니다[.!]?)"
+        +"|(?:(?:오늘의?\\s*)?(?:뉴스[,，]?\\s*)?앵커(?:의)?\\s*한\\s*마디입니다[.!]?)"
+        +"|(?:마지막으로\\s*앵커(?:의)?\\s*한\\s*마디입니다[.!]?)"
         +"|(?:이상\\s+(?:필리핀|광명)\\s*뉴스였습니다[.!]?)"
-        +"|(?:이상으로[^\\n]{0,100}브리핑을\\s*(?:마칩니다|마치겠습니다)[.!]?))(?=\\s|$)");
-    private static final Pattern ANCHOR=Pattern.compile(".*앵커\\s*한마디.*");
+        +"|(?:이상으로[^\\n]{0,100}(?:브리핑을|뉴스를)\\s*(?:마칩니다|마치겠습니다)[.!]?))(?=\\s|$)");
+    private static final Pattern ANCHOR=Pattern.compile(".*앵커(?:의)?\\s*한\\s*마디.*");
     private static final Pattern CLOSING=Pattern.compile("^이상.*");
 
     static boolean startsWithArticleCue(String body) {
@@ -69,10 +69,9 @@ public final class NewsAutoScript {
             String cue=cues.get(i);
             String part=raw.substring(starts.get(i),
                 i+1<starts.size()?starts.get(i+1):raw.length()).trim();
-            if(part.isEmpty())continue;
+            if(part.isEmpty()||ANCHOR.matcher(cue).matches())continue;
             if(output.length()>0&&!output.toString().endsWith("===\n"))output.append("\n===\n");
-            if(ANCHOR.matcher(cue).matches())output.append("앵커 한마디");
-            else if(CLOSING.matcher(cue).matches())output.append("마감 인사");
+            if(CLOSING.matcher(cue).matches())output.append("마감 인사");
             else output.append(titleFrom(part,cue,++article));
             output.append('\n').append(part);
         }

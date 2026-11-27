@@ -368,7 +368,7 @@ public final class NewsVideoComposer {
                     Bitmap card=current!=null?
                         NewsCardPainter.renderBroadcast(current.story,Math.max(0,which),
                             articleCount,meta,activeSentence,scrollPlan,scrollPixels,
-                            totalProgress,current.story.kind==NewsStory.NEWS?photos.get(current.story.articleNumber):null,paged,reusableSlide):
+                            totalProgress,photos.get(NewsImagePack.slotFor(current.story)),paged,reusableSlide):
                         cover;
                     renderer.upload(card);
                     if(card!=reusableSlide && card!=cover)card.recycle();

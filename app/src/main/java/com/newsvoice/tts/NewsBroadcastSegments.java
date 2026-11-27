@@ -5,7 +5,6 @@ import java.util.List;
 /** Arrange all spoken sections in the order the user requested. */
 public final class NewsBroadcastSegments {
     private NewsBroadcastSegments() {}
-    public static final String ANCHOR="마지막으로 앵커 한마디입니다. 오늘 전해드린 소식을 살펴보실 때에는 확정된 사실과 향후 전망을 구분하는 것이 중요하겠습니다. 주요 사안의 후속 소식도 계속 확인하겠습니다.";
     public static final String CLOSING="이상으로 필리핀 뉴스·경제 종합 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
     private static final java.util.regex.Pattern NEXT_CUE=java.util.regex.Pattern.compile(
@@ -48,6 +47,7 @@ public final class NewsBroadcastSegments {
         int newsTotal=0;
         for(NewsStory item:sections)if(!item.title.matches("시작 인사|오프닝|마감 인사|클로징|앵커 한마디|앵커 한 말씀"))newsTotal++;
         for(NewsStory item:sections){
+            if(item.title.matches("앵커 한마디|앵커 한 말씀"))continue;
             boolean corner=item.title.matches("시작 인사|오프닝|마감 인사|클로징|앵커 한마디|앵커 한 말씀");
             String body=item.spokenText();
             if(body.isEmpty())body=item.narration;
@@ -69,15 +69,14 @@ public final class NewsBroadcastSegments {
     public static List<NewsStory> build(String raw,String preferredAnchor,boolean openingPortrait) {
         List<NewsStory> parsed=NewsStory.parse(structured(raw));
         List<NewsStory> news=new ArrayList<>();
-        String opening=null,anchor=null,closing=null;
+        String opening=null,closing=null;
         for(NewsStory section:parsed) {
             String heading=section.title.trim();
             if(heading.equals("시작 인사")||heading.equals("오프닝")) {
                 if(opening!=null)throw new IllegalArgumentException("시작 인사가 중복됐습니다.");
                 opening=body(section);
             }else if(heading.equals("앵커 한마디")||heading.equals("앵커 한 말씀")) {
-                if(anchor!=null)throw new IllegalArgumentException("앵커 한마디가 중복됐습니다.");
-                anchor=body(section);
+                continue; // Skip this section in older scripts.
             }else if(heading.equals("마감 인사")||heading.equals("클로징")) {
                 if(closing!=null)throw new IllegalArgumentException("마감 인사가 중복됐습니다.");
                 closing=body(section);
@@ -90,8 +89,6 @@ public final class NewsBroadcastSegments {
         if(news.isEmpty())throw new IllegalArgumentException("전할 뉴스 원고가 없습니다.");
         int count=news.size();
 
-        String comment=anchor!=null?anchor:
-            preferredAnchor!=null&&!preferredAnchor.trim().isEmpty()?preferredAnchor:ANCHOR;
         String last=closing==null?CLOSING:closing;
         List<NewsStory> result=new ArrayList<>();
         if(opening==null && openingPortrait)opening="안녕하십니까. 오늘의 뉴스를 전해드립니다.";
@@ -103,7 +100,6 @@ public final class NewsBroadcastSegments {
             if(cue.lookingAt())text=text.substring(cue.end());
             result.add(item.page(item.title+"\n"+text,i+1,count,1,1));
         }
-        result.add(NewsStory.segment(NewsStory.ANCHOR,"앵커 한마디",comment,count));
         result.add(NewsStory.segment(NewsStory.CLOSING,"마감 인사",last,count));
         return result;
     }

@@ -84,7 +84,53 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private int selectedPreset = 0;
     private EditText serverEdit, tokenEdit;
     private CheckBox automaticCheck, videoCheck;
-    private EditText anchorEdit;
+    private static final int PHOTO_PICKER=5440;
+    private final ImageView[] thumbnails=new ImageView[10];
+    private final Runnable refreshPhotos=this::refreshPhotos;
+    private int refreshGeneration;
+    @Override protected void onSaveInstanceState(Bundle state){
+        super.onSaveInstanceState(state);
+        state.putString("workingScript",editor.getText().toString());
+    }
+    private void addPhotoSlot(LinearLayout body,int slot,String label){
+        LinearLayout row=new LinearLayout(this);
+        body.addView(row,lp(-1,64,4));
+        ImageView photo=new ImageView(this);
+        thumbnails[slot]=photo;
+        photo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        photo.setBackgroundColor(0xffeff4f6);
+        row.addView(photo,lp(70,64,0));
+        Button choose=btn(label+" 사진 선택",0xffe3eff2,DARK);
+        row.addView(choose,new LinearLayout.LayoutParams(0,-1,1));
+        choose.setOnClickListener(v->{
+            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*");
+            pick.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(pick,PHOTO_PICKER+slot);
+        });
+    }
+    private void schedulePhotos(){
+        if(isDestroyed()||packTasks.isShutdown())return;
+        refreshGeneration++;
+        main.removeCallbacks(refreshPhotos);
+        main.postDelayed(refreshPhotos,200);
+    }
+    private void refreshPhotos(){
+        final int generation=refreshGeneration;
+        String script=editor.getText().toString();
+        packTasks.execute(()->{
+            boolean matches=false;
+            try{matches=NewsImagePack.matches(this,NewsBroadcastSegments.build(script,""));}catch(IllegalArgumentException ignored){}
+            android.graphics.Bitmap[] images=new android.graphics.Bitmap[thumbnails.length];
+            for(int i=0;i<images.length;i++){
+                if(i==NewsImagePack.OPENING_SLOT||i==NewsImagePack.CLOSING_SLOT||matches)
+                    images[i]=NewsImagePack.load(this,i);
+            }
+            runOnUiThread(()->{
+                if(isDestroyed()||generation!=refreshGeneration)return;
+                for(int i=0;i<images.length;i++)thumbnails[i].setImageBitmap(images[i]);
+            });
+        });
+    }
     private long taskToken = 0;
     private int lastQueuedIndex = -1;
     private List<String> playbackSegments = new ArrayList<>();
@@ -233,7 +279,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 undo.setTag(null);
                 undo.setVisibility(View.GONE);
             }
-            public void afterTextChanged(android.text.Editable s){}
+            public void afterTextChanged(android.text.Editable s){schedulePhotos();}
         });
         clearScript.setOnClickListener(v->{
             String previous=editor.getText().toString();
@@ -262,18 +308,15 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             pick.setType("application/zip");pick.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(pick,PACK_PICKER);});
         Button clearPack=btn("등록 이미지 제거",0xffe3eff2,DARK);body.addView(clearPack,lp(-1,48,5));
         clearPack.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setMessage("등록한 기사 이미지를 제거할까요? 대본은 유지됩니다.")
-            .setNegativeButton("취소",null).setPositiveButton("제거",(d,w)->{NewsImagePack.remove(this);updateStatus("이미지 제거 완료");}).show());
+            .setNegativeButton("취소",null).setPositiveButton("제거",(d,w)->{packTasks.execute(()->{NewsImagePack.remove(this);runOnUiThread(this::schedulePhotos);});updateStatus("이미지 제거 완료");}).show());
         body.addView(text("대본을 변경하면 이미지 연결을 다시 확인합니다. 일치하지 않거나 이미지가 없으면 본문만 표시합니다.",12,false),lp(-1,-2,5));
-        body.addView(text("마지막 코너 · 앵커 한마디",15,true),lp(-1,-2,14));
-        anchorEdit=new EditText(this);
-        anchorEdit.setHint("비워 두면 정중한 기본 멘트가 자동 삽입됩니다. 필요하면 오늘 뉴스에 맞는 앵커 멘트를 작성하세요.");
-        anchorEdit.setText(AppPrefs.anchorComment(this));
-        anchorEdit.setTextSize(14);anchorEdit.setTextColor(DARK);
-        anchorEdit.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        anchorEdit.setMinLines(2);anchorEdit.setMaxLines(5);
-        anchorEdit.setBackgroundResource(R.drawable.bg_editor);
-        anchorEdit.setPadding(dp(this,12),dp(this,12),dp(this,12),dp(this,12));
-        body.addView(anchorEdit,lp(-1,-2,8));
+        body.addView(text("아나운서 사진",16,true),lp(-1,-2,14));
+        addPhotoSlot(body,NewsImagePack.OPENING_SLOT,"시작 인사");
+        addPhotoSlot(body,NewsImagePack.CLOSING_SLOT,"마감 인사");
+        body.addView(text("뉴스별 사진 등록·교체",16,true),lp(-1,-2,14));
+        for(int i=1;i<=8;i++)addPhotoSlot(body,i,i+"번 뉴스");
+        if(savedInstanceState!=null)editor.setText(savedInstanceState.getString("workingScript",""));
+        schedulePhotos();
         TextView note=text("A안: 아나운서 대본만 붙여 넣으면 '첫 번째 뉴스입니다.' 같은 순서를 분석해 뉴스별로 자동 분리합니다. 기존 '제목 + 본문 + ===' 형식도 유지됩니다. 기사별 이미지와 큰 본문이 음성에 맞춰 전환됩니다. 기사 제목 글자는 표시하지 않습니다.",12,false);
         note.setTextColor(0xff61778e);body.addView(note,lp(-1,-2,9));
         Button reviewButton=btn("아나운서 대본 검수 · 정중한 방송체 정리",0xffe7f2f3,MINT);
@@ -339,7 +382,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         CheckBox keepWav=new CheckBox(this);keepWav.setText("MP4와 함께 WAV 원본도 저장");
         keepWav.setChecked(AppPrefs.keepWav(this));keepWav.setOnCheckedChangeListener((b,on)->AppPrefs.get(this).edit().putBoolean("keep_wav",on).apply());
         body.addView(keepWav,lp(-1,-2,4));
-        TextView formatHelp=text("v5.43 Lite · AI 이미지와 큰 본문. 최대 경량 720p·15fps, 페이지 전환 및 기존 스크롤 선택. 오프닝 음악 유지. WAV만 저장하거나 MP4와 함께 보관할 수 있습니다.",12,false);
+        TextView formatHelp=text("v5.44 Lite · AI 이미지와 큰 본문. 최대 경량 720p·15fps, 페이지 전환 및 기존 스크롤 선택. 오프닝 음악 유지. WAV만 저장하거나 MP4와 함께 보관할 수 있습니다.",12,false);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
         Button save=btn(videoCheck.isChecked()?"MP4 제작 · WAV 보관은 선택":"WAV 음성 자동 생성 및 다운로드 저장",MINT,Color.WHITE);
         body.addView(save,lp(-1,55,12));
@@ -562,7 +605,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.43 Lite/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/1. 필리핀뉴스 v5.44 Lite/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -735,7 +778,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.43 Lite → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → 1. 필리핀뉴스 v5.44 Lite → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -749,6 +792,19 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode>=PHOTO_PICKER&&requestCode<PHOTO_PICKER+thumbnails.length){
+            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+            Uri uri=data.getData();
+            String script=editor.getText().toString();
+            int slot=requestCode-PHOTO_PICKER;
+            packTasks.execute(()->{
+                try{
+                    NewsImagePack.replace(this,slot,uri,script);
+                    runOnUiThread(()->{if(!isDestroyed()){schedulePhotos();updateStatus("사진 등록 완료");}});
+                }catch(Exception e){updateStatus("사진 등록 실패: "+e.getMessage());}
+            });
+            return;
+        }
         if(requestCode==PACK_PICKER){
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
             Uri uri=data.getData();updateStatus("방송 자료 확인 및 이미지 압축 중");
@@ -813,9 +869,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         String text=editor.getText().toString();
         if(text.trim().isEmpty()){updateStatus("원고를 입력하세요.");return;}
         try {
-            String comment=anchorEdit.getText().toString().trim();
-            NewsBroadcastSegments.build(text,comment);
-            AppPrefs.get(this).edit().putString("anchor_comment",comment).apply();
+            NewsBroadcastSegments.build(text,"",true);
             persistVoiceSettings();
             File inbox=new File(getFilesDir(),"inbox");
             if(!inbox.exists()&&!inbox.mkdirs())throw new IOException("원고 저장 폴더 오류");
@@ -860,7 +914,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.43 Lite/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/1. 필리핀뉴스 v5.44 Lite/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){
@@ -896,6 +950,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             try{samsungTestTts.stop();samsungTestTts.shutdown();}catch(RuntimeException ignored){}
         }
 
+        main.removeCallbacks(refreshPhotos);
         packTasks.shutdown();
         super.onDestroy();
     }

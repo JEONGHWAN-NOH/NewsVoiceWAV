@@ -282,12 +282,14 @@ public final class NewsCardPainter {
             "PHILIPPINES  |  AFTERNOON NEWS":
             "PHILIPPINES  |  NEWS BRIEF";
         c.drawText(english,51,93,p(white,33,true));
-        c.drawText("오늘의 주요 뉴스",50,178,p(yellow,69,true));
-        rounded(c,yellow,51,196,1031,204,3);
         if(photo!=null&&!photo.isRecycled()){
-            c.drawBitmap(photo,null,new RectF(60,230,1020,550),new Paint(Paint.FILTER_BITMAP_FLAG));
-            rounded(c,Color.argb(180,0,0,0),60,510,290,550,0);
-            c.drawText("AI 참고 이미지",74,539,p(white,26,true));
+            RectF imageArea=new RectF(60,108,1020,518);
+            float scale=Math.min(imageArea.width()/photo.getWidth(),imageArea.height()/photo.getHeight());
+            float halfWidth=photo.getWidth()*scale/2f,halfHeight=photo.getHeight()*scale/2f;
+            float cx=imageArea.centerX(),cy=imageArea.centerY();
+            c.drawRect(imageArea,p(Color.rgb(5,17,44),0,false));
+            c.drawBitmap(photo,null,new RectF(cx-halfWidth,cy-halfHeight,cx+halfWidth,cy+halfHeight),new Paint(Paint.FILTER_BITMAP_FLAG));
+            if(story.kind==NewsStory.NEWS)c.drawText("AI 자료 이미지",60,549,p(white,26,true));
         }else{
             c.drawText(story.kind==NewsStory.NEWS?"이미지 없이 방송 중":"NEWSVOICE WAV",88,410,p(WHITE,42,true));
         }
