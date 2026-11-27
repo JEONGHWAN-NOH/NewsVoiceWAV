@@ -1,14 +1,14 @@
 plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
-def releaseVersion = '6.2'
+def releaseVersion = '6.3'
 
 android {
     namespace 'com.newsvoice.tts'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.newsvoice.tts.v62'
+        applicationId 'com.newsvoice.tts.v63'
         minSdk 29
         targetSdk 35
-        versionCode 62
+        versionCode 63
         versionName releaseVersion
         testInstrumentationRunner 'com.newsvoice.tts.LiteBroadcastTest'
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
@@ -36,4 +36,5 @@ dependencies {
     implementation 'androidx.work:work-runtime:2.10.5'
     implementation 'androidx.annotation:annotation:1.9.1'
     implementation 'com.kakao.sdk:v2-share:2.21.4'
+    implementation 'com.google.android.gms:play-services-auth:21.3.0'
 }

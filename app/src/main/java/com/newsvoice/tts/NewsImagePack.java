@@ -88,6 +88,12 @@ public final class NewsImagePack {
     }
     private static void clear(File dir){File[] files=dir.listFiles();if(files!=null)for(File f:files)f.delete();dir.delete();}
     public static synchronized void remove(Context c){clear(folder(c));}
+    public static synchronized void removeSlot(Context c,int slot)throws IOException{if(slot<0||slot>COVER_SLOT)throw new IOException("사진 번호 오류");Files.deleteIfExists(photoFile(portrait(slot)?c.getFilesDir():folder(c),slot).toPath());}
+    public static synchronized void replaceBatch(Context c,List<Uri> uris,String script)throws Exception{
+        if(uris.size()!=8||new HashSet<>(uris).size()!=8)throw new IOException("서로 다른 사진 8장이 필요합니다.");
+        File stage=Files.createTempDirectory(c.getFilesDir().toPath(),"photo-batch-").toFile();
+        try{for(int i=0;i<8;i++){Bitmap image=ImageDecoder.decodeBitmap(ImageDecoder.createSource(c.getContentResolver(),uris.get(i)),(decoder,info,source)->{int w=info.getSize().getWidth(),h=info.getSize().getHeight();float scale=Math.min(1f,480f/Math.max(w,h));decoder.setTargetSize(Math.max(1,Math.round(w*scale)),Math.max(1,Math.round(h*scale)));decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);});try{save(image,photoFile(stage,i+1));}finally{image.recycle();}}try{List<NewsStory> stories=NewsBroadcastSegments.build(script,"");Files.write(new File(stage,"fingerprint.txt").toPath(),fingerprint(stories).getBytes(StandardCharsets.UTF_8));}catch(IllegalArgumentException ignored){}activate(c,stage);}finally{clear(stage);}
+    }
     public static synchronized void resetCover(Context c)throws IOException{
         Files.deleteIfExists(photoFile(c.getFilesDir(),COVER_SLOT).toPath());
     }

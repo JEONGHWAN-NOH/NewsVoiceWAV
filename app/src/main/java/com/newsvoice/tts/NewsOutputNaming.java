@@ -14,7 +14,7 @@ public final class NewsOutputNaming {
     private static final DateTimeFormatter DATE=DateTimeFormatter.ofPattern("yyyy-MM-dd",Locale.ROOT);
     // Seconds avoid most duplicate filenames while keeping the clock readable.
     private static final DateTimeFormatter TIME=DateTimeFormatter.ofPattern("HHmmss",Locale.ROOT);
-    public static final String DIRECTORY_NAME="NewsVoice v6.2";
+    public static final String DIRECTORY_NAME="NewsVoice v6.3";
 
     public static final class Names {
         public final String dateFolder,base;

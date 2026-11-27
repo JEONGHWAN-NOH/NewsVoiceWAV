@@ -69,6 +69,7 @@ public final class ManualRenderService extends Service {
             return START_NOT_STICKY;
         }
         String file=intent.getStringExtra(EXTRA_FILE);
+        boolean autoUpload=intent.getBooleanExtra("auto_upload",false);
         try{
             int type=Build.VERSION.SDK_INT>=35?
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:
@@ -81,7 +82,7 @@ public final class ManualRenderService extends Service {
             busy.set(false);stopSelfResult(startId);return START_NOT_STICKY;
         }
         executor.execute(()->{
-            try{render(file);}
+            try{render(file);if(autoUpload&&AppPrefs.videoEnabled(context))CloudUploadWorker.enqueue(context,3);}
             catch(Exception e){
                 String last=AppPrefs.get(context).getString("status","시작");
                 AppPrefs.get(context).edit().putBoolean("render_active",false).putLong("render_eta_ms",-1).apply();
@@ -117,7 +118,7 @@ public final class ManualRenderService extends Service {
                 wav=synthesize(NewsBroadcastSegments.audioScript(sections),"manual_"+stamp);
                 DownloadsPublisher.publish(context,wav,names.wav());
                 progress("WAV 저장 완료",100);
-                report("저장 완료: 다운로드/NewsVoice v6.2/"+names.dateFolder+"/"+names.wav());
+                report("저장 완료: 다운로드/NewsVoice v6.3/"+names.dateFolder+"/"+names.wav());
                 success=true;return;
             }
             List<NewsStory> pages=NewsCardPainter.paginateBroadcast(sections);
@@ -152,7 +153,7 @@ public final class ManualRenderService extends Service {
             progress("카카오톡용 저장 중",95);
             Uri saved=DownloadsPublisher.publish(context,mp4,names.base+"_kakao.mp4");
             AppPrefs.get(context).edit().putString("last_mp4_uri",saved.toString())
-                .putString("last_mp4_name",names.base+"_kakao.mp4").remove("last_youtube_uri").remove("youtube_url").remove("kakao_url").remove("last_share_cover").apply();
+                .putString("last_mp4_name",names.base+"_kakao.mp4").remove("last_youtube_uri").remove("youtube_url").remove("kakao_url").remove("last_share_cover").remove("upload_status").apply();
             progress("YouTube용 영상 제작 중",96);
             NewsVideoComposer.create(context,pages,parts,sentenceFrames,mp4,step->report("YouTube · "+step),NewsVideoComposer.Quality.YOUTUBE);
             Uri youtube=DownloadsPublisher.publish(context,mp4,names.base+"_youtube.mp4");
@@ -162,7 +163,7 @@ public final class ManualRenderService extends Service {
                 Uri cover=DownloadsPublisher.publish(context,card,names.base+"_cover.jpg");
                 AppPrefs.get(context).edit().putString("last_share_cover",cover.toString()).apply();
             } finally {card.delete();}
-            progress("저장 완료: 다운로드/NewsVoice v6.2/"+names.dateFolder+(AppPrefs.keepWav(context)?" → MP4 · WAV":" → MP4"),100);
+            progress("저장 완료: 다운로드/NewsVoice v6.3/"+names.dateFolder+(AppPrefs.keepWav(context)?" → MP4 · WAV":" → MP4"),100);
             success=true;
         }finally{
             for(File f:parts)f.delete();
