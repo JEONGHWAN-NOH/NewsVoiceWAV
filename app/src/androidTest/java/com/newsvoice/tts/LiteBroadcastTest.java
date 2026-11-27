@@ -16,7 +16,7 @@ public class LiteBroadcastTest extends Instrumentation {
         Bundle result=new Bundle();
         try{
             Context c=getTargetContext();
-            check(c.getPackageName().equals("com.newsvoice.tts.v61"),"Separate package");
+            check(c.getPackageName().equals("com.newsvoice.tts.v62"),"Separate package");
             MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
             check(AppPrefs.pageMode(c)&&!AppPrefs.keepWav(c),"Lightweight defaults");
@@ -43,6 +43,15 @@ public class LiteBroadcastTest extends Instrumentation {
                 check(b.getWidth()==(i==4?480:360),"Only fourth picture replaced");
                 b.recycle();
             }
+            // A one-article parser result no longer prevents registering slots 2–8.
+            NewsImagePack.remove(c);
+            for(int i=1;i<=8;i++)NewsImagePack.replace(c,i,intro,"첫 기사\n내용입니다.");
+            check(NewsImagePack.count(c)==8,"All slots registered despite a short draft");
+            NewsImagePack.replace(c,4,outro,eight.toString()+" 변경했습니다.");
+            check(NewsImagePack.count(c)==8,"Editing and replacing one slot preserves the rest");
+            List<NewsStory> edited=NewsBroadcastSegments.build(eight.toString()+" 변경했습니다.","",true);
+            NewsImagePack.bind(c,edited);
+            check(NewsImagePack.snapshot(c,edited).size()==11,"Edited script rebinds all eight and portraits");
             installFixture(c,script,false);
             check(NewsImagePack.matches(c,stories),"Pack matches script");
             check(!NewsImagePack.matches(c,NewsBroadcastSegments.build(script+" 변경.","")),"Edited script rejected");
@@ -124,6 +133,30 @@ public class LiteBroadcastTest extends Instrumentation {
                 }finally{r.release();video.delete();}
             }
             Bitmap share=ShareCover.bitmap(c,java.time.Instant.now());check(share!=null,"Approved artwork");share.recycle();
+            // Eight distinct colors decoded from the actual rendered MP4 in both formats.
+            NewsImagePack.remove(c);
+            int[] eightColors={0xffee2222,0xff22ee22,0xff2222ee,0xffeeee22,0xffee22ee,0xff22eeee,0xffee8822,0xff6622ee};
+            String mixed="안녕하십니까.\n첫 번째 뉴스입니다. 기사입니다.\n";
+            for(int i=2;i<=8;i++)mixed+=(i%2==0?"다음 뉴스입니다.":i+"번 뉴스입니다.")+" 기사입니다.\n";
+            List<NewsStory> eightStories=NewsBroadcastSegments.build(mixed,"",true);
+            check(NewsBroadcastSegments.newsCount(eightStories)==8,"Eight articles parsed");
+            for(int i=1;i<=8;i++)NewsImagePack.replace(c,i,fixturePhoto(c,"slot"+i,eightColors[i-1],360,480),mixed);
+            List<File> eightWaves=new ArrayList<>();List<List<Long>> eightCues=new ArrayList<>();
+            for(NewsStory story:eightStories){eightWaves.add(voice);int n=NewsSentenceTimeline.split(story.audioText()).size();List<Long> lengths=new ArrayList<>();for(int i=0;i<n;i++)lengths.add(frames/n+(i==n-1?frames%n:0));eightCues.add(lengths);}
+            AppPrefs.get(c).edit().putBoolean("page_mode",true).commit();
+            for(NewsVideoComposer.Quality q:new NewsVideoComposer.Quality[]{NewsVideoComposer.Quality.KAKAO,NewsVideoComposer.Quality.YOUTUBE}){
+                File video=new File(c.getCacheDir(),"eight-"+q.name()+".mp4");
+                NewsVideoComposer.create(c,eightStories,eightWaves,eightCues,video,message->{},q);
+                MediaMetadataRetriever r=new MediaMetadataRetriever();try{
+                    r.setDataSource(video.getPath());
+                    for(int i=1;i<=8;i++){
+                        Bitmap sample=r.getFrameAtTime(8000000L+i*6750000L,MediaMetadataRetriever.OPTION_CLOSEST);
+                        check(sample!=null,"Decoded eight-story frame "+i);
+                        check(closeColor(sample.getPixel(sample.getWidth()/2,sample.getHeight()*3/20),eightColors[i-1]),"Wrong picture "+q+" slot "+i);
+                        sample.recycle();
+                    }
+                }finally{r.release();video.delete();}
+            }
             AppPrefs.setLiteVideo(c,true);AppPrefs.get(c).edit().putBoolean("page_mode",true).commit();
             NewsImagePack.remove(c);check(NewsImagePack.snapshot(c,stories).size()==3,"Cover and portraits survive article removal");
             NewsImagePack.resetCover(c);check(NewsImagePack.load(c,NewsImagePack.COVER_SLOT)==null,"Default cover restored");

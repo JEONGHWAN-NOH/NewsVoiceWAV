@@ -8,7 +8,7 @@ public final class NewsBroadcastSegments {
     public static final String CLOSING="이상으로 필리핀 뉴스·경제 종합 브리핑을 마치겠습니다. 시청해 주셔서 감사합니다.";
 
     private static final java.util.regex.Pattern NEXT_CUE=java.util.regex.Pattern.compile(
-        "(?m)(?:^|(?<=[.!?])\\s+|\\n+)다음\\s+뉴스입니다[.!]?(?=\\s|$)\\s*");
+        "(?m)(?:^|(?<=[.!?。])\\s+|\\n+)다음\\s*(?:뉴스|소식)\\s*입니다[.!]?(?=\\s|$)\\s*");
     private static final java.util.regex.Pattern DIVIDER=java.util.regex.Pattern.compile("(?m)^\\s*(?:===|---)\\s*$");
     private static String structured(String raw){
         String adapted=NewsAutoScript.adapt(raw);

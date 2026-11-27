@@ -8,6 +8,7 @@
     <queries>
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
         <package android:name="com.samsung.SMT"/>
+        <package android:name="com.kakao.talk"/>
     </queries>
     <application android:allowBackup="false"
         android:label="@string/app_display_name"

@@ -1,0 +1,59 @@
+name: Build and verify NewsVoice v6.2
+on:
+  push:
+    branches: [feature/v6.2-dual-share]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Verify core algorithms
+        run: |
+          mkdir -p /tmp/news-tests
+          javac -encoding UTF-8 -d /tmp/news-tests app/src/main/java/com/newsvoice/tts/{WavTools,NewsStory,NewsAutoScript,NewsBroadcastSegments,BroadcastScriptReview,NewsSentenceTimeline,NewsScrollMath,NewsPageSplitter,NewsCoverMeta,Mp4FastStart,ShareLinks}.java tests/{WavToolsTest,NewsStoryTest,NewsAutoScriptTest,NewsBroadcastSegmentsTest,BroadcastScriptReviewTest,NewsSentenceTimelineTest,NewsScrollMathTest,NewsPageSplitterTest,NewsCoverMetaTest,Mp4FastStartTest,ShareLinksTest}.java
+          for t in WavToolsTest NewsStoryTest NewsAutoScriptTest NewsBroadcastSegmentsTest BroadcastScriptReviewTest NewsSentenceTimelineTest NewsScrollMathTest NewsPageSplitterTest NewsCoverMetaTest; do java -cp /tmp/news-tests "$t"; done
+          java -cp /tmp/news-tests com.newsvoice.tts.Mp4FastStartTest
+          java -cp /tmp/news-tests com.newsvoice.tts.ShareLinksTest
+      - name: Build APK
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Device test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: |
+            adb install app/build/outputs/apk/debug/NewsVoiceWAV-v6.2-debug.apk
+            adb install "$(find app/build/outputs/apk/androidTest -name '*.apk' -print -quit)"
+            adb shell am instrument -w com.newsvoice.tts.v62.test/com.newsvoice.tts.LiteBroadcastTest | tee instrumentation.txt
+            grep -F 'lite_tests=passed' instrumentation.txt
+      - name: Publish tested preview APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/NewsVoiceWAV-v6.2-debug.apk NewsVoice-v6.2.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose NewsVoice-v6.2.apk
+          sha256sum NewsVoice-v6.2.apk > SHA256SUMS.txt
+          gh release create "v6.2-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoice-v6.2.apk SHA256SUMS.txt instrumentation.txt --target "$GITHUB_SHA" --prerelease --title 'NewsVoice v6.2 Dual Share 시험판' --notes '독립 설치 디버그 서명 시험판. Google Drive·YouTube 링크 등록, 공식 카카오 공유 앱 키 설정 및 실제 수신 시험 필요.'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v62-build-evidence
+          path: |
+            app/build/outputs/apk/
+            instrumentation.txt

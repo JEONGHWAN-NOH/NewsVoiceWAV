@@ -14,7 +14,8 @@ public final class NewsAutoScript {
     private NewsAutoScript() {}
     private static final Pattern DIVIDER=Pattern.compile("(?m)^\\s*(?:===|---)\\s*$");
     private static final Pattern SECTION=Pattern.compile(
-        "(?m)(?:^|(?<=[.!?。])(?=\\s))\\s*((?:(?:첫|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열\\s*한|열\\s*두|열세|열네|열다섯|열여섯|열일곱|열여덟|열아홉|스무)\\s*번째\\s*(?:뉴스|소식)입니다[.!]?)"
+        "(?m)(?:^|(?<=[.!?。])(?=\\s))\\s*((?:(?:첫|두|세|네|다섯|여섯|일곱|여덟|아홉|열|열\\s*한|열\\s*두|열세|열네|열다섯|열여섯|열일곱|열여덟|열아홉|스무|[0-9]{1,2})\\s*(?:번째|번)\\s*(?:뉴스|소식)\\s*입니다[.!]?)"
+        +"|(?:다음\\s*(?:뉴스|소식)\\s*입니다[.!]?)"
         +"|(?:다음은\\s*(?:한국(?:과 필리핀)?\\s*(?:관련\\s*)?특별\\s*뉴스입니다[.!]?))"
         +"|(?:다음은\\s*필리핀\\s*기업\\s*운영[^\\n]*입니다[.!]?)"
         +"|(?:마지막으로\\s*필리핀\\s*경제[^\\n]*전망입니다[.!]?)"
@@ -34,7 +35,7 @@ public final class NewsAutoScript {
         if(raw==null||DIVIDER.matcher(raw).find())return false;
         Matcher match=SECTION.matcher(raw);
         int news=0;
-        while(match.find())if(isArticle(match.group(1)))news++;
+        while(match.find())if(isArticle(match.group(1))&&!match.group(1).matches("다음\\s*(?:뉴스|소식)\\s*입니다[.!]?"))news++;
         return news>=1;
     }
     private static boolean isArticle(String cue) {

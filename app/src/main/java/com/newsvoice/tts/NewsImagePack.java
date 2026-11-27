@@ -35,6 +35,19 @@ public final class NewsImagePack {
         try{return new String(Files.readAllBytes(new File(folder(c),"fingerprint.txt").toPath()),StandardCharsets.UTF_8).equals(fingerprint(stories));}
         catch(Exception e){return false;}
     }
+    public static synchronized int count(Context c){
+        int n=0;for(int i=1;i<=8;i++)if(photoFile(folder(c),i).isFile())n++;return n;
+    }
+    public static synchronized String missing(Context c,int total){
+        StringBuilder result=new StringBuilder();for(int i=1;i<=Math.min(8,total);i++)if(!photoFile(folder(c),i).isFile()){
+            if(result.length()>0)result.append(", ");result.append(i);
+        }return result.toString();
+    }
+    public static synchronized void bind(Context c,List<NewsStory> stories)throws Exception{
+        File dir=folder(c);if(!dir.exists()&&!dir.mkdirs())throw new IOException("사진 폴더 생성 실패");
+        File pending=File.createTempFile("fingerprint-",".tmp",dir);
+        try{Files.write(pending.toPath(),fingerprint(stories).getBytes(StandardCharsets.UTF_8));Files.move(pending.toPath(),new File(dir,"fingerprint.txt").toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}finally{pending.delete();}
+    }
     public static final int OPENING_SLOT=0, CLOSING_SLOT=9, COVER_SLOT=10;
     private static File photoFile(File base,int number){
         return new File(base,String.format(Locale.US,"news_%03d.webp",number));
@@ -52,9 +65,9 @@ public final class NewsImagePack {
     }
     public static synchronized void replace(Context c,int slot,Uri uri,String script)throws Exception{
         if(slot<0||slot>COVER_SLOT)throw new IOException("사진 번호 오류");
-        List<NewsStory> stories=portrait(slot)?Collections.emptyList():NewsBroadcastSegments.build(script,"");
-        if(!portrait(slot)&&NewsBroadcastSegments.newsCount(stories)<slot)
-            throw new IOException("해당 번호의 뉴스 대본을 먼저 등록하세요");
+        // A photo slot is independent of parsing and editing the script.
+        List<NewsStory> stories=Collections.emptyList();
+        if(!portrait(slot))try{stories=NewsBroadcastSegments.build(script,"");}catch(IllegalArgumentException ignored){}
         Bitmap image=ImageDecoder.decodeBitmap(ImageDecoder.createSource(c.getContentResolver(),uri),
             (decoder,info,source)->{
                 int w=info.getSize().getWidth(),h=info.getSize().getHeight();
@@ -66,13 +79,11 @@ public final class NewsImagePack {
         try{
             File imageFile=photoFile(stage,slot);
             save(image,imageFile);
-            if(portrait(slot)||matches(c,stories)){
-                File dest=photoFile(portrait(slot)?c.getFilesDir():folder(c),slot);
-                Files.move(imageFile.toPath(),dest.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
-            }else{
-                Files.write(new File(stage,"fingerprint.txt").toPath(),fingerprint(stories).getBytes(StandardCharsets.UTF_8));
-                activate(c,stage);
-            }
+            boolean first=!portrait(slot)&&count(c)==0;
+            File dir=portrait(slot)?c.getFilesDir():folder(c);
+            if(!dir.exists()&&!dir.mkdirs())throw new IOException("사진 폴더 생성 실패");
+            Files.move(imageFile.toPath(),photoFile(dir,slot).toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+            if(first&&!stories.isEmpty())bind(c,stories);
         }finally{image.recycle();clear(stage);}
     }
     private static void clear(File dir){File[] files=dir.listFiles();if(files!=null)for(File f:files)f.delete();dir.delete();}

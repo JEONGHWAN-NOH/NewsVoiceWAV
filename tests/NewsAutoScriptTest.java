@@ -54,6 +54,11 @@ public final class NewsAutoScriptTest {
         check(all.size()==14 && all.get(0).kind==NewsStory.OPENING,"numbered opening and twelve stories");
         for(int i=1;i<=12;i++)check(all.get(i).articleNumber==i && !all.get(i).audioText().startsWith("다음 뉴스"),"slot "+i);
         check(all.get(13).kind==NewsStory.CLOSING,"spoken endings");
+        String mixed="안녕하십니까.\n첫 번째 뉴스입니다. 첫 기사입니다.\n";
+        for(int i=2;i<=8;i++)mixed+=(i%2==0?"다음 뉴스입니다.":i+"번 뉴스입니다.")+" 기사 "+i+" 본문입니다.\n";
+        List<NewsStory> eight=NewsBroadcastSegments.build(mixed,"",true);
+        check(NewsBroadcastSegments.newsCount(eight)==8,"mixed ordinal, numeric and next news markers");
+        for(int i=1;i<=8;i++)check(eight.get(i).articleNumber==i,"mixed slot "+i);
         System.out.println("NewsAutoScript PASS");
     }
 }
