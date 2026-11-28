@@ -1,10 +1,10 @@
-name: Build and verify NewsVoice v6.5
+name: Build and verify NewsVoice v6.6
 on:
   push:
-    branches: [feature/v6.5-distribution-repair]
+    branches: [feature/v6.6-distribution-status]
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,22 +38,20 @@ jobs:
           api-level: 35
           arch: x86_64
           script: |
-            adb install app/build/outputs/apk/debug/NewsVoiceWAV-v6.5-debug.apk
+            adb install app/build/outputs/apk/debug/NewsVoiceWAV-v6.6-debug.apk
             adb install "$(find app/build/outputs/apk/androidTest -name '*.apk' -print -quit)"
             adb shell am instrument -w com.newsvoice.tts.v65.test/com.newsvoice.tts.LiteBroadcastTest | tee instrumentation.txt
             grep -F 'lite_tests=passed' instrumentation.txt
-      - name: Publish tested preview APK
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify test APK certificate (not a production upgrade)
         run: |
-          cp app/build/outputs/apk/debug/NewsVoiceWAV-v6.5-debug.apk NewsVoice-v6.5.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs NewsVoice-v6.5.apk > APK-CERT.txt
-          sha256sum NewsVoice-v6.5.apk > SHA256SUMS.txt
-          gh release create "v6.5-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoice-v6.5.apk SHA256SUMS.txt APK-CERT.txt instrumentation.txt --target "$GITHUB_SHA" --prerelease --title 'NewsVoice v6.5 그리드 자동 배포 시험판' --notes 'v6.4와 별도 설치. Google OAuth 및 API, 카카오 패키지/키 해시 설정 후 실제 계정 업로드와 수신 시험 필요.'
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/NewsVoiceWAV-v6.6-debug.apk > APK-CERT.txt
+          sha256sum app/build/outputs/apk/debug/NewsVoiceWAV-v6.6-debug.apk > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v65-build-evidence
+          name: v66-test-build-not-for-upgrade
           path: |
             app/build/outputs/apk/
             instrumentation.txt
+            APK-CERT.txt
+            SHA256SUMS.txt

@@ -20,17 +20,18 @@ public final class CloudUploadWorker extends Worker {
     private static final String DRIVE="https://www.googleapis.com/auth/drive.file";
     private static final String YOUTUBE="https://www.googleapis.com/auth/youtube.upload";
     public CloudUploadWorker(Context c,WorkerParameters p){super(c,p);}
-    static AuthorizationRequest request(int mode){return AuthorizationRequest.builder().setRequestedScopes(mode==1?java.util.Collections.singletonList(new Scope(DRIVE)):mode==2?java.util.Collections.singletonList(new Scope(YOUTUBE)):Arrays.asList(new Scope(DRIVE),new Scope(YOUTUBE))).build();}
+    static AuthorizationRequest request(int mode){return AuthorizationRequest.builder().setRequestedScopes((mode==1||mode==4)?java.util.Collections.singletonList(new Scope(DRIVE)):mode==2?java.util.Collections.singletonList(new Scope(YOUTUBE)):Arrays.asList(new Scope(DRIVE),new Scope(YOUTUBE))).build();}
     static void enqueue(Context c,int mode){
         SharedPreferences p=AppPrefs.get(c);
-        if(p.getBoolean("upload_active",false))return;
+        if(p.getBoolean("upload_active",false)){p.edit().putString("upload_status","기존 업로드 작업 진행 중").apply();return;}
         String drive=p.getString("last_mp4_uri",""),yt=p.getString("last_youtube_uri","");
         if(((mode&1)!=0&&drive.isEmpty())||((mode&2)!=0&&yt.isEmpty())){p.edit().putString("upload_status","영상 제작 후 업로드하세요.").apply();return;}
         p.edit().putBoolean("upload_active",true).putString("upload_status","자동 업로드 대기").apply();
         Data data=new Data.Builder().putInt("mode",mode).putString("drive",drive).putString("yt",yt).build();
         OneTimeWorkRequest job=new OneTimeWorkRequest.Builder(CloudUploadWorker.class).setInputData(data)
             .setConstraints(new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build();
-        WorkManager.getInstance(c).enqueueUniqueWork("newsvoice_cloud_upload",ExistingWorkPolicy.KEEP,job);
+        try{WorkManager.getInstance(c).enqueueUniqueWork("newsvoice_cloud_upload",ExistingWorkPolicy.KEEP,job);}
+        catch(RuntimeException e){p.edit().putBoolean("upload_active",false).putString("upload_status","업로드 작업 시작 실패: "+e.getClass().getSimpleName()).apply();}
     }
     private SharedPreferences prefs(){return AppPrefs.get(getApplicationContext());}
     private void status(String s){prefs().edit().putString("upload_status",s).apply();}
@@ -40,16 +41,17 @@ public final class CloudUploadWorker extends Worker {
             nm.createNotificationChannel(new android.app.NotificationChannel("newsvoice_upload","뉴스 영상 업로드",android.app.NotificationManager.IMPORTANCE_LOW));
             android.app.Notification notification=new android.app.Notification.Builder(context,"newsvoice_upload").setSmallIcon(android.R.drawable.stat_sys_upload).setContentTitle("뉴스보이스 자동 업로드").setContentText("영상 전송 중").setOngoing(true).build();
             setForegroundAsync(new ForegroundInfo(6311,notification,android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)).get(30,TimeUnit.SECONDS);
+            status("Google 업로드 권한 확인 중");
             int mode=getInputData().getInt("mode",0);
             AuthorizationResult result=Tasks.await(Identity.getAuthorizationClient(getApplicationContext()).authorize(request(mode)),60,TimeUnit.SECONDS);
-            if(result.hasResolution()||result.getAccessToken()==null)throw new IOException("Google 계정 권한을 다시 승인하세요.");
+            if(result.hasResolution()||result.getAccessToken()==null||result.getAccessToken().isEmpty())throw new IOException("Google 계정 권한을 다시 승인하세요.");
             String token=result.getAccessToken();
             String failures="";
             if((mode&1)!=0)try{status("Drive 업로드 진행 중");String uri=getInputData().getString("drive");if(uri==null||!uri.equals(prefs().getString("last_mp4_uri","")))throw new IOException("영상이 변경됐습니다.");upload(true,uri,token);}catch(Exception e){failures="Drive: "+(e instanceof IOException?e.getMessage():"전송 실패");}
             if((mode&2)!=0)try{status("YouTube 업로드 진행 중");String uri=getInputData().getString("yt");if(uri==null||!uri.equals(prefs().getString("last_youtube_uri","")))throw new IOException("영상이 변경됐습니다.");upload(false,uri,token);}catch(Exception e){failures+=(failures.isEmpty()?"":" · ")+"YouTube: "+(e instanceof IOException?e.getMessage():"전송 실패");}
             if(!failures.isEmpty()){status("일부 전송 실패 · "+failures);return Result.failure();}
             status("업로드 완료 · 영상 주소 확인");return Result.success();
-        }catch(Exception e){status("업로드 중단 · "+(e instanceof IOException?e.getMessage():"Google 인증/네트워크 확인 후 재시도"));return Result.failure();}
+        }catch(Exception e){status("업로드 중단 · "+(e instanceof IOException?e.getMessage():e instanceof com.google.android.gms.common.api.ApiException?"Google 권한 오류 코드 "+((com.google.android.gms.common.api.ApiException)e).getStatusCode():e.getClass().getSimpleName()+" · 재시도 필요"));return Result.failure();}
         finally{prefs().edit().putBoolean("upload_active",false).apply();}
     }
     private void upload(boolean drive,String uriText,String token)throws Exception{
@@ -77,7 +79,7 @@ public final class CloudUploadWorker extends Worker {
                 byte[] buffer=new byte[1024*1024];
                 while(offset<size){if(isStopped())throw new IOException("업로드 중단됨");int len=(int)Math.min(buffer.length,size-offset),pos=0;while(pos<len){int n=in.read(buffer,pos,len-pos);if(n<0)throw new EOFException("영상 파일이 짧습니다.");pos+=n;}
                     HttpURLConnection c=connect(session,"PUT",token);c.setRequestProperty("Content-Type","video/mp4");c.setRequestProperty("Content-Range","bytes "+offset+"-"+(offset+len-1)+"/"+size);c.setFixedLengthStreamingMode(len);c.setDoOutput(true);try(OutputStream out=c.getOutputStream()){out.write(buffer,0,len);}int code=c.getResponseCode();
-                    if(code==200||code==201){id=readUpload(c,drive);c.disconnect();break;}if(code!=308){c.disconnect();throw new IOException("업로드 실패 (HTTP "+code+"). 최근 영상 자동 업로드로 재시도하세요.");}long ack=next(c.getHeaderField("Range"));c.disconnect();if(ack!=offset+len)throw new IOException("서버 수신 위치 변경 · 재시도하세요.");offset=ack;status((drive?"Drive":"YouTube")+" 업로드 "+(100*offset/size)+"%");
+                    if(code==200||code==201){id=readUpload(c,drive);c.disconnect();status((drive?"Drive":"YouTube")+" 전송 100% · 공유 주소 확인 중");break;}if(code!=308){c.disconnect();throw new IOException("업로드 실패 (HTTP "+code+"). 최근 영상 자동 업로드로 재시도하세요.");}long ack=next(c.getHeaderField("Range"));c.disconnect();if(ack!=offset+len)throw new IOException("서버 수신 위치 변경 · 재시도하세요.");offset=ack;status((drive?"Drive":"YouTube")+" 업로드 "+(100*offset/size)+"%");
                 }
             }
             if(id.isEmpty())throw new IOException("업로드 완료 응답을 확인하지 못했습니다.");

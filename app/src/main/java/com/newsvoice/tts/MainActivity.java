@@ -95,7 +95,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private LinearLayout dashboard, screenRoot;
     private final LinearLayout[] screens=new LinearLayout[12];
     private TextView dashboardStatus,uploadStatus;
-    private TextView authStatus,ytAuthStatus,detailsStatus;
+    private TextView authStatus,ytAuthStatus,detailsStatus,driveUploadStatus,ytUploadStatus;
     private boolean authInProgress;
     private EditText driveLink,ytLink;
     private boolean autoUploadRequest;
@@ -475,12 +475,14 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button voicePreview=btn("미리 듣기",0xffe3eff2,DARK);screens[2].addView(voicePreview,lp(-1,52,8));voicePreview.setOnClickListener(v->preview.performClick());
         Button voiceSave=btn("음성 설정 저장",DARK,Color.WHITE);screens[2].addView(voiceSave,lp(-1,52,8));voiceSave.setOnClickListener(v->{persistVoiceSettings();showDashboard();});
         Button zipScript=btn("대본 + 사진 ZIP 불러오기",0xffe3eff2,DARK);screens[0].addView(zipScript,lp(-1,52,8));zipScript.setOnClickListener(v->pack.performClick());
-        Button google=btn("Google Drive 권한 확인 및 승인",DARK,Color.WHITE);screens[4].addView(google,lp(-1,52,8));google.setOnClickListener(v->confirmUpload(false,1));
+        Button google=btn("Google Drive 권한 확인 및 승인",DARK,Color.WHITE);screens[4].addView(google,lp(-1,52,8));google.setOnClickListener(v->authorizeGoogle(false,4));
         Button previousDrive=btn("이전에 제작한 경량 MP4 선택",0xffe3eff2,DARK);screens[4].addView(previousDrive,lp(-1,52,8));previousDrive.setOnClickListener(v->pickPrevious(PREVIOUS_DRIVE));
         authStatus=text("Google 연결 상태: "+AppPrefs.get(this).getString("google_auth_status","미확인"),14,true);screens[4].addView(authStatus,lp(-1,-2,8));
+        driveUploadStatus=text("영상 업로드: 대기",15,true);screens[4].addView(driveUploadStatus,lp(-1,-2,8));
         Button driveAuto=btn("최근 영상 자동 업로드",0xffffd500,DARK);screens[4].addView(driveAuto,lp(-1,52,8));driveAuto.setOnClickListener(v->confirmUpload(false,1));
         Button ytAuto=btn("최근 영상 자동 업로드",0xffffd500,DARK);screens[5].addView(ytAuto,lp(-1,52,8));ytAuto.setOnClickListener(v->confirmUpload(false,2));
         ytAuthStatus=text("Google 연결 상태: "+AppPrefs.get(this).getString("google_auth_status","미확인"),14,true);screens[5].addView(ytAuthStatus,lp(-1,-2,8));
+        ytUploadStatus=text("영상 업로드: 대기",15,true);screens[5].addView(ytUploadStatus,lp(-1,-2,8));
         Button previousYt=btn("이전에 제작한 YouTube MP4 선택",0xffe3eff2,DARK);screens[5].addView(previousYt,lp(-1,52,8));previousYt.setOnClickListener(v->pickPrevious(PREVIOUS_YOUTUBE));
         Button googleSetup=btn("Google 인증 등록 정보 확인",0xffe3eff2,DARK);screens[4].addView(googleSetup,lp(-1,52,8));googleSetup.setOnClickListener(v->showGoogleSetup());
         Button ytSetup=btn("Google 인증 등록 정보 확인",0xffe3eff2,DARK);screens[5].addView(ytSetup,lp(-1,52,8));ytSetup.setOnClickListener(v->showGoogleSetup());
@@ -520,7 +522,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private void showDashboard(){if(screenRoot==null)return;screenRoot.removeAllViews();if(dashboard.getParent()!=null)((ViewGroup)dashboard.getParent()).removeView(dashboard);screenRoot.addView(dashboard,new LinearLayout.LayoutParams(-1,-1));currentScreen=-1;refreshDashboard();}
     private void openScreen(int i,String label){screenRoot.removeAllViews();currentScreen=i;Button back=btn("‹ 메인 화면  |  "+label,DARK,Color.WHITE);back.setTextSize(17);screenRoot.addView(back,lp(-1,56,0));back.setOnClickListener(v->showDashboard());ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);if(screens[i].getParent()!=null)((ViewGroup)screens[i].getParent()).removeView(screens[i]);scroll.addView(screens[i]);screenRoot.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));Button done=btn("저장 및 메인 화면",0xffffd500,DARK);screenRoot.addView(done,lp(-1,52,0));done.setOnClickListener(v->showDashboard());refreshLinks();}
     @Override public void onBackPressed(){if(currentScreen>=0)showDashboard();else super.onBackPressed();}
-    private void refreshDashboard(){if(dashboardStatus==null)return;SharedPreferences p=AppPrefs.get(this);String upload=p.getString("upload_status","");if(detailsStatus!=null)detailsStatus.setText("Google 인증: "+p.getString("google_auth_status","미확인")+"\n영상 제작: "+p.getInt("render_percent",0)+"%\n배포: "+upload+"\nDrive 주소: "+p.getString("kakao_url","대기")+"\nYouTube 주소: "+p.getString("youtube_url","대기"));dashboardStatus.setText(p.getBoolean("render_active",false)?"영상 제작 중 · "+p.getInt("render_percent",0)+"%":upload.isEmpty()?(p.getInt("render_percent",0)==100?"영상 제작 완료 · 배포 대기":"제작 대기 · 사진 "+NewsImagePack.count(this)+"/8"):upload);gridButtons[1].setText("▧ 사진 등록 "+NewsImagePack.count(this)+"/8");}
+    private void refreshDashboard(){if(dashboardStatus==null)return;SharedPreferences p=AppPrefs.get(this);String upload=p.getString("upload_status","");if(driveUploadStatus!=null)driveUploadStatus.setText("영상 업로드: "+(upload.isEmpty()?"대기":upload)+"\nDrive 주소: "+p.getString("kakao_url","미등록"));if(ytUploadStatus!=null)ytUploadStatus.setText("영상 업로드: "+(upload.isEmpty()?"대기":upload)+"\nYouTube 주소: "+p.getString("youtube_url","미등록"));if(detailsStatus!=null)detailsStatus.setText("Google 인증: "+p.getString("google_auth_status","미확인")+"\n영상 제작: "+p.getInt("render_percent",0)+"%\n배포: "+upload+"\nDrive 주소: "+p.getString("kakao_url","대기")+"\nYouTube 주소: "+p.getString("youtube_url","대기"));dashboardStatus.setText(p.getBoolean("render_active",false)?"영상 제작 중 · "+p.getInt("render_percent",0)+"%":upload.isEmpty()?(p.getInt("render_percent",0)==100?"영상 제작 완료 · 배포 대기":"제작 대기 · 사진 "+NewsImagePack.count(this)+"/8"):upload);gridButtons[1].setText("▧ 사진 등록 "+NewsImagePack.count(this)+"/8");}
     private void refreshLinks(){if(driveLink==null)return;SharedPreferences p=AppPrefs.get(this);String drive=p.getString("kakao_url",""),yt=p.getString("youtube_url","");if(!drive.isEmpty()||!driveLink.hasFocus())driveLink.setText(drive);if(!yt.isEmpty()||!ytLink.hasFocus())ytLink.setText(yt);}
     private int pendingUploadMode;
     private boolean pendingRender;
@@ -537,7 +539,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private void authorizeGoogle(boolean render,int mode){if(authInProgress){updateStatus("Google 승인 진행 중");return;}authInProgress=true;pendingRender=render;pendingUploadMode=mode;authMessage("Google 계정 확인 중");com.google.android.gms.auth.api.identity.Identity.getAuthorizationClient(this).authorize(CloudUploadWorker.request(mode))
        .addOnSuccessListener(result->{if(result.hasResolution()){try{authMessage("Google 권한 승인 대기");startIntentSenderForResult(result.getPendingIntent().getIntentSender(),GOOGLE_AUTH,null,0,0,0);}catch(Exception e){authFailed("Google 승인 화면 실행 실패: "+e.getClass().getSimpleName());}}else googleAuthorized(result);})
        .addOnFailureListener(e->authFailed("Google 연결 실패: "+(e instanceof com.google.android.gms.common.api.ApiException?"코드 "+((com.google.android.gms.common.api.ApiException)e).getStatusCode():e.getClass().getSimpleName())));}
-    private void googleAuthorized(com.google.android.gms.auth.api.identity.AuthorizationResult result){authInProgress=false;if(result==null||result.getAccessToken()==null||result.getAccessToken().isEmpty()){authFailed("Google 권한이 부여되지 않았습니다.");return;}int mode=pendingUploadMode;boolean render=pendingRender;pendingUploadMode=0;pendingRender=false;authMessage("Google 계정 연결 완료");if(mode==0)return;if(render){autoUploadRequest=true;videoCheck.setChecked(true);openScreen(3,gridLabels[3]);queueManualSave();}else CloudUploadWorker.enqueue(this,mode);}
+    private void googleAuthorized(com.google.android.gms.auth.api.identity.AuthorizationResult result){authInProgress=false;if(result==null||result.getAccessToken()==null||result.getAccessToken().isEmpty()){authFailed("Google 권한이 부여되지 않았습니다.");return;}int mode=pendingUploadMode;boolean render=pendingRender;pendingUploadMode=0;pendingRender=false;authMessage("Google 계정 연결 완료");if(mode==0||mode==4)return;AppPrefs.get(this).edit().putString("upload_status","인증 완료 · 업로드 준비 중").apply();if(render){autoUploadRequest=true;videoCheck.setChecked(true);openScreen(3,gridLabels[3]);queueManualSave();}else {CloudUploadWorker.enqueue(this,mode);refreshDashboard();updateStatus(AppPrefs.get(this).getString("upload_status","업로드 대기"));}}
     private float pitch() { return 0.80f+pitchBar.getProgress()*0.05f; }
 
     @Override public void onInit(int code) {
