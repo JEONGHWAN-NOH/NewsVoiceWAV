@@ -20,7 +20,7 @@ public final class CloudUploadWorker extends Worker {
     private static final String DRIVE="https://www.googleapis.com/auth/drive.file";
     private static final String YOUTUBE="https://www.googleapis.com/auth/youtube.upload";
     public CloudUploadWorker(Context c,WorkerParameters p){super(c,p);}
-    static AuthorizationRequest request(){return AuthorizationRequest.builder().setRequestedScopes(Arrays.asList(new Scope(DRIVE),new Scope(YOUTUBE))).build();}
+    static AuthorizationRequest request(int mode){return AuthorizationRequest.builder().setRequestedScopes(mode==1?java.util.Collections.singletonList(new Scope(DRIVE)):mode==2?java.util.Collections.singletonList(new Scope(YOUTUBE)):Arrays.asList(new Scope(DRIVE),new Scope(YOUTUBE))).build();}
     static void enqueue(Context c,int mode){
         SharedPreferences p=AppPrefs.get(c);
         if(p.getBoolean("upload_active",false))return;
@@ -40,9 +40,10 @@ public final class CloudUploadWorker extends Worker {
             nm.createNotificationChannel(new android.app.NotificationChannel("newsvoice_upload","뉴스 영상 업로드",android.app.NotificationManager.IMPORTANCE_LOW));
             android.app.Notification notification=new android.app.Notification.Builder(context,"newsvoice_upload").setSmallIcon(android.R.drawable.stat_sys_upload).setContentTitle("뉴스보이스 자동 업로드").setContentText("영상 전송 중").setOngoing(true).build();
             setForegroundAsync(new ForegroundInfo(6311,notification,android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)).get(30,TimeUnit.SECONDS);
-            AuthorizationResult result=Tasks.await(Identity.getAuthorizationClient(getApplicationContext()).authorize(request()),60,TimeUnit.SECONDS);
+            int mode=getInputData().getInt("mode",0);
+            AuthorizationResult result=Tasks.await(Identity.getAuthorizationClient(getApplicationContext()).authorize(request(mode)),60,TimeUnit.SECONDS);
             if(result.hasResolution()||result.getAccessToken()==null)throw new IOException("Google 계정 권한을 다시 승인하세요.");
-            String token=result.getAccessToken();int mode=getInputData().getInt("mode",0);
+            String token=result.getAccessToken();
             String failures="";
             if((mode&1)!=0)try{status("Drive 업로드 진행 중");String uri=getInputData().getString("drive");if(uri==null||!uri.equals(prefs().getString("last_mp4_uri","")))throw new IOException("영상이 변경됐습니다.");upload(true,uri,token);}catch(Exception e){failures="Drive: "+(e instanceof IOException?e.getMessage():"전송 실패");}
             if((mode&2)!=0)try{status("YouTube 업로드 진행 중");String uri=getInputData().getString("yt");if(uri==null||!uri.equals(prefs().getString("last_youtube_uri","")))throw new IOException("영상이 변경됐습니다.");upload(false,uri,token);}catch(Exception e){failures+=(failures.isEmpty()?"":" · ")+"YouTube: "+(e instanceof IOException?e.getMessage():"전송 실패");}
@@ -69,25 +70,27 @@ public final class CloudUploadWorker extends Worker {
                 p.edit().putString(prefix+"session",session).putString(prefix+"session_uri",uriText).commit();
             }else{
                 checkSession(session);HttpURLConnection q=connect(session,"PUT",token);q.setRequestProperty("Content-Range","bytes */"+size);q.setFixedLengthStreamingMode(0);q.setDoOutput(true);q.getOutputStream().close();int code=q.getResponseCode();
-                if(code==200||code==201)id=read(q).getString("id");else if(code==308)offset=next(q.getHeaderField("Range"));else{q.disconnect();throw new IOException("기존 업로드 확인 실패 (HTTP "+code+"). 중복 방지를 위해 중단했습니다.");}q.disconnect();
+                if(code==200||code==201)id=readUpload(q,drive);else if(code==308)offset=next(q.getHeaderField("Range"));else{q.disconnect();throw new IOException("기존 업로드 확인 실패 (HTTP "+code+"). 중복 방지를 위해 중단했습니다.");}q.disconnect();
             }
             if(id.isEmpty())try(InputStream in=ctx.getContentResolver().openInputStream(uri)){
                 if(in==null)throw new IOException("영상 파일을 읽을 수 없습니다.");long skip=offset;while(skip>0){long n=in.skip(skip);if(n<=0)throw new IOException("영상 재개 위치 오류");skip-=n;}
                 byte[] buffer=new byte[1024*1024];
                 while(offset<size){if(isStopped())throw new IOException("업로드 중단됨");int len=(int)Math.min(buffer.length,size-offset),pos=0;while(pos<len){int n=in.read(buffer,pos,len-pos);if(n<0)throw new EOFException("영상 파일이 짧습니다.");pos+=n;}
                     HttpURLConnection c=connect(session,"PUT",token);c.setRequestProperty("Content-Type","video/mp4");c.setRequestProperty("Content-Range","bytes "+offset+"-"+(offset+len-1)+"/"+size);c.setFixedLengthStreamingMode(len);c.setDoOutput(true);try(OutputStream out=c.getOutputStream()){out.write(buffer,0,len);}int code=c.getResponseCode();
-                    if(code==200||code==201){id=read(c).getString("id");c.disconnect();break;}if(code!=308){c.disconnect();throw new IOException("업로드 실패 (HTTP "+code+"). 최근 영상 자동 업로드로 재시도하세요.");}long ack=next(c.getHeaderField("Range"));c.disconnect();if(ack!=offset+len)throw new IOException("서버 수신 위치 변경 · 재시도하세요.");offset=ack;status((drive?"Drive":"YouTube")+" 업로드 "+(100*offset/size)+"%");
+                    if(code==200||code==201){id=readUpload(c,drive);c.disconnect();break;}if(code!=308){c.disconnect();throw new IOException("업로드 실패 (HTTP "+code+"). 최근 영상 자동 업로드로 재시도하세요.");}long ack=next(c.getHeaderField("Range"));c.disconnect();if(ack!=offset+len)throw new IOException("서버 수신 위치 변경 · 재시도하세요.");offset=ack;status((drive?"Drive":"YouTube")+" 업로드 "+(100*offset/size)+"%");
                 }
             }
             if(id.isEmpty())throw new IOException("업로드 완료 응답을 확인하지 못했습니다.");
             if(!id.matches("[A-Za-z0-9_-]+"))throw new IOException("영상 ID 오류");
             p.edit().putString(prefix+"uploaded_id",id).putString(prefix+"uploaded_uri",uriText).remove(prefix+"session").remove(prefix+"session_uri").commit();
         }
+        if(!drive&&!"unlisted".equals(p.getString("youtube_privacy_status",""))&&!"public".equals(p.getString("youtube_privacy_status","")))throw new IOException("영상 업로드는 완료됐지만 공개 범위 확인이 필요합니다. YouTube Studio에서 일부 공개로 변경 후 시청 주소를 등록하세요.");
         if(drive){
             HttpURLConnection c=connect("https://www.googleapis.com/drive/v3/files/"+id+"/permissions","POST",token);json(c,new JSONObject().put("type","anyone").put("role","reader"));int code=c.getResponseCode();c.disconnect();if(code<200||code>=300)throw new IOException("Drive 링크 공유 권한 설정 실패 (HTTP "+code+")");
         }
         p.edit().putString(linkKey,drive?"https://drive.google.com/file/d/"+id+"/view":"https://www.youtube.com/watch?v="+id).commit();
     }
+    private String readUpload(HttpURLConnection c,boolean drive)throws Exception{JSONObject body=read(c);String id=body.getString("id");if(!drive){JSONObject s=body.optJSONObject("status");prefs().edit().putString("youtube_privacy_status",s==null?"":s.optString("privacyStatus","")).commit();}return id;}
     private static long next(String range)throws IOException{if(range==null)return 0;if(!range.matches("bytes=0-[0-9]+"))throw new IOException("업로드 범위 오류");return Long.parseLong(range.substring(8))+1;}
     private static void checkSession(String url)throws IOException{URL u=new URL(url);if(!"https".equals(u.getProtocol())||!(u.getHost().equals("www.googleapis.com")||u.getHost().equals("upload.youtube.com")||u.getHost().equals("youtube.googleapis.com")))throw new IOException("업로드 주소 확인 실패");}
     private static HttpURLConnection connect(String url,String method,String token)throws IOException{HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setInstanceFollowRedirects(false);c.setConnectTimeout(30000);c.setReadTimeout(60000);c.setRequestMethod(method);c.setRequestProperty("Authorization","Bearer "+token);return c;}
