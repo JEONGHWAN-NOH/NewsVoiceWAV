@@ -1,14 +1,14 @@
 plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
-def releaseVersion = '6.3'
+def releaseVersion = '6.4'
 
 android {
     namespace 'com.newsvoice.tts'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.newsvoice.tts.v63'
+        applicationId 'com.newsvoice.tts.v64'
         minSdk 29
         targetSdk 35
-        versionCode 63
+        versionCode 64
         versionName releaseVersion
         testInstrumentationRunner 'com.newsvoice.tts.LiteBroadcastTest'
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
