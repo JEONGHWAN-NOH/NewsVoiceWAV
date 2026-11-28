@@ -27,28 +27,30 @@ jobs:
           java -cp /tmp/news-tests com.newsvoice.tts.ShareLinksTest
       - name: Build APK
         run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease
-      - name: Sign long-term installation APK using existing pinned repository certificate
+      - name: Sign v6.6 APK with dedicated pinned certificate
         env:
-          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 || secrets.SIGNING_KEY_BASE64 }}
-          NEWSVOICE_SIGNING_STORE_PASSWORD: ${{ secrets.NEWSVOICE_SIGNING_STORE_PASSWORD }}
-          NEWSVOICE_SIGNING_KEY_ALIAS: newsvoice-stable-v1
-          NEWSVOICE_SIGNING_KEY_PASSWORD: ${{ secrets.NEWSVOICE_SIGNING_STORE_PASSWORD }}
+          V66_SIGNING_BUNDLE: ${{ secrets.NEWSVOICE_V66_SIGNING_BUNDLE }}
         run: |
           set -euo pipefail
-          if [[ -z "$SIGNING_KEYSTORE_B64" || -z "$NEWSVOICE_SIGNING_STORE_PASSWORD" || -z "$NEWSVOICE_SIGNING_KEY_ALIAS" || -z "$NEWSVOICE_SIGNING_KEY_PASSWORD" ]]; then
-            echo "Stable signing credentials are not configured. No installation APK will be delivered."
+          if [[ -z "$V66_SIGNING_BUNDLE" ]]; then
+            echo "Dedicated v6.6 signing bundle is not configured."
             exit 1
           fi
+          IFS=$'\n' read -r -d '' -a BUNDLE_LINES <<< "$V66_SIGNING_BUNDLE" || true
+          test "${#BUNDLE_LINES[@]}" -eq 2
+          export V66_SIGNING_PASSWORD="${BUNDLE_LINES[0]%$'\r'}"
+          printf '::add-mask::%s\n' "$V66_SIGNING_PASSWORD"
           umask 077
           KEYSTORE="$(mktemp)"
           trap 'rm -f "$KEYSTORE"' EXIT
-          printf '%s' "$SIGNING_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          printf '%s' "${BUNDLE_LINES[1]%$'\r'}" | base64 --decode > "$KEYSTORE"
+          unset V66_SIGNING_BUNDLE BUNDLE_LINES
           APK="NewsVoice-v6.6-stable.apk"
           SOURCE="app/build/outputs/apk/release/NewsVoiceWAV-v6.6-release.apk"
           SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          "$SIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 --ks-key-alias "$NEWSVOICE_SIGNING_KEY_ALIAS" --ks-pass env:NEWSVOICE_SIGNING_STORE_PASSWORD --key-pass env:NEWSVOICE_SIGNING_KEY_PASSWORD --out "$APK" "$SOURCE"
+          "$SIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 --ks-key-alias newsvoice-v66-stable --ks-pass env:V66_SIGNING_PASSWORD --key-pass env:V66_SIGNING_PASSWORD --out "$APK" "$SOURCE"
           "$SIGNER" verify --verbose --print-certs "$APK" > APK-CERT.txt
-          EXPECTED="$(tr -d '[:space:]' < signing/expected-cert-sha256.txt | tr '[:lower:]' '[:upper:]')"
+          EXPECTED="2CF2752003F7EF05838DBB2D54A69D677E40437CB14D4940D4B6E75BBDFD41E2"
           ACTUAL="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' APK-CERT.txt | head -1 | tr '[:lower:]' '[:upper:]')"
           test "$ACTUAL" = "$EXPECTED"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.newsvoice.tts.v66'" >/dev/null
