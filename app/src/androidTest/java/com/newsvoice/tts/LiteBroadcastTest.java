@@ -19,6 +19,15 @@ public class LiteBroadcastTest extends Instrumentation {
             check(c.getPackageName().equals("com.newsvoice.tts.v70"),"Separate package");
             MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+            runOnMainSync(()->{
+                android.view.View root=activity.getWindow().getDecorView();
+                check(hasText(root,"기본 표지 변경 · 갤러리"),"Cover change button");
+                check(hasText(root,"기본 표지로 복원"),"Cover reset button");
+                check(hasText(root,"HD 영상 Google Drive에 저장"),"Drive save retained");
+                check(hasText(root,"카카오톡에 경량 MP4 공유"),"MP4 sharing retained");
+                for(String removed:new String[]{"Google Drive 영상 주소 등록","등록 Google Drive 영상 열기","방송 표지 이미지 공유","카카오톡에 시청 링크 공유"})
+                    check(!hasText(root,removed),"Removed distribution control: "+removed);
+            });
             check(AppPrefs.pageMode(c)&&!AppPrefs.keepWav(c),"Lightweight defaults");
             check(NewsVideoComposer.Quality.KAKAO.width==720 && NewsVideoComposer.Quality.KAKAO.height==1280 && NewsVideoComposer.Quality.KAKAO.fps==24 && NewsVideoComposer.Quality.KAKAO.videoBitrate>=800000,"Production HD quality");
             String script="경제 소식\n필리핀의 경제 소식을 전해드립니다.\n===\n사회 소식\n오늘의 사회 소식을 전해드립니다.";
@@ -165,6 +174,11 @@ public class LiteBroadcastTest extends Instrumentation {
             runOnMainSync(activity::finish);
             result.putString("lite_tests","passed");finish(-1,result);
         }catch(Throwable e){result.putString("error",android.util.Log.getStackTraceString(e));finish(0,result);}
+    }
+    private static boolean hasText(android.view.View view,String text){
+        if(view instanceof android.widget.TextView&&text.contentEquals(((android.widget.TextView)view).getText()))return true;
+        if(view instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)view;for(int i=0;i<group.getChildCount();i++)if(hasText(group.getChildAt(i),text))return true;}
+        return false;
     }
     private static boolean closeColor(int a,int b){
         return Math.abs(android.graphics.Color.red(a)-android.graphics.Color.red(b))<65 &&

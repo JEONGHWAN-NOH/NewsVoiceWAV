@@ -153,11 +153,6 @@ public final class ManualRenderService extends Service {
             Uri saved=DownloadsPublisher.publish(context,mp4,names.base+"_kakao.mp4");
             AppPrefs.get(context).edit().putString("last_mp4_uri",saved.toString())
                 .putString("last_mp4_name",names.base+"_kakao.mp4").remove("kakao_url").remove("last_share_cover").apply();
-            File card=new File(context.getCacheDir(),"share_"+stamp+".jpg");
-            try { ShareCover.write(context,card,java.time.Instant.ofEpochMilli(Long.parseLong(stamp)));
-                Uri cover=DownloadsPublisher.publish(context,card,names.base+"_cover.jpg");
-                AppPrefs.get(context).edit().putString("last_share_cover",cover.toString()).apply();
-            } finally {card.delete();}
             progress("저장 완료: 다운로드/NewsVoice v7.0/"+names.dateFolder+(AppPrefs.keepWav(context)?" → MP4 · WAV":" → MP4"),100);
             success=true;
         }finally{

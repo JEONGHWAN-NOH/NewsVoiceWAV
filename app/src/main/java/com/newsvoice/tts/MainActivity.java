@@ -79,6 +79,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private static final int PHOTO_PICKER=5440;
     private final ImageView[] thumbnails=new ImageView[11];
     private TextView photoStatus;
+    private ImageView coverPreview;
     private final Runnable refreshPhotos=this::refreshPhotos;
     private int refreshGeneration;
     @Override protected void onSaveInstanceState(Bundle state){
@@ -93,12 +94,19 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         photo.setScaleType(ImageView.ScaleType.FIT_CENTER);
         photo.setBackgroundColor(0xffeff4f6);
         row.addView(photo,lp(70,64,0));
-        Button choose=btn(label+" 사진 선택",0xffe3eff2,DARK);
+        Button choose=btn(slot==NewsImagePack.COVER_SLOT?"기본 표지 변경 · 갤러리":label+" 사진 선택",0xffe3eff2,DARK);
         row.addView(choose,new LinearLayout.LayoutParams(0,-1,1));
-        choose.setOnClickListener(v->{
-            Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*");
-            pick.addCategory(Intent.CATEGORY_OPENABLE);
-            startActivityForResult(pick,PHOTO_PICKER+slot);
+        choose.setOnClickListener(v->pickPhoto(slot));
+    }
+    private void pickPhoto(int slot){
+        Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*");
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(pick,PHOTO_PICKER+slot);
+    }
+    private void resetCover(){
+        packTasks.execute(()->{
+            try{NewsImagePack.resetCover(this);runOnUiThread(()->{schedulePhotos();updateStatus("기본 표지 복원 완료");});}
+            catch(IOException e){runOnUiThread(()->updateStatus("표지 복원 실패: "+e.getMessage()));}
         });
     }
     private void schedulePhotos(){
@@ -118,9 +126,13 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 images[i]=NewsImagePack.load(this,i);
             }
             final int articles=newsCount, photos=NewsImagePack.count(this);final boolean matched=matches;
+            android.graphics.Bitmap frame=NewsCardPainter.renderCover(this,articles,NewsCoverMeta.now(),images[NewsImagePack.COVER_SLOT]);
+            final android.graphics.Bitmap preview=android.graphics.Bitmap.createScaledBitmap(frame,360,640,true);
+            if(frame!=preview)frame.recycle();
             runOnUiThread(()->{
-                if(isDestroyed()||generation!=refreshGeneration){for(android.graphics.Bitmap b:images)if(b!=null)b.recycle();return;}
+                if(isDestroyed()||generation!=refreshGeneration){for(android.graphics.Bitmap b:images)if(b!=null)b.recycle();preview.recycle();return;}
                 for(int i=0;i<images.length;i++)thumbnails[i].setImageBitmap(images[i]);
+                if(coverPreview!=null)coverPreview.setImageBitmap(preview);else preview.recycle();
                 if(photoStatus!=null)photoStatus.setText("인식된 뉴스: "+articles+"건 · 사진 등록: "+photos+"/8장"+(photos>0&&!matched?" · 대본 변경: 제작 전 순서 확인":""));
             });
         });
@@ -280,10 +292,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         addPhotoSlot(body,NewsImagePack.COVER_SLOT,"표지 이미지");
         Button resetCover=btn("기본 표지로 복원",0xffe3eff2,DARK);
         body.addView(resetCover,lp(-1,48,5));
-        resetCover.setOnClickListener(v->packTasks.execute(()->{
-            try{NewsImagePack.resetCover(this);runOnUiThread(()->{schedulePhotos();updateStatus("기본 표지 복원 완료");});}
-            catch(IOException e){runOnUiThread(()->updateStatus("표지 복원 실패: "+e.getMessage()));}
-        }));
+        resetCover.setOnClickListener(v->resetCover());
         body.addView(text("선택한 표지는 다음 방송에도 유지됩니다. 원본 비율을 유지하며 전체 이미지가 보입니다.",12,false),lp(-1,-2,5));
         body.addView(text("아나운서 사진",16,true),lp(-1,-2,14));
         addPhotoSlot(body,NewsImagePack.OPENING_SLOT,"시작 인사");
@@ -326,8 +335,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivityForResult(pick,OPENING_PICKER);
         });
         TextView productionHeader=text("방송 영상 제작",20,true);body.addView(productionHeader,lp(-1,-2,25));
-        ImageView coverPreview=new ImageView(this);coverPreview.setAdjustViewBounds(true);body.addView(coverPreview,lp(-1,240,8));
-        try{coverPreview.setImageBitmap(ShareCover.bitmap(this,java.time.Instant.now()));}catch(IOException ignored){}
+        coverPreview=new ImageView(this);coverPreview.setContentDescription("MP4 표지 미리보기");coverPreview.setAdjustViewBounds(true);coverPreview.setScaleType(ImageView.ScaleType.FIT_CENTER);body.addView(coverPreview,lp(-1,240,8));
+        Button changeCover=btn("기본 표지 변경 · 갤러리",0xffe3eff2,DARK);body.addView(changeCover,lp(-1,48,5));changeCover.setOnClickListener(v->pickPhoto(NewsImagePack.COVER_SLOT));
+        Button restoreCover=btn("기본 표지로 복원",0xffe3eff2,DARK);body.addView(restoreCover,lp(-1,48,5));restoreCover.setOnClickListener(v->resetCover());
+        body.addView(text("변경한 표지는 자동 저장되며 다음 MP4 제작부터 적용됩니다.",12,false),lp(-1,-2,5));
         status=text("음성 엔진을 준비하고 있습니다.",13,false);status.setTextColor(0xff61778e);body.addView(status,lp(-1,-2,8));
         jobStatus=text("제작 상태: "+AppPrefs.get(this).getString("status","작업 기록 없음"),14,true);
         jobStatus.setTextColor(0xffe01616);
@@ -371,16 +382,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         TextView distributionHeader=text("방송 배포",20,true);body.addView(distributionHeader,lp(-1,-2,18));
         Button driveUpload=btn("HD 영상 Google Drive에 저장",0xffffd500,DARK);body.addView(driveUpload,lp(-1,52,8));
         driveUpload.setOnClickListener(v->shareUri("last_mp4_uri","video/mp4","Google Drive 앱에 저장"));
-        body.addView(text("공유 목록에서 Drive 선택 → 업로드 → 액세스 관리에서 링크가 있는 모든 사용자(뷰어) → 링크 복사.",13,false),lp(-1,-2,5));
+        body.addView(text("공유 목록에서 Drive 선택 → 업로드. 다른 사람에게 링크를 보낼 때만 Drive에서 공유 권한을 설정하세요.",13,false),lp(-1,-2,5));
         Button shareVideo=btn("카카오톡에 경량 MP4 공유",0xffffd500,DARK);
         body.addView(shareVideo,lp(-1,49,8));
         shareVideo.setOnClickListener(v->shareLast());
-        TextView linkStatus=text("Drive 영상 주소를 등록하세요.",14,true);body.addView(linkStatus,lp(-1,-2,4));
-        EditText kakaoUrl=new EditText(this);kakaoUrl.setSingleLine(true);kakaoUrl.setHint("Google Drive 영상 링크 붙여넣기");kakaoUrl.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);kakaoUrl.setText(AppPrefs.get(this).getString("kakao_url",""));body.addView(kakaoUrl,lp(-1,52,8));
-        Button registerKakao=btn("Google Drive 영상 주소 등록",0xffffd500,DARK);body.addView(registerKakao,lp(-1,48,4));registerKakao.setOnClickListener(v->{String value=ShareLinks.drive(kakaoUrl.getText().toString());if(value.isEmpty()){kakaoUrl.setError("Google Drive 파일 공유 링크를 입력하세요.");return;}AppPrefs.get(this).edit().putString("kakao_url",value).commit();kakaoUrl.setText(value);kakaoUrl.setError(null);linkStatus.setText("Google Drive 주소 등록 완료 · 공개 권한은 별도 확인하세요.");});
-        Button openDrive=btn("등록 Google Drive 영상 열기",0xffffd500,DARK);body.addView(openDrive,lp(-1,48,4));openDrive.setOnClickListener(v->{String value=AppPrefs.get(this).getString("kakao_url","");if(value.isEmpty()){kakaoUrl.setError("주소를 먼저 등록하세요.");return;}try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(value)));}catch(Exception e){linkStatus.setText("주소 열기 실패");}});
-        Button shareCover=btn("방송 표지 이미지 공유",DARK,Color.WHITE);body.addView(shareCover,lp(-1,56,8));shareCover.setOnClickListener(v->shareUri("last_share_cover","image/jpeg","방송 표지 공유"));
-        Button shareLink=btn("카카오톡에 시청 링크 공유",0xffffd500,DARK);body.addView(shareLink,lp(-1,56,8));shareLink.setOnClickListener(v->{String value=ShareLinks.drive(AppPrefs.get(this).getString("kakao_url",""));if(value.isEmpty()){linkStatus.setText("Drive 주소를 먼저 등록하세요.");return;}Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+value);startActivity(Intent.createChooser(send,"시청 링크 공유"));});
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
             save.setText(isChecked?"HD 영상 제작":"WAV 음성 자동 생성 및 다운로드 저장");
@@ -609,7 +614,6 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private void shareUri(String key,String mime,String title){
         String raw=AppPrefs.get(this).getString(key,"");if(raw.isEmpty()){Toast.makeText(this,"먼저 방송 영상을 제작하세요.",Toast.LENGTH_SHORT).show();return;}
         Intent send=new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM,Uri.parse(raw)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        if(key.equals("last_share_cover")){String link=AppPrefs.get(this).getString("kakao_url","");if(!link.isEmpty())send.putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+link);}
         startActivity(Intent.createChooser(send,title));
     }
     private void openLastVideo(){
@@ -647,7 +651,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             packTasks.execute(()->{
                 try{
                     NewsImagePack.replace(this,slot,uri,script);
-                    runOnUiThread(()->{if(!isDestroyed()){schedulePhotos();updateStatus("사진 등록 완료");}});
+                    runOnUiThread(()->{if(!isDestroyed()){schedulePhotos();updateStatus(slot==NewsImagePack.COVER_SLOT?"기본 표지 변경 · 자동 저장 완료":"사진 등록 완료");}});
                 }catch(Exception e){updateStatus("사진 등록 실패: "+e.getMessage());}
             });
             return;
