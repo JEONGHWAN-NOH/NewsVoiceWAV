@@ -480,7 +480,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button ytAuto=btn("최근 영상 자동 업로드",0xffffd500,DARK);screens[5].addView(ytAuto,lp(-1,52,8));ytAuto.setOnClickListener(v->confirmUpload(false,2));
         Button refresh=btn("등록 주소 새로고침",0xffe3eff2,DARK);screens[6].addView(refresh,lp(-1,52,8));refresh.setOnClickListener(v->refreshLinks());
         Button coverView=btn("최근 표지 확인",0xffe3eff2,DARK);screens[8].addView(coverView,lp(-1,52,8));coverView.setOnClickListener(v->{String x=AppPrefs.get(this).getString("last_share_cover","");if(x.isEmpty()){updateStatus("먼저 영상을 제작하세요.");return;}ImageView iv=new ImageView(this);iv.setImageURI(Uri.parse(x));iv.setAdjustViewBounds(true);new android.app.AlertDialog.Builder(this).setView(iv).setPositiveButton("닫기",null).show();});
-        Button archive=btn("다운로드에서 방송 파일 보기",DARK,Color.WHITE);screens[10].addView(archive,lp(-1,52,8));archive.setOnClickListener(v->{try{startActivity(new Intent(Intent.ACTION_VIEW_DOWNLOADS));}catch(Exception e){updateStatus("내 파일 → 다운로드 → NewsVoice v6.4를 확인하세요.");}});
+        Button archive=btn("다운로드에서 방송 파일 보기",DARK,Color.WHITE);screens[10].addView(archive,lp(-1,52,8));archive.setOnClickListener(v->{try{startActivity(new Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS));}catch(Exception e){updateStatus("내 파일 → 다운로드 → NewsVoice v6.4를 확인하세요.");}});
         Button links=btn("최근 시청 주소 확인",DARK,Color.WHITE);screens[10].addView(links,lp(-1,52,8));links.setOnClickListener(v->openScreen(6,labels[6]));
         detailsStatus=text("",15,false);screens[11].addView(detailsStatus,lp(-1,-2,8));
         Button retry=btn("최근 영상 배포 재시도",0xffffd500,DARK);screens[11].addView(retry,lp(-1,52,8));retry.setOnClickListener(v->confirmUpload(false,3));
