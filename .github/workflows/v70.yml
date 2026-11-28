@@ -1,0 +1,90 @@
+name: Build and verify NewsVoice v7.0 stable
+on:
+  push:
+    branches: [feature/v7.0-lite]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Verify broadcast algorithms
+        run: |
+          mkdir -p /tmp/news-tests
+          javac -encoding UTF-8 -d /tmp/news-tests app/src/main/java/com/newsvoice/tts/{WavTools,NewsStory,NewsAutoScript,NewsBroadcastSegments,BroadcastScriptReview,NewsSentenceTimeline,NewsScrollMath,NewsPageSplitter,NewsCoverMeta,Mp4FastStart,ShareLinks}.java tests/{WavToolsTest,NewsStoryTest,NewsAutoScriptTest,NewsBroadcastSegmentsTest,BroadcastScriptReviewTest,NewsSentenceTimelineTest,NewsScrollMathTest,NewsPageSplitterTest,NewsCoverMetaTest,Mp4FastStartTest,ShareLinksTest}.java
+          for t in WavToolsTest NewsStoryTest NewsAutoScriptTest NewsBroadcastSegmentsTest BroadcastScriptReviewTest NewsSentenceTimelineTest NewsScrollMathTest NewsPageSplitterTest NewsCoverMetaTest; do java -cp /tmp/news-tests "$t"; done
+          java -cp /tmp/news-tests com.newsvoice.tts.Mp4FastStartTest
+          java -cp /tmp/news-tests com.newsvoice.tts.ShareLinksTest
+      - name: Build APK
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease
+      - name: Sign v7.0 APK with existing pinned v6.6 certificate
+        env:
+          V66_SIGNING_BUNDLE: ${{ secrets.NEWSVOICE_V66_SIGNING_BUNDLE }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$V66_SIGNING_BUNDLE" ]]; then
+            echo "Existing v6.6 signing bundle is not configured."
+            exit 1
+          fi
+          IFS=$'\n' read -r -d '' -a BUNDLE_LINES <<< "$V66_SIGNING_BUNDLE" || true
+          test "${#BUNDLE_LINES[@]}" -eq 2
+          export V66_SIGNING_PASSWORD="${BUNDLE_LINES[0]%$'\r'}"
+          printf '::add-mask::%s\n' "$V66_SIGNING_PASSWORD"
+          umask 077
+          KEYSTORE="$(mktemp)"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          printf '%s' "${BUNDLE_LINES[1]%$'\r'}" | base64 --decode > "$KEYSTORE"
+          unset V66_SIGNING_BUNDLE BUNDLE_LINES
+          APK="NewsVoice-v7.0-stable.apk"
+          SOURCE="app/build/outputs/apk/release/NewsVoiceWAV-v7.0-release.apk"
+          SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$SIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 --ks-key-alias newsvoice-v66-stable --ks-pass env:V66_SIGNING_PASSWORD --key-pass env:V66_SIGNING_PASSWORD --out "$APK" "$SOURCE"
+          "$SIGNER" verify --verbose --print-certs "$APK" > APK-CERT.txt
+          EXPECTED="2CF2752003F7EF05838DBB2D54A69D677E40437CB14D4940D4B6E75BBDFD41E2"
+          ACTUAL="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' APK-CERT.txt | head -1 | tr '[:lower:]' '[:upper:]')"
+          test "$ACTUAL" = "$EXPECTED"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.newsvoice.tts.v70'" >/dev/null
+          sha256sum "$APK" > SHA256SUMS.txt
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Device test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: |
+            adb install app/build/outputs/apk/debug/NewsVoiceWAV-v7.0-debug.apk
+            adb install "$(find app/build/outputs/apk/androidTest -name '*.apk' -print -quit)"
+            adb shell am instrument -w com.newsvoice.tts.v70.test/com.newsvoice.tts.LiteBroadcastTest | tee instrumentation.txt
+            grep -F 'lite_tests=passed' instrumentation.txt
+            adb uninstall com.newsvoice.tts.v70
+            adb install NewsVoice-v7.0-stable.apk
+            adb shell am start -W -n com.newsvoice.tts.v70/com.newsvoice.tts.MainActivity
+            adb shell pm path com.newsvoice.tts.v70
+      - name: Publish verified APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v7.0-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" NewsVoice-v7.0-stable.apk APK-CERT.txt SHA256SUMS.txt instrumentation.txt --target "$GITHUB_SHA" --prerelease --title 'NewsVoice WAV v7.0 Lite 시험판' --notes '독립 설치판. 기존 인증서 사용. Google TTS, Drive 및 카카오톡 공유는 실제 휴대전화에서 추가 확인 필요.'
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: NewsVoice-v70-stable-signed
+          path: |
+            NewsVoice-v7.0-stable.apk
+            instrumentation.txt
+            APK-CERT.txt
+            SHA256SUMS.txt

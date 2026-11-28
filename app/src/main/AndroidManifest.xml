@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
     <queries>
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
-        <package android:name="com.samsung.SMT"/>
+        <package android:name="com.google.android.tts"/>
         <package android:name="com.kakao.talk"/>
     </queries>
     <application android:allowBackup="false"

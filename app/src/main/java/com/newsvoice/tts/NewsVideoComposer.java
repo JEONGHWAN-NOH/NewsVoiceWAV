@@ -26,7 +26,6 @@ public final class NewsVideoComposer {
     public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=30;
     enum Quality {
         KAKAO(360,640,10,80000),
-        YOUTUBE(720,1280,24,800000),
         ULTRA(720,1280,15,280_000),
         LITE(720,1280,24,700_000),
         FULL(VIDEO_WIDTH,VIDEO_HEIGHT,FPS,3_000_000);
@@ -305,7 +304,7 @@ public final class NewsVideoComposer {
             MediaFormat fmt=MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC,quality.width,quality.height);
             fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
             fmt.setInteger(MediaFormat.KEY_BIT_RATE,quality.videoBitrate);
-            if(quality==Quality.LITE||quality==Quality.ULTRA||quality==Quality.KAKAO||quality==Quality.YOUTUBE) {
+            if(quality==Quality.LITE||quality==Quality.ULTRA||quality==Quality.KAKAO) {
                 MediaCodecInfo.EncoderCapabilities caps=codec.getCodecInfo()
                     .getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC).getEncoderCapabilities();
                 if(caps.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR))

@@ -16,7 +16,7 @@ public class LiteBroadcastTest extends Instrumentation {
         Bundle result=new Bundle();
         try{
             Context c=getTargetContext();
-            check(c.getPackageName().equals("com.newsvoice.tts.v62"),"Separate package");
+            check(c.getPackageName().equals("com.newsvoice.tts.v70"),"Separate package");
             MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
             check(AppPrefs.pageMode(c)&&!AppPrefs.keepWav(c),"Lightweight defaults");
@@ -123,7 +123,7 @@ public class LiteBroadcastTest extends Instrumentation {
                     android.util.Log.i("NewsVoiceLite",("mode="+mode)+" bytes="+video.length());
                 }finally{r.release();}
             }
-            for(NewsVideoComposer.Quality q:new NewsVideoComposer.Quality[]{NewsVideoComposer.Quality.KAKAO,NewsVideoComposer.Quality.YOUTUBE}){
+            for(NewsVideoComposer.Quality q:new NewsVideoComposer.Quality[]{NewsVideoComposer.Quality.KAKAO}){
                 File video=new File(c.getCacheDir(),"dual-"+q.name()+".mp4");
                 NewsVideoComposer.create(c,stories,waves,cues,video,message->{},q);
                 MediaMetadataRetriever r=new MediaMetadataRetriever();try{
@@ -144,7 +144,7 @@ public class LiteBroadcastTest extends Instrumentation {
             List<File> eightWaves=new ArrayList<>();List<List<Long>> eightCues=new ArrayList<>();
             for(NewsStory story:eightStories){eightWaves.add(voice);int n=NewsSentenceTimeline.split(story.audioText()).size();List<Long> lengths=new ArrayList<>();for(int i=0;i<n;i++)lengths.add(frames/n+(i==n-1?frames%n:0));eightCues.add(lengths);}
             AppPrefs.get(c).edit().putBoolean("page_mode",true).commit();
-            for(NewsVideoComposer.Quality q:new NewsVideoComposer.Quality[]{NewsVideoComposer.Quality.KAKAO,NewsVideoComposer.Quality.YOUTUBE}){
+            for(NewsVideoComposer.Quality q:new NewsVideoComposer.Quality[]{NewsVideoComposer.Quality.KAKAO}){
                 File video=new File(c.getCacheDir(),"eight-"+q.name()+".mp4");
                 NewsVideoComposer.create(c,eightStories,eightWaves,eightCues,video,message->{},q);
                 MediaMetadataRetriever r=new MediaMetadataRetriever();try{

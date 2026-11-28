@@ -13,8 +13,9 @@ public final class AppPrefs {
     public static void status(Context c, String value) {
         get(c).edit().putString("status", value).putLong("status_at", System.currentTimeMillis()).apply();
     }
-    public static String enginePackage(Context c) {return get(c).getString("engine", "");}
-    public static int presetIndex(Context c) {return get(c).getInt("preset", 0);}
+    public static final String GOOGLE_TTS = "com.google.android.tts";
+    public static String enginePackage(Context c) {return GOOGLE_TTS;}
+    public static int presetIndex(Context c) {return get(c).getInt("preset", 4);}
     public static boolean videoEnabled(Context c) {return get(c).getBoolean("video", true);}
     static boolean liteVideo(Context context) { return get(context).getBoolean("lite_video",true); }
     static void setLiteVideo(Context context,boolean enabled) {

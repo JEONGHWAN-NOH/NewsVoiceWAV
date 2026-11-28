@@ -51,7 +51,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private static final int OPENING_PICKER=5110;
 
 
-    private static final int SCRIPT_PICKER=5111, PACK_PICKER=5430;
+    private static final int SCRIPT_PICKER=5111;
     private final java.util.concurrent.ExecutorService packTasks=java.util.concurrent.Executors.newSingleThreadExecutor();
 
 
@@ -63,24 +63,16 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private TextToSpeech tts;
     private boolean ready = false;
     private EditText editor;
-    private Spinner voicesSpinner, enginesSpinner, presetsSpinner;
+    private Spinner voicesSpinner, presetsSpinner;
     private TextView status, jobStatus, etaText, speedValue, pitchValue;
     private android.widget.ProgressBar renderProgress;
     private SharedPreferences.OnSharedPreferenceChangeListener jobListener;
     private SeekBar speedBar, pitchBar;
-    private static final String SAMSUNG_PACKAGE="com.samsung.SMT";
     private final List<Voice> koreanVoices = new ArrayList<>();
-    private TextToSpeech samsungTestTts;
-    private TextView samsungTestStatus;
-    private Button samsungPreviewButton, samsungWavButton, samsungApplyButton;
-    private boolean samsungWavVerified=false;
-    private static final String SAMSUNG_SAMPLE="안녕하십니까. 뉴스보이스 삼성 음성 연결 시험입니다. 이 목소리가 갤럭시 글자 읽어주기의 삼성 목소리와 같은지 들어보세요.";
-    private final List<TextToSpeech.EngineInfo> installedEngines = new ArrayList<>();
     private static final String[] PRESET_NAMES = {"표준형 뉴스 앵커", "차분형 뉴스 앵커", "명료형 뉴스 앵커", "부드러운형 뉴스 앵커", "직접 조절"};
     private static final float[] PRESET_RATES = {0.95f, 0.90f, 1.00f, 0.90f};
     private static final float[] PRESET_PITCHES = {1.00f, 0.95f, 1.05f, 1.05f};
     private String currentEngine = "";
-    private boolean engineUiReady = false;
     private int selectedPreset = 0;
     private EditText serverEdit, tokenEdit;
     private CheckBox automaticCheck, videoCheck;
@@ -183,35 +175,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         TextView headline=text("오늘의 종합뉴스",24,true);body.addView(headline,lp(-1,-2,14));
         TextView sub=text("원고를 입력하고 한국어 음성을 선택해 낭독하세요.",13,false);sub.setTextColor(0xff61778e);body.addView(sub,lp(-1,-2,5));
         TextView voiceHeader=text("01  음성 등록 · TTS 설정",17,true);body.addView(voiceHeader,lp(-1,-2,25));
-        TextView enginesHelp=text("설치된 삼성·구글 등 TTS 엔진 중 선택합니다. 표시되는 엔진과 음성 개수는 휴대폰마다 다릅니다.",12,false);
-        enginesHelp.setTextColor(0xff61778e);body.addView(enginesHelp,lp(-1,-2,6));
-        enginesSpinner = new Spinner(this); enginesSpinner.setBackground(rounded(0xffe7f1f6,dp(this,12)));
-        body.addView(enginesSpinner,lp(-1,52,9));
-        body.addView(text("삼성 TTS 연동 진단 (v5.7)",16,true),lp(-1,-2,15));
-        TextView samsungHint=text("갤럭시 설정에서 재생되어도 다른 앱에 삼성 TTS가 공개되지 않을 수 있습니다. 진단 후 시험 재생과 WAV 저장으로 확인하세요.",12,false);
-        samsungHint.setTextColor(0xff61778e);body.addView(samsungHint,lp(-1,-2,6));
-        samsungTestStatus=text("삼성 엔진 상태: 진단하지 않음",13,true);
-        samsungTestStatus.setTextColor(MINT);body.addView(samsungTestStatus,lp(-1,-2,8));
-        Button samsungScan=btn("삼성 TTS 접근 진단",0xffe3eff2,DARK);
-        body.addView(samsungScan,lp(-1,49,8));
-        samsungScan.setOnClickListener(v->diagnoseSamsung());
-        samsungPreviewButton=btn("삼성 TTS 시험 재생",0xffe3eff2,DARK);
-        samsungPreviewButton.setEnabled(false);
-        body.addView(samsungPreviewButton,lp(-1,49,7));
-        samsungPreviewButton.setOnClickListener(v->previewSamsungOnly());
-        samsungWavButton=btn("삼성 TTS WAV 시험 저장",0xffe3eff2,DARK);
-        samsungWavButton.setEnabled(false);
-        body.addView(samsungWavButton,lp(-1,49,7));
-        samsungWavButton.setOnClickListener(v->saveSamsungWavTest());
-        samsungApplyButton=btn("삼성 엔진을 뉴스 제작에 사용 요청",0xffe3eff2,DARK);
-        samsungApplyButton.setEnabled(false);
-        body.addView(samsungApplyButton,lp(-1,49,8));
-        samsungApplyButton.setOnClickListener(v->{
-            if(!samsungWavVerified)return;
-            AppPrefs.get(this).edit().putString("engine",SAMSUNG_PACKAGE).remove("voice").apply();
-            restartWithEngine(SAMSUNG_PACKAGE);
-            samsungTestStatus.setText("삼성 엔진을 요청하도록 저장했습니다. 실제 선택 여부는 음색과 WAV 재생으로 확인하세요.");
-        });
+        body.addView(text("Google TTS · 한국어 음성 (Google 음성 서비스 설치 필요)",13,false),lp(-1,-2,6));
+        Button installTts=btn("Google 음성 서비스 설치/업데이트",0xffe3eff2,DARK);
+        body.addView(installTts,lp(-1,48,8));
+        installTts.setOnClickListener(v->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("market://details?id=com.google.android.tts")));}catch(Exception e){startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.tts")));}});
         voicesSpinner = new Spinner(this); voicesSpinner.setBackground(rounded(0xffe7f1f6,dp(this,12)));
         body.addView(voicesSpinner,lp(-1,52,10));
         body.addView(text("아나운서 낭독 스타일",14,true),lp(-1,-2,14));
@@ -220,7 +187,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         TextView presetNote=text("스타일 4종은 같은 목소리의 속도·음높이를 조정합니다. 서로 다른 성우 4명이 아닙니다.",12,false);
         presetNote.setTextColor(0xff61778e);body.addView(presetNote,lp(-1,-2,5));
         android.content.SharedPreferences voicePrefs=AppPrefs.get(this);
-        selectedPreset=Math.max(0,Math.min(PRESET_NAMES.length-1,voicePrefs.getInt("preset",0)));
+        selectedPreset=Math.max(0,Math.min(PRESET_NAMES.length-1,voicePrefs.getInt("preset",4)));
         ArrayAdapter<String> presetAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,PRESET_NAMES);
         presetsSpinner.setAdapter(presetAdapter);
         presetsSpinner.setSelection(selectedPreset);
@@ -305,10 +272,6 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivityForResult(pick,SCRIPT_PICKER);
         });
         body.addView(text("기사별 AI 이미지 · 대본과 함께 등록",16,true),lp(-1,-2,14));
-        Button pack=btn("방송 자료 ZIP 불러오기 · 대본 + 이미지 8장",0xffe3eff2,DARK);
-        body.addView(pack,lp(-1,52,8));
-        pack.setOnClickListener(v->{Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            pick.setType("application/zip");pick.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(pick,PACK_PICKER);});
         Button clearPack=btn("등록 이미지 제거",0xffe3eff2,DARK);body.addView(clearPack,lp(-1,48,5));
         clearPack.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setMessage("등록한 기사 이미지를 제거할까요? 대본은 유지됩니다.")
             .setNegativeButton("취소",null).setPositiveButton("제거",(d,w)->{packTasks.execute(()->{NewsImagePack.remove(this);runOnUiThread(this::schedulePhotos);});updateStatus("이미지 제거 완료");}).show());
@@ -398,42 +361,29 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         CheckBox keepWav=new CheckBox(this);keepWav.setText("MP4와 함께 WAV 원본도 저장");
         keepWav.setChecked(AppPrefs.keepWav(this));keepWav.setOnCheckedChangeListener((b,on)->AppPrefs.get(this).edit().putBoolean("keep_wav",on).apply());
         body.addView(keepWav,lp(-1,-2,4));
-        TextView formatHelp=text("카카오톡 360×640 · 10fps / YouTube 720×1280 · 24fps\nFast Start 자동 적용 · 음성은 한 번 생성합니다.",14,true);
+        TextView formatHelp=text("경량 MP4 360×640 · 10fps · 5분 5MB 이하 목표\nFast Start 자동 적용",14,true);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
-        Button save=btn(videoCheck.isChecked()?"영상 일괄 제작":"WAV 음성 자동 생성 및 다운로드 저장",0xff0756dc,Color.WHITE);
+        Button save=btn(videoCheck.isChecked()?"경량 영상 제작":"WAV 음성 자동 생성 및 다운로드 저장",0xff0756dc,Color.WHITE);
         body.addView(save,lp(-1,55,12));
         Button lastVideo=btn("최근 저장된 MP4 바로 열기",0xffe7f2f3,DARK);
         body.addView(lastVideo,lp(-1,50,9));
         lastVideo.setOnClickListener(v->openLastVideo());
         TextView distributionHeader=text("방송 배포",20,true);body.addView(distributionHeader,lp(-1,-2,18));
-        Button driveUpload=btn("① 경량 영상 Google Drive에 저장",0xffffd500,DARK);body.addView(driveUpload,lp(-1,52,8));
+        Button driveUpload=btn("경량 영상 Google Drive에 저장",0xffffd500,DARK);body.addView(driveUpload,lp(-1,52,8));
         driveUpload.setOnClickListener(v->shareUri("last_mp4_uri","video/mp4","Google Drive 앱에 저장"));
         body.addView(text("공유 목록에서 Drive 선택 → 업로드 → 액세스 관리에서 링크가 있는 모든 사용자(뷰어) → 링크 복사.",13,false),lp(-1,-2,5));
-        Button shareVideo=btn("경량 MP4 직접 첨부 공유 (예비)",0xffffd500,DARK);
+        Button shareVideo=btn("카카오톡에 경량 MP4 공유",0xffffd500,DARK);
         body.addView(shareVideo,lp(-1,49,8));
         shareVideo.setOnClickListener(v->shareLast());
-        Button youtube=btn("② YouTube 업로드용 공유",0xffe61119,Color.WHITE);body.addView(youtube,lp(-1,52,8));
-        youtube.setOnClickListener(v->shareUri("last_youtube_uri","video/mp4","YouTube 업로드용 영상"));
-        EditText url=new EditText(this);url.setSingleLine(true);url.setHint("YouTube 시청 주소 등록");url.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);url.setText(AppPrefs.get(this).getString("youtube_url",""));body.addView(url,lp(-1,52,8));
-        TextView linkStatus=text("YouTube 주소를 입력하고 등록하세요.",14,true);body.addView(linkStatus,lp(-1,-2,4));
-        Button register=btn("YouTube 주소 등록 · 저장",0xffe3eff2,DARK);body.addView(register,lp(-1,48,4));
-        register.setOnClickListener(v->{String value=ShareLinks.youtube(url.getText().toString());if(value.isEmpty()){url.setError("영상 주소를 확인하세요 (youtu.be, watch, Shorts)");linkStatus.setText("등록 실패: 영상 링크가 필요합니다.");return;}AppPrefs.get(this).edit().putString("youtube_url",value).commit();url.setText(value);url.setError(null);linkStatus.setText("등록 완료 · "+value);});
-        Button verify=btn("등록된 YouTube 영상 열기",0xffe61119,Color.WHITE);body.addView(verify,lp(-1,48,4));verify.setOnClickListener(v->{String value=AppPrefs.get(this).getString("youtube_url","");if(value.isEmpty()){url.setError("주소를 먼저 등록하세요.");return;}try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(value)));}catch(Exception e){linkStatus.setText("주소 열기 실패: "+e.getClass().getSimpleName());}});
+        TextView linkStatus=text("Drive 영상 주소를 등록하세요.",14,true);body.addView(linkStatus,lp(-1,-2,4));
         EditText kakaoUrl=new EditText(this);kakaoUrl.setSingleLine(true);kakaoUrl.setHint("Google Drive 영상 링크 붙여넣기");kakaoUrl.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);kakaoUrl.setText(AppPrefs.get(this).getString("kakao_url",""));body.addView(kakaoUrl,lp(-1,52,8));
         Button registerKakao=btn("Google Drive 영상 주소 등록",0xffffd500,DARK);body.addView(registerKakao,lp(-1,48,4));registerKakao.setOnClickListener(v->{String value=ShareLinks.drive(kakaoUrl.getText().toString());if(value.isEmpty()){kakaoUrl.setError("Google Drive 파일 공유 링크를 입력하세요.");return;}AppPrefs.get(this).edit().putString("kakao_url",value).commit();kakaoUrl.setText(value);kakaoUrl.setError(null);linkStatus.setText("Google Drive 주소 등록 완료 · 공개 권한은 별도 확인하세요.");});
         Button openDrive=btn("등록 Google Drive 영상 열기",0xffffd500,DARK);body.addView(openDrive,lp(-1,48,4));openDrive.setOnClickListener(v->{String value=AppPrefs.get(this).getString("kakao_url","");if(value.isEmpty()){kakaoUrl.setError("주소를 먼저 등록하세요.");return;}try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(value)));}catch(Exception e){linkStatus.setText("주소 열기 실패");}});
-        body.addView(text("③ 카카오톡 공식 카드 공유 · 처음에 한 번만 설정",17,true),lp(-1,-2,16));
-        body.addView(text("Kakao Developers에서 앱을 만들고 Android 패키지 com.newsvoice.tts.v62와 아래 키 해시를 등록하세요. 제품 링크 관리에 https://drive.google.com 및 https://www.youtube.com 을 등록한 뒤 네이티브 앱 키를 입력하세요. Admin 키는 입력하지 마세요.",13,false),lp(-1,-2,5));
-        Button config=btn("카카오 개발자 설정 열기",0xffe3eff2,DARK);body.addView(config,lp(-1,48,4));config.setOnClickListener(v->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://developers.kakao.com/console/app"))));
-        Button keyHash=btn("이 APK의 키 해시 복사",0xffe3eff2,DARK);body.addView(keyHash,lp(-1,48,4));keyHash.setOnClickListener(v->{String hash=KakaoCards.keyHash(this);android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Kakao key hash",hash));linkStatus.setText("키 해시: "+hash);});
-        EditText nativeKey=new EditText(this);nativeKey.setSingleLine(true);nativeKey.setHint("카카오 네이티브 앱 키 (최초 1회)");nativeKey.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);nativeKey.setText(AppPrefs.get(this).getString("kakao_native_key",""));body.addView(nativeKey,lp(-1,52,8));
-        Button storeKey=btn("카카오 설정 저장",0xffe3eff2,DARK);body.addView(storeKey,lp(-1,48,4));storeKey.setOnClickListener(v->{String key=nativeKey.getText().toString().trim();if(!key.matches("[a-fA-F0-9]{32}")){nativeKey.setError("네이티브 앱 키 32자리 확인");return;}AppPrefs.get(this).edit().putString("kakao_native_key",key).apply();linkStatus.setText("카카오 설정 저장 완료");});
-        Button card=btn("④ 카카오톡 뉴스 카드 보내기 (두 버튼)",0xffffd500,DARK);body.addView(card,lp(-1,60,8));card.setOnClickListener(v->{if(AppPrefs.get(this).getBoolean("render_active",false)){linkStatus.setText("영상 제작 완료 후 공유하세요.");return;}KakaoCards.share(this,AppPrefs.get(this).getString("kakao_native_key",""),AppPrefs.get(this).getString("last_share_cover",""),AppPrefs.get(this).getString("kakao_url",""),AppPrefs.get(this).getString("youtube_url",""),linkStatus);});
         Button shareCover=btn("방송 표지 이미지 공유",DARK,Color.WHITE);body.addView(shareCover,lp(-1,56,8));shareCover.setOnClickListener(v->shareUri("last_share_cover","image/jpeg","방송 표지 공유"));
-        Button shareLink=btn("시청 링크 문자 공유 (예비 · 버튼 없음)",0xffe3eff2,DARK);body.addView(shareLink,lp(-1,56,8));shareLink.setOnClickListener(v->{String value=AppPrefs.get(this).getString("youtube_url","");if(value.isEmpty()){linkStatus.setText("YouTube 주소를 먼저 등록하세요.");url.setError("등록 필요");return;}String message=ShareLinks.message(AppPrefs.get(this).getString("kakao_url",""),value);Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,message);startActivity(Intent.createChooser(send,"두 가지 시청 방법 공유"));});
+        Button shareLink=btn("카카오톡에 시청 링크 공유",0xffffd500,DARK);body.addView(shareLink,lp(-1,56,8));shareLink.setOnClickListener(v->{String value=ShareLinks.drive(AppPrefs.get(this).getString("kakao_url",""));if(value.isEmpty()){linkStatus.setText("Drive 주소를 먼저 등록하세요.");return;}Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+value);startActivity(Intent.createChooser(send,"시청 링크 공유"));});
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
-            save.setText(isChecked?"영상 일괄 제작":"WAV 음성 자동 생성 및 다운로드 저장");
+            save.setText(isChecked?"경량 영상 제작":"WAV 음성 자동 생성 및 다운로드 저장");
         });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));
@@ -475,7 +425,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         try {
             int lang = tts.setLanguage(Locale.KOREAN);
             if(lang == TextToSpeech.LANG_MISSING_DATA || lang == TextToSpeech.LANG_NOT_SUPPORTED) {
-                updateStatus("한국어 음성 데이터가 없습니다. 삼성 TTS 한국어 음성을 설치하세요.");
+                updateStatus("한국어 음성 데이터가 없습니다. Google TTS 한국어 음성을 설치하세요.");
                 return;
             }
             tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
@@ -495,39 +445,10 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                     });
                 }
             });
-            String active=currentEngine.isEmpty()?tts.getDefaultEngine():currentEngine;
-            if(active==null||active.isEmpty()){
-                updateStatus("TTS 엔진 정보를 확인하지 못했습니다.");
-                return;
-            }
-            currentEngine=active;
-            if(!engineUiReady){
-                installedEngines.clear();
-                try{if(tts.getEngines()!=null)installedEngines.addAll(tts.getEngines());}
-                catch(RuntimeException ignored){}
-                List<String> descriptions=new ArrayList<>();
-                int which=-1;
-                for(int i=0;i<installedEngines.size();i++){
-                    TextToSpeech.EngineInfo e=installedEngines.get(i);
-                    descriptions.add(String.valueOf(e.label)+" · "+e.name);
-                    if(e.name.equals(currentEngine))which=i;
-                }
-                if(installedEngines.isEmpty()){
-                    descriptions.add("기본 TTS 엔진 · "+currentEngine);
-                }
-                ArrayAdapter<String> enginesAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,descriptions);
-                enginesSpinner.setAdapter(enginesAdapter);
-                if(which>=0)enginesSpinner.setSelection(which);
-                engineUiReady=true;
-                enginesSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
-                    @Override public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
-                        if(!engineUiReady||position<0||position>=installedEngines.size())return;
-                        String packageName=installedEngines.get(position).name;
-                        if(!packageName.equals(currentEngine))restartWithEngine(packageName);
-                    }
-                    @Override public void onNothingSelected(android.widget.AdapterView<?> parent){}
-                });
-            }
+            boolean googleInstalled=false;
+            for(TextToSpeech.EngineInfo e:tts.getEngines())if(AppPrefs.GOOGLE_TTS.equals(e.name))googleInstalled=true;
+            if(!googleInstalled){updateStatus("Google TTS를 설치하고 앱을 다시 실행하세요.");return;}
+            currentEngine=AppPrefs.GOOGLE_TTS;
             List<Voice> voices = new ArrayList<>();
             try {
                 if(tts.getVoices() != null) {
@@ -565,128 +486,6 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         } catch(RuntimeException e) {
             ready = false;
             updateStatus("TTS 초기화 오류: " + e.getClass().getSimpleName());
-        }
-    }
-    private void diagnoseSamsung(){
-        samsungWavVerified=false;
-        samsungPreviewButton.setEnabled(false);samsungWavButton.setEnabled(false);
-        samsungApplyButton.setEnabled(false);
-        if(samsungTestTts!=null){samsungTestTts.stop();samsungTestTts.shutdown();samsungTestTts=null;}
-        boolean installed=false,exposed=false;
-        try{getPackageManager().getPackageInfo(SAMSUNG_PACKAGE,0);installed=true;}
-        catch(android.content.pm.PackageManager.NameNotFoundException ignored){}
-        if(tts!=null){
-            try{
-                for(TextToSpeech.EngineInfo e:tts.getEngines())
-                    if(SAMSUNG_PACKAGE.equals(e.name)){exposed=true;break;}
-            }catch(RuntimeException ignored){}
-        }
-        if(!installed){
-            samsungTestStatus.setText("삼성 TTS 패키지를 외부 앱에서 확인하지 못했습니다. 삼성 설정에서는 재생될 수 있습니다.");
-            return;
-        }
-        if(!exposed){
-            samsungTestStatus.setText("삼성 TTS 설치 확인. 그러나 외부 앱의 TTS 엔진 목록에 표시되지 않습니다. One UI 접근 제한 가능성: 삼성 음성만 재생하는 기능은 사용할 수 없습니다.");
-            return;
-        }
-        samsungTestStatus.setText("삼성 엔진 목록 발견. 한국어 연결을 시험합니다...");
-        try{
-            samsungTestTts=new TextToSpeech(this,code->main.post(()->{
-                if(samsungTestTts==null||isFinishing()||isDestroyed())return;
-                if(code!=TextToSpeech.SUCCESS){
-                    samsungTestStatus.setText("삼성 엔진 초기화 실패: 외부 앱 접근이 제한됐을 수 있습니다.");
-                    return;
-                }
-                int language=samsungTestTts.setLanguage(Locale.KOREAN);
-                if(language==TextToSpeech.LANG_MISSING_DATA||language==TextToSpeech.LANG_NOT_SUPPORTED){
-                    samsungTestStatus.setText("삼성 엔진 요청은 성공했으나 한국어 TTS를 사용할 수 없습니다.");
-                    return;
-                }
-                Voice selected=null;
-                try{
-                    if(samsungTestTts.getVoices()!=null)
-                        for(Voice v:samsungTestTts.getVoices())
-                            if(v!=null&&v.getLocale()!=null&&"ko".equals(v.getLocale().getLanguage())){
-                                selected=v;break;
-                            }
-                    if(selected!=null)samsungTestTts.setVoice(selected);
-                }catch(RuntimeException ignored){}
-                String voiceName=selected==null?"기본 한국어":selected.getName();
-                samsungTestStatus.setText("삼성 패키지를 지정한 TTS 초기화 성공 (목소리: "+voiceName+"). 실제 삼성 엔진 사용 여부는 음색을 비교해야 합니다.");
-                samsungPreviewButton.setEnabled(true);
-                samsungWavButton.setEnabled(true);
-            }),SAMSUNG_PACKAGE);
-        }catch(RuntimeException ex){
-            samsungTestStatus.setText("삼성 TTS 접근 오류: "+ex.getClass().getSimpleName());
-        }
-    }
-    private void previewSamsungOnly(){
-        if(samsungTestTts==null)return;
-        int result=samsungTestTts.speak(SAMSUNG_SAMPLE,TextToSpeech.QUEUE_FLUSH,new Bundle(),"samsung_preview");
-        if(result!=TextToSpeech.SUCCESS){
-            samsungTestStatus.setText("삼성 패키지 요청 음성 재생이 거절됐습니다.");
-        }else{
-            samsungTestStatus.setText("시험 낭독 요청 완료. 갤럭시 설정에서 들은 목소리와 동일한지 직접 비교해 주세요. 다른 엔진으로 대체됐을 가능성은 배제할 수 없습니다.");
-        }
-    }
-    private void saveSamsungWavTest(){
-        if(samsungTestTts==null)return;
-        String stamp=String.valueOf(System.currentTimeMillis());
-        File output=new File(getCacheDir(),"samsung_test_"+stamp+".wav");
-        samsungWavButton.setEnabled(false);samsungApplyButton.setEnabled(false);samsungWavVerified=false;
-        samsungTestStatus.setText("삼성 TTS 패키지를 지정한 WAV 합성 시험 중...");
-        samsungTestTts.setOnUtteranceProgressListener(new UtteranceProgressListener(){
-            @Override public void onStart(String id){}
-            @Override public void onDone(String id){
-                if(!"samsung_file".equals(id))return;
-                new Thread(()->{
-                    try{
-                        WavTools.inspect(output);
-                        DownloadsPublisher.publish(MainActivity.this,output,"newsvoice_samsung_test_"+stamp+".wav");
-                        main.post(()->{
-                            samsungWavVerified=true;
-                            samsungWavButton.setEnabled(true);
-                            samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/NewsVoice v6.2/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
-                        });
-                    }catch(Exception e){
-                        main.post(()->{
-                            samsungWavButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 시험 실패: "+e.getClass().getSimpleName()+" - "+e.getMessage());
-                        });
-                    }finally{output.delete();}
-                }).start();
-            }
-            @Override public void onError(String id){
-                main.post(()->{
-                    samsungWavButton.setEnabled(true);
-                    samsungTestStatus.setText("삼성 패키지 요청으로 WAV 합성에 실패했습니다.");
-                });
-            }
-            @Override public void onError(String id,int errorCode){onError(id);}
-        });
-        int accepted=samsungTestTts.synthesizeToFile(SAMSUNG_SAMPLE,new Bundle(),output,"samsung_file");
-        if(accepted!=TextToSpeech.SUCCESS){
-            samsungWavButton.setEnabled(true);
-            samsungTestStatus.setText("삼성 패키지를 지정한 WAV 생성 명령이 거절됐습니다.");
-        }
-    }
-    private void restartWithEngine(String packageName){
-        try{
-            ready=false;
-            taskToken++;
-            updateStatus("TTS 엔진을 전환하는 중: "+packageName);
-            if(tts!=null){tts.stop();tts.shutdown();}
-            currentEngine=packageName;
-            engineUiReady=false;
-            AppPrefs.get(this).edit().putString("engine",packageName).remove("voice").apply();
-            koreanVoices.clear();
-            voicesSpinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,
-                new String[]{"새 엔진에서 한국어 목소리를 확인하는 중..."}));
-            tts=new TextToSpeech(this,this,packageName);
-        }catch(RuntimeException e){
-            ready=false;
-            updateStatus("TTS 엔진 전환 실패: "+e.getClass().getSimpleName());
         }
     }
     private int scoreVoice(Voice v){
@@ -810,7 +609,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private void shareUri(String key,String mime,String title){
         String raw=AppPrefs.get(this).getString(key,"");if(raw.isEmpty()){Toast.makeText(this,"먼저 방송 영상을 제작하세요.",Toast.LENGTH_SHORT).show();return;}
         Intent send=new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM,Uri.parse(raw)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        if(key.equals("last_share_cover")){String link=AppPrefs.get(this).getString("youtube_url","");if(!link.isEmpty())send.putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+link);}
+        if(key.equals("last_share_cover")){String link=AppPrefs.get(this).getString("kakao_url","");if(!link.isEmpty())send.putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+link);}
         startActivity(Intent.createChooser(send,title));
     }
     private void openLastVideo(){
@@ -826,7 +625,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → NewsVoice v6.2 → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → NewsVoice v7.0 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -852,13 +651,6 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                 }catch(Exception e){updateStatus("사진 등록 실패: "+e.getMessage());}
             });
             return;
-        }
-        if(requestCode==PACK_PICKER){
-            if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
-            Uri uri=data.getData();updateStatus("방송 자료 확인 및 이미지 압축 중");
-            packTasks.execute(()->{try{String script=NewsImagePack.install(this,uri);
-                runOnUiThread(()->{if(!isFinishing()){editor.setText(script);updateStatus("대본·이미지 등록 완료 · 제작 버튼을 누르세요");}});
-            }catch(Exception e){runOnUiThread(()->updateStatus("자료 등록 실패: "+e.getMessage()));}});return;
         }
         if(requestCode==SCRIPT_PICKER){
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
@@ -978,7 +770,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/NewsVoice v6.2/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/NewsVoice v7.0/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){
@@ -1010,10 +802,6 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         if(tts!=null){
             try { tts.stop(); tts.shutdown(); } catch(RuntimeException ignored) {}
         }
-        if(samsungTestTts!=null){
-            try{samsungTestTts.stop();samsungTestTts.shutdown();}catch(RuntimeException ignored){}
-        }
-
         main.removeCallbacks(refreshPhotos);
         packTasks.shutdown();
         super.onDestroy();
