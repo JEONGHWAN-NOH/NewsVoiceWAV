@@ -43,8 +43,10 @@ public final class CloudUploadWorker extends Worker {
             AuthorizationResult result=Tasks.await(Identity.getAuthorizationClient(getApplicationContext()).authorize(request()),60,TimeUnit.SECONDS);
             if(result.hasResolution()||result.getAccessToken()==null)throw new IOException("Google 계정 권한을 다시 승인하세요.");
             String token=result.getAccessToken();int mode=getInputData().getInt("mode",0);
-            if((mode&1)!=0){status("Drive 업로드 진행 중");String uri=getInputData().getString("drive");if(uri==null||!uri.equals(prefs().getString("last_mp4_uri","")))throw new IOException("영상이 변경됐습니다.");upload(true,uri,token);}
-            if((mode&2)!=0){status("YouTube 업로드 진행 중");String uri=getInputData().getString("yt");if(uri==null||!uri.equals(prefs().getString("last_youtube_uri","")))throw new IOException("영상이 변경됐습니다.");upload(false,uri,token);}
+            String failures="";
+            if((mode&1)!=0)try{status("Drive 업로드 진행 중");String uri=getInputData().getString("drive");if(uri==null||!uri.equals(prefs().getString("last_mp4_uri","")))throw new IOException("영상이 변경됐습니다.");upload(true,uri,token);}catch(Exception e){failures="Drive: "+(e instanceof IOException?e.getMessage():"전송 실패");}
+            if((mode&2)!=0)try{status("YouTube 업로드 진행 중");String uri=getInputData().getString("yt");if(uri==null||!uri.equals(prefs().getString("last_youtube_uri","")))throw new IOException("영상이 변경됐습니다.");upload(false,uri,token);}catch(Exception e){failures+=(failures.isEmpty()?"":" · ")+"YouTube: "+(e instanceof IOException?e.getMessage():"전송 실패");}
+            if(!failures.isEmpty()){status("일부 전송 실패 · "+failures);return Result.failure();}
             status("업로드 완료 · 영상 주소 확인");return Result.success();
         }catch(Exception e){status("업로드 중단 · "+(e instanceof IOException?e.getMessage():"Google 인증/네트워크 확인 후 재시도"));return Result.failure();}
         finally{prefs().edit().putBoolean("upload_active",false).apply();}
