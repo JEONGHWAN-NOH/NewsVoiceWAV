@@ -5,7 +5,7 @@ android {
     namespace 'com.newsvoice.tts'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.newsvoice.tts.v65'
+        applicationId 'com.newsvoice.tts.v66'
         minSdk 29
         targetSdk 35
         versionCode 66
@@ -13,7 +13,7 @@ android {
         testInstrumentationRunner 'com.newsvoice.tts.LiteBroadcastTest'
         resValue 'string', 'app_display_name', "뉴스보이스 WAV ${releaseVersion}"
     }
-    // Preserve v6.5 application ID for existing OAuth registration; signing certificate must also match.
+    // Long-term package ID: keep com.newsvoice.tts.v66 for all future updates.
     buildTypes {
         debug {
             minifyEnabled true

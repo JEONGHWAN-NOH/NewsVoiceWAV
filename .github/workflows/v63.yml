@@ -1,7 +1,7 @@
-name: Build and verify NewsVoice v6.6
+name: Build and verify NewsVoice v6.6 stable
 on:
   push:
-    branches: [feature/v6.6-distribution-status]
+    branches: [feature/v6.6-stable-operation]
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,7 +26,33 @@ jobs:
           java -cp /tmp/news-tests com.newsvoice.tts.Mp4FastStartTest
           java -cp /tmp/news-tests com.newsvoice.tts.ShareLinksTest
       - name: Build APK
-        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease
+      - name: Sign long-term installation APK using existing pinned repository certificate
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 || secrets.SIGNING_KEY_BASE64 }}
+          NEWSVOICE_SIGNING_STORE_PASSWORD: ${{ secrets.NEWSVOICE_SIGNING_STORE_PASSWORD }}
+          NEWSVOICE_SIGNING_KEY_ALIAS: ${{ secrets.NEWSVOICE_SIGNING_KEY_ALIAS }}
+          NEWSVOICE_SIGNING_KEY_PASSWORD: ${{ secrets.NEWSVOICE_SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SIGNING_KEYSTORE_B64" || -z "$NEWSVOICE_SIGNING_STORE_PASSWORD" || -z "$NEWSVOICE_SIGNING_KEY_ALIAS" || -z "$NEWSVOICE_SIGNING_KEY_PASSWORD" ]]; then
+            echo "Stable signing credentials are not configured. No installation APK will be delivered."
+            exit 1
+          fi
+          umask 077
+          KEYSTORE="$(mktemp)"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          printf '%s' "$SIGNING_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          APK="NewsVoice-v6.6-stable.apk"
+          SOURCE="app/build/outputs/apk/release/NewsVoiceWAV-v6.6-release.apk"
+          SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$SIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 --ks-key-alias "$NEWSVOICE_SIGNING_KEY_ALIAS" --ks-pass env:NEWSVOICE_SIGNING_STORE_PASSWORD --key-pass env:NEWSVOICE_SIGNING_KEY_PASSWORD --out "$APK" "$SOURCE"
+          "$SIGNER" verify --verbose --print-certs "$APK" > APK-CERT.txt
+          EXPECTED="$(tr -d '[:space:]' < signing/expected-cert-sha256.txt | tr '[:lower:]' '[:upper:]')"
+          ACTUAL="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' APK-CERT.txt | head -1 | tr '[:lower:]' '[:upper:]')"
+          test "$ACTUAL" = "$EXPECTED"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.newsvoice.tts.v66'" >/dev/null
+          sha256sum "$APK" > SHA256SUMS.txt
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -40,18 +66,18 @@ jobs:
           script: |
             adb install app/build/outputs/apk/debug/NewsVoiceWAV-v6.6-debug.apk
             adb install "$(find app/build/outputs/apk/androidTest -name '*.apk' -print -quit)"
-            adb shell am instrument -w com.newsvoice.tts.v65.test/com.newsvoice.tts.LiteBroadcastTest | tee instrumentation.txt
+            adb shell am instrument -w com.newsvoice.tts.v66.test/com.newsvoice.tts.LiteBroadcastTest | tee instrumentation.txt
             grep -F 'lite_tests=passed' instrumentation.txt
-      - name: Verify test APK certificate (not a production upgrade)
-        run: |
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/NewsVoiceWAV-v6.6-debug.apk > APK-CERT.txt
-          sha256sum app/build/outputs/apk/debug/NewsVoiceWAV-v6.6-debug.apk > SHA256SUMS.txt
+            adb uninstall com.newsvoice.tts.v66
+            adb install NewsVoice-v6.6-stable.apk
+            adb shell am start -W -n com.newsvoice.tts.v66/com.newsvoice.tts.MainActivity
+            adb shell pm path com.newsvoice.tts.v66
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: success()
         with:
-          name: v66-test-build-not-for-upgrade
+          name: NewsVoice-v66-stable-signed
           path: |
-            app/build/outputs/apk/
+            NewsVoice-v6.6-stable.apk
             instrumentation.txt
             APK-CERT.txt
             SHA256SUMS.txt
