@@ -90,11 +90,12 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private final Runnable refreshPhotos=this::refreshPhotos;
     private int refreshGeneration;
     private static final int GOOGLE_AUTH=6310;
+    private static final int PREVIOUS_DRIVE=6312, PREVIOUS_YOUTUBE=6313;
     private static final int PHOTO_BATCH=6320;
     private LinearLayout dashboard, screenRoot;
     private final LinearLayout[] screens=new LinearLayout[12];
     private TextView dashboardStatus,uploadStatus;
-    private TextView authStatus,detailsStatus;
+    private TextView authStatus,ytAuthStatus,detailsStatus;
     private boolean authInProgress;
     private EditText driveLink,ytLink;
     private boolean autoUploadRequest;
@@ -438,7 +439,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button registerKakao=btn("Google Drive 영상 주소 등록",0xffffd500,DARK);body.addView(registerKakao,lp(-1,48,4));registerKakao.setOnClickListener(v->{String value=ShareLinks.drive(kakaoUrl.getText().toString());if(value.isEmpty()){kakaoUrl.setError("Google Drive 파일 공유 링크를 입력하세요.");return;}AppPrefs.get(this).edit().putString("kakao_url",value).commit();kakaoUrl.setText(value);kakaoUrl.setError(null);linkStatus.setText("Google Drive 주소 등록 완료 · 공개 권한은 별도 확인하세요.");});
         Button openDrive=btn("등록 Google Drive 영상 열기",0xffffd500,DARK);body.addView(openDrive,lp(-1,48,4));openDrive.setOnClickListener(v->{String value=AppPrefs.get(this).getString("kakao_url","");if(value.isEmpty()){kakaoUrl.setError("주소를 먼저 등록하세요.");return;}try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(value)));}catch(Exception e){linkStatus.setText("주소 열기 실패");}});
         TextView kakaoHeader=text("③ 카카오톡 공식 카드 공유 · 처음에 한 번만 설정",17,true);body.addView(kakaoHeader,lp(-1,-2,16));
-        body.addView(text("Kakao Developers에서 앱을 만들고 Android 패키지 com.newsvoice.tts.v64와 아래 키 해시를 등록하세요. 제품 링크 관리에 https://drive.google.com 및 https://www.youtube.com 을 등록한 뒤 네이티브 앱 키를 입력하세요. Admin 키는 입력하지 마세요.",13,false),lp(-1,-2,5));
+        body.addView(text("Kakao Developers에서 앱을 만들고 Android 패키지 com.newsvoice.tts.v65와 아래 키 해시를 등록하세요. 제품 링크 관리에 https://drive.google.com 및 https://www.youtube.com 을 등록한 뒤 네이티브 앱 키를 입력하세요. Admin 키는 입력하지 마세요.",13,false),lp(-1,-2,5));
         Button config=btn("카카오 개발자 설정 열기",0xffe3eff2,DARK);body.addView(config,lp(-1,48,4));config.setOnClickListener(v->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://developers.kakao.com/console/app"))));
         Button keyHash=btn("이 APK의 키 해시 복사",0xffe3eff2,DARK);body.addView(keyHash,lp(-1,48,4));keyHash.setOnClickListener(v->{String hash=KakaoCards.keyHash(this);android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Kakao key hash",hash));linkStatus.setText("키 해시: "+hash);});
         EditText nativeKey=new EditText(this);nativeKey.setSingleLine(true);nativeKey.setHint("카카오 네이티브 앱 키 (최초 1회)");nativeKey.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);nativeKey.setText(AppPrefs.get(this).getString("kakao_native_key",""));body.addView(nativeKey,lp(-1,52,8));
@@ -474,13 +475,18 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button voicePreview=btn("미리 듣기",0xffe3eff2,DARK);screens[2].addView(voicePreview,lp(-1,52,8));voicePreview.setOnClickListener(v->preview.performClick());
         Button voiceSave=btn("음성 설정 저장",DARK,Color.WHITE);screens[2].addView(voiceSave,lp(-1,52,8));voiceSave.setOnClickListener(v->{persistVoiceSettings();showDashboard();});
         Button zipScript=btn("대본 + 사진 ZIP 불러오기",0xffe3eff2,DARK);screens[0].addView(zipScript,lp(-1,52,8));zipScript.setOnClickListener(v->pack.performClick());
-        Button google=btn("Google 계정 연결 · 업로드 권한 승인",DARK,Color.WHITE);screens[4].addView(google,lp(-1,52,8));google.setOnClickListener(v->authorizeGoogle(false,0));
+        Button google=btn("Google Drive 권한 확인 및 승인",DARK,Color.WHITE);screens[4].addView(google,lp(-1,52,8));google.setOnClickListener(v->confirmUpload(false,1));
+        Button previousDrive=btn("이전에 제작한 경량 MP4 선택",0xffe3eff2,DARK);screens[4].addView(previousDrive,lp(-1,52,8));previousDrive.setOnClickListener(v->pickPrevious(PREVIOUS_DRIVE));
         authStatus=text("Google 연결 상태: "+AppPrefs.get(this).getString("google_auth_status","미확인"),14,true);screens[4].addView(authStatus,lp(-1,-2,8));
         Button driveAuto=btn("최근 영상 자동 업로드",0xffffd500,DARK);screens[4].addView(driveAuto,lp(-1,52,8));driveAuto.setOnClickListener(v->confirmUpload(false,1));
         Button ytAuto=btn("최근 영상 자동 업로드",0xffffd500,DARK);screens[5].addView(ytAuto,lp(-1,52,8));ytAuto.setOnClickListener(v->confirmUpload(false,2));
+        ytAuthStatus=text("Google 연결 상태: "+AppPrefs.get(this).getString("google_auth_status","미확인"),14,true);screens[5].addView(ytAuthStatus,lp(-1,-2,8));
+        Button previousYt=btn("이전에 제작한 YouTube MP4 선택",0xffe3eff2,DARK);screens[5].addView(previousYt,lp(-1,52,8));previousYt.setOnClickListener(v->pickPrevious(PREVIOUS_YOUTUBE));
+        Button googleSetup=btn("Google 인증 등록 정보 확인",0xffe3eff2,DARK);screens[4].addView(googleSetup,lp(-1,52,8));googleSetup.setOnClickListener(v->showGoogleSetup());
+        Button ytSetup=btn("Google 인증 등록 정보 확인",0xffe3eff2,DARK);screens[5].addView(ytSetup,lp(-1,52,8));ytSetup.setOnClickListener(v->showGoogleSetup());
         Button refresh=btn("등록 주소 새로고침",0xffe3eff2,DARK);screens[6].addView(refresh,lp(-1,52,8));refresh.setOnClickListener(v->refreshLinks());
         Button coverView=btn("최근 표지 확인",0xffe3eff2,DARK);screens[8].addView(coverView,lp(-1,52,8));coverView.setOnClickListener(v->{String x=AppPrefs.get(this).getString("last_share_cover","");if(x.isEmpty()){updateStatus("먼저 영상을 제작하세요.");return;}ImageView iv=new ImageView(this);iv.setImageURI(Uri.parse(x));iv.setAdjustViewBounds(true);new android.app.AlertDialog.Builder(this).setView(iv).setPositiveButton("닫기",null).show();});
-        Button archive=btn("다운로드에서 방송 파일 보기",DARK,Color.WHITE);screens[10].addView(archive,lp(-1,52,8));archive.setOnClickListener(v->{try{startActivity(new Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS));}catch(Exception e){updateStatus("내 파일 → 다운로드 → NewsVoice v6.4를 확인하세요.");}});
+        Button archive=btn("다운로드에서 방송 파일 보기",DARK,Color.WHITE);screens[10].addView(archive,lp(-1,52,8));archive.setOnClickListener(v->{try{startActivity(new Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS));}catch(Exception e){updateStatus("내 파일 → 다운로드 → NewsVoice v6.5를 확인하세요.");}});
         Button links=btn("최근 시청 주소 확인",DARK,Color.WHITE);screens[10].addView(links,lp(-1,52,8));links.setOnClickListener(v->openScreen(6,labels[6]));
         detailsStatus=text("",15,false);screens[11].addView(detailsStatus,lp(-1,-2,8));
         Button retry=btn("최근 영상 배포 재시도",0xffffd500,DARK);screens[11].addView(retry,lp(-1,52,8));retry.setOnClickListener(v->confirmUpload(false,3));
@@ -503,7 +509,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private void createDashboard(String[] labels){
         screenRoot=new LinearLayout(this);screenRoot.setOrientation(LinearLayout.VERTICAL);screenRoot.setBackgroundColor(0xfff1f8fc);
         dashboard=new LinearLayout(this);dashboard.setOrientation(LinearLayout.VERTICAL);dashboard.setPadding(dp(this,10),dp(this,8),dp(this,10),dp(this,8));
-        TextView title=text("NewsVoice v6.4 | 오늘의 종합뉴스",20,true);title.setTextColor(Color.WHITE);title.setBackground(rounded(DARK,dp(this,12)));title.setGravity(Gravity.CENTER);dashboard.addView(title,lp(-1,54,0));
+        TextView title=text("NewsVoice v6.5 | 오늘의 종합뉴스",20,true);title.setTextColor(Color.WHITE);title.setBackground(rounded(DARK,dp(this,12)));title.setGravity(Gravity.CENTER);dashboard.addView(title,lp(-1,54,0));
         dashboardStatus=text("제작 대기",15,true);dashboardStatus.setGravity(Gravity.CENTER);dashboardStatus.setBackground(rounded(0xffd6e7fc,dp(this,10)));dashboard.addView(dashboardStatus,lp(-1,44,6));
         String[] icons={"▤","▧","♫","▶","▲","▶","↗","⚙","▣","▤","▣","✓"};
         for(int i=0;i<12;i+=2){LinearLayout row=new LinearLayout(this);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,0,1);rp.topMargin=dp(this,5);dashboard.addView(row,rp);for(int j=i;j<i+2;j++){final int slot=j;Button b=btn(icons[j]+"  "+labels[j],Color.WHITE,DARK);b.setTextSize(16);b.setTypeface(null,Typeface.BOLD);GradientDrawable border=rounded(Color.WHITE,dp(this,13));border.setStroke(dp(this,1),DARK);b.setBackground(border);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,-1,1);bp.setMargins(dp(this,2),0,dp(this,2),0);row.addView(b,bp);gridButtons[j]=b;b.setOnClickListener(v->openScreen(slot,labels[slot]));}}
@@ -518,14 +524,17 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     private void refreshLinks(){if(driveLink==null)return;SharedPreferences p=AppPrefs.get(this);String drive=p.getString("kakao_url",""),yt=p.getString("youtube_url","");if(!drive.isEmpty()||!driveLink.hasFocus())driveLink.setText(drive);if(!yt.isEmpty()||!ytLink.hasFocus())ytLink.setText(yt);}
     private int pendingUploadMode;
     private boolean pendingRender;
+    private void pickPrevious(int code){if(AppPrefs.get(this).getBoolean("render_active",false)||AppPrefs.get(this).getBoolean("upload_active",false)){updateStatus("작업 완료 후 선택하세요.");return;}Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("video/mp4").addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(pick,code);}
+    private void showGoogleSetup(){String sha="확인 실패";try{android.content.pm.PackageInfo info=getPackageManager().getPackageInfo(getPackageName(),android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);byte[] bytes=java.security.MessageDigest.getInstance("SHA-1").digest(info.signingInfo.getApkContentsSigners()[0].toByteArray());StringBuilder out=new StringBuilder();for(byte b:bytes){if(out.length()>0)out.append(':');out.append(String.format(Locale.ROOT,"%02X",b&255));}sha=out.toString();}catch(Exception ignored){}String message="Android 패키지: "+getPackageName()+"\nSHA-1: "+sha;new android.app.AlertDialog.Builder(this).setTitle("Google Cloud Android OAuth 등록 정보").setMessage(message+"\nDrive API / YouTube Data API v3 및 테스트 계정도 확인하세요.").setNeutralButton("복사",(d,w)->{android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OAuth 등록",message));}).setPositiveButton("확인",null).show();}
     private void confirmUpload(boolean render,int mode){
         if(AppPrefs.get(this).getBoolean("render_active",false)||AppPrefs.get(this).getBoolean("upload_active",false)){updateStatus("제작 또는 업로드 중입니다. 완료 후 다시 시도하세요.");return;}
-        new android.app.AlertDialog.Builder(this).setTitle("자동 업로드 승인").setMessage("Google Drive 링크가 있는 사람은 영상을 볼 수 있습니다. YouTube는 일부 공개로 요청합니다. 카카오톡은 자동 발송하지 않습니다. 계속할까요?")
+        SharedPreferences p=AppPrefs.get(this);if(!render&&(((mode&1)!=0&&p.getString("last_mp4_uri","").isEmpty())||((mode&2)!=0&&p.getString("last_youtube_uri","").isEmpty()))){updateStatus("먼저 영상을 제작하거나 이전 MP4를 선택하세요.");return;}
+        new android.app.AlertDialog.Builder(this).setTitle("자동 업로드 승인").setMessage(mode==1?"Drive 링크가 있는 사람에게 시청을 허용합니다. 계속할까요?":mode==2?"YouTube 일부 공개 업로드를 요청합니다. 계속할까요?":"Google Drive 링크가 있는 사람은 영상을 볼 수 있습니다. YouTube는 일부 공개로 요청합니다. 카카오톡은 자동 발송하지 않습니다. 계속할까요?")
           .setNegativeButton("취소",null).setPositiveButton("승인",(d,w)->authorizeGoogle(render,mode)).show();
     }
-    private void authMessage(String message){AppPrefs.get(this).edit().putString("google_auth_status",message).apply();if(authStatus!=null)authStatus.setText("Google 연결 상태: "+message);updateStatus(message);}
+    private void authMessage(String message){AppPrefs.get(this).edit().putString("google_auth_status",message).apply();if(authStatus!=null)authStatus.setText("Google 연결 상태: "+message);if(ytAuthStatus!=null)ytAuthStatus.setText("Google 연결 상태: "+message);updateStatus(message);}
     private void authFailed(String message){authInProgress=false;pendingUploadMode=0;pendingRender=false;authMessage(message);new android.app.AlertDialog.Builder(this).setTitle("Google 계정 연결 확인").setMessage(message+"\nGoogle Cloud에서 Android 앱 패키지와 설치 APK SHA-1, 테스트 사용자 및 API 설정을 확인하세요.").setPositiveButton("확인",null).show();}
-    private void authorizeGoogle(boolean render,int mode){if(authInProgress){updateStatus("Google 승인 진행 중");return;}authInProgress=true;pendingRender=render;pendingUploadMode=mode;authMessage("Google 계정 확인 중");com.google.android.gms.auth.api.identity.Identity.getAuthorizationClient(this).authorize(CloudUploadWorker.request())
+    private void authorizeGoogle(boolean render,int mode){if(authInProgress){updateStatus("Google 승인 진행 중");return;}authInProgress=true;pendingRender=render;pendingUploadMode=mode;authMessage("Google 계정 확인 중");com.google.android.gms.auth.api.identity.Identity.getAuthorizationClient(this).authorize(CloudUploadWorker.request(mode))
        .addOnSuccessListener(result->{if(result.hasResolution()){try{authMessage("Google 권한 승인 대기");startIntentSenderForResult(result.getPendingIntent().getIntentSender(),GOOGLE_AUTH,null,0,0,0);}catch(Exception e){authFailed("Google 승인 화면 실행 실패: "+e.getClass().getSimpleName());}}else googleAuthorized(result);})
        .addOnFailureListener(e->authFailed("Google 연결 실패: "+(e instanceof com.google.android.gms.common.api.ApiException?"코드 "+((com.google.android.gms.common.api.ApiException)e).getStatusCode():e.getClass().getSimpleName())));}
     private void googleAuthorized(com.google.android.gms.auth.api.identity.AuthorizationResult result){authInProgress=false;if(result==null||result.getAccessToken()==null||result.getAccessToken().isEmpty()){authFailed("Google 권한이 부여되지 않았습니다.");return;}int mode=pendingUploadMode;boolean render=pendingRender;pendingUploadMode=0;pendingRender=false;authMessage("Google 계정 연결 완료");if(mode==0)return;if(render){autoUploadRequest=true;videoCheck.setChecked(true);openScreen(3,gridLabels[3]);queueManualSave();}else CloudUploadWorker.enqueue(this,mode);}
@@ -716,7 +725,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
                             samsungWavVerified=true;
                             samsungWavButton.setEnabled(true);
                             samsungApplyButton.setEnabled(true);
-                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/NewsVoice v6.4/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
+                            samsungTestStatus.setText("WAV 저장 성공: 다운로드/NewsVoice v6.5/날짜별 폴더/newsvoice_samsung_test_"+stamp+".wav. 파일을 재생해 실제 삼성 목소리와 동일한지 확인한 후 적용하세요.");
                         });
                     }catch(Exception e){
                         main.post(()->{
@@ -895,7 +904,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
             startActivity(view);
         }catch(ActivityNotFoundException | SecurityException ex){
             updateStatus("MP4 열기 오류: "+ex.getClass().getSimpleName()+
-                ". 내 파일 → 다운로드 → NewsVoice v6.4 → 날짜별 폴더에서 확인하세요.");
+                ". 내 파일 → 다운로드 → NewsVoice v6.5 → 날짜별 폴더에서 확인하세요.");
         }
     }
     private String reviewEditorScript(){
@@ -909,8 +918,9 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==PREVIOUS_DRIVE||requestCode==PREVIOUS_YOUTUBE){if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;Uri selected=data.getData();try{getContentResolver().takePersistableUriPermission(selected,data.getFlags()&Intent.FLAG_GRANT_READ_URI_PERMISSION);boolean drive=requestCode==PREVIOUS_DRIVE;SharedPreferences p=AppPrefs.get(this);String key=drive?"last_mp4_uri":"last_youtube_uri";if(!selected.toString().equals(p.getString(key,"")))p.edit().putString(key,selected.toString()).remove(drive?"kakao_url":"youtube_url").remove("last_share_cover").commit();updateStatus("이전 영상 선택 완료 · 자동 업로드를 누르세요.");}catch(Exception e){updateStatus("파일 읽기 권한을 확보하지 못했습니다. 다시 선택하세요.");}return;}
         if(requestCode==PHOTO_BATCH){if(resultCode!=RESULT_OK||data==null)return;android.content.ClipData clips=data.getClipData();if(clips==null||clips.getItemCount()!=8){updateStatus("뉴스 사진을 정확히 8장 선택하세요.");return;}ArrayList<Uri> selected=new ArrayList<>();StringBuilder names=new StringBuilder();for(int i=0;i<8;i++){Uri item=clips.getItemAt(i).getUri();if(item==null)return;selected.add(item);String name=item.getLastPathSegment();try(android.database.Cursor cursor=getContentResolver().query(item,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){if(cursor!=null&&cursor.moveToFirst())name=cursor.getString(0);}catch(Exception ignored){}names.append(i+1).append(". ").append(name).append('\n');}new android.app.AlertDialog.Builder(this).setTitle("사진 연결 순서 확인").setMessage(names+"\n뉴스 순서와 일치합니까? 기존 뉴스 사진 8장을 교체합니다.").setNegativeButton("취소",null).setPositiveButton("일괄 등록",(d,w)->{String script=editor.getText().toString();packTasks.execute(()->{try{NewsImagePack.replaceBatch(this,selected,script);runOnUiThread(()->{schedulePhotos();updateStatus("사진 8장 등록 완료");});}catch(Exception e){updateStatus("일괄 등록 실패 · 기존 사진 유지");}});}).show();return;}
-        if(requestCode==GOOGLE_AUTH){authInProgress=false;if(resultCode!=RESULT_OK||data==null){authFailed("Google 승인이 취소되었거나 결과가 반환되지 않았습니다. 결과 코드: "+resultCode);return;}try{googleAuthorized(com.google.android.gms.auth.api.identity.Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(data));}catch(Exception e){authFailed("Google 권한 승인 실패: "+(e instanceof com.google.android.gms.common.api.ApiException?"코드 "+((com.google.android.gms.common.api.ApiException)e).getStatusCode():e.getClass().getSimpleName()));}return;}
+        if(requestCode==GOOGLE_AUTH){authInProgress=false;if(data==null){authFailed("Google 승인 결과 없음 (코드 "+resultCode+"). 인증 등록 정보 버튼에서 패키지와 SHA-1을 확인하세요.");return;}try{com.google.android.gms.auth.api.identity.AuthorizationResult result=com.google.android.gms.auth.api.identity.Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(data);if(resultCode==RESULT_OK)googleAuthorized(result);else authFailed("Google 승인이 완료되지 않았습니다 (코드 "+resultCode+").");}catch(Exception e){authFailed("Google 권한 승인 실패: "+(e instanceof com.google.android.gms.common.api.ApiException?"코드 "+((com.google.android.gms.common.api.ApiException)e).getStatusCode():e.getClass().getSimpleName()));}return;}
         if(requestCode>=PHOTO_PICKER&&requestCode<PHOTO_PICKER+thumbnails.length){
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
             Uri uri=data.getData();
@@ -1051,7 +1061,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         });
         Button refresh=btn("자동 작업 상태 새로고침",0xffe7f2f3,DARK);body.addView(refresh,lp(-1,48,8));
         refresh.setOnClickListener(v->updateStatus(AppPrefs.get(this).getString("status","아직 처리 내역 없음")));
-        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/NewsVoice v6.4/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
+        TextView caution=text("자동 모드는 검증된 원고를 받아 WAV와 MP4를 다운로드/NewsVoice v6.5/날짜별 폴더에 저장합니다. MP4에는 등록된 A 타입 오프닝이 자동 적용됩니다. WAV만 설정한 서버로 전송합니다.",12,false);
         caution.setTextColor(0xff61778e);body.addView(caution,lp(-1,-2,12));
     }
     private boolean saveAutoSettings(){
