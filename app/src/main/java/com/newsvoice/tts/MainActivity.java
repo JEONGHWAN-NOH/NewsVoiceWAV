@@ -102,7 +102,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);
         state.putString("workingScript",editor.getText().toString());
-        state.putInt("pendingUploadMode",pendingUploadMode);state.putBoolean("pendingRender",pendingRender);state.putInt("currentScreen",currentScreen);
+        state.putBoolean("authInProgress",authInProgress);state.putInt("pendingUploadMode",pendingUploadMode);state.putBoolean("pendingRender",pendingRender);state.putInt("currentScreen",currentScreen);
     }
     private void addPhotoSlot(LinearLayout body,int slot,String label){
         LinearLayout row=new LinearLayout(this);
@@ -438,7 +438,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button registerKakao=btn("Google Drive 영상 주소 등록",0xffffd500,DARK);body.addView(registerKakao,lp(-1,48,4));registerKakao.setOnClickListener(v->{String value=ShareLinks.drive(kakaoUrl.getText().toString());if(value.isEmpty()){kakaoUrl.setError("Google Drive 파일 공유 링크를 입력하세요.");return;}AppPrefs.get(this).edit().putString("kakao_url",value).commit();kakaoUrl.setText(value);kakaoUrl.setError(null);linkStatus.setText("Google Drive 주소 등록 완료 · 공개 권한은 별도 확인하세요.");});
         Button openDrive=btn("등록 Google Drive 영상 열기",0xffffd500,DARK);body.addView(openDrive,lp(-1,48,4));openDrive.setOnClickListener(v->{String value=AppPrefs.get(this).getString("kakao_url","");if(value.isEmpty()){kakaoUrl.setError("주소를 먼저 등록하세요.");return;}try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(value)));}catch(Exception e){linkStatus.setText("주소 열기 실패");}});
         TextView kakaoHeader=text("③ 카카오톡 공식 카드 공유 · 처음에 한 번만 설정",17,true);body.addView(kakaoHeader,lp(-1,-2,16));
-        body.addView(text("Kakao Developers에서 앱을 만들고 Android 패키지 com.newsvoice.tts.v63와 아래 키 해시를 등록하세요. 제품 링크 관리에 https://drive.google.com 및 https://www.youtube.com 을 등록한 뒤 네이티브 앱 키를 입력하세요. Admin 키는 입력하지 마세요.",13,false),lp(-1,-2,5));
+        body.addView(text("Kakao Developers에서 앱을 만들고 Android 패키지 com.newsvoice.tts.v64와 아래 키 해시를 등록하세요. 제품 링크 관리에 https://drive.google.com 및 https://www.youtube.com 을 등록한 뒤 네이티브 앱 키를 입력하세요. Admin 키는 입력하지 마세요.",13,false),lp(-1,-2,5));
         Button config=btn("카카오 개발자 설정 열기",0xffe3eff2,DARK);body.addView(config,lp(-1,48,4));config.setOnClickListener(v->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://developers.kakao.com/console/app"))));
         Button keyHash=btn("이 APK의 키 해시 복사",0xffe3eff2,DARK);body.addView(keyHash,lp(-1,48,4));keyHash.setOnClickListener(v->{String hash=KakaoCards.keyHash(this);android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Kakao key hash",hash));linkStatus.setText("키 해시: "+hash);});
         EditText nativeKey=new EditText(this);nativeKey.setSingleLine(true);nativeKey.setHint("카카오 네이티브 앱 키 (최초 1회)");nativeKey.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);nativeKey.setText(AppPrefs.get(this).getString("kakao_native_key",""));body.addView(nativeKey,lp(-1,52,8));
@@ -485,7 +485,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         detailsStatus=text("",15,false);screens[11].addView(detailsStatus,lp(-1,-2,8));
         Button retry=btn("최근 영상 배포 재시도",0xffffd500,DARK);screens[11].addView(retry,lp(-1,52,8));retry.setOnClickListener(v->confirmUpload(false,3));
         createDashboard(labels);
-        if(savedInstanceState!=null){pendingUploadMode=savedInstanceState.getInt("pendingUploadMode",0);pendingRender=savedInstanceState.getBoolean("pendingRender",false);int page=savedInstanceState.getInt("currentScreen",-1);if(page>=0&&page<12)openScreen(page,labels[page]);}
+        if(savedInstanceState!=null){authInProgress=savedInstanceState.getBoolean("authInProgress",false);pendingUploadMode=savedInstanceState.getInt("pendingUploadMode",0);pendingRender=savedInstanceState.getBoolean("pendingRender",false);int page=savedInstanceState.getInt("currentScreen",-1);if(page>=0&&page<12)openScreen(page,labels[page]);}
         jobListener=(prefs,key)->{
             main.post(()->{refreshRenderProgress();refreshDashboard();if("youtube_url".equals(key)||"kakao_url".equals(key))refreshLinks();});
         };
