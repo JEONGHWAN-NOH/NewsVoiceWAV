@@ -20,6 +20,7 @@ public class LiteBroadcastTest extends Instrumentation {
             MainActivity activity=(MainActivity)startActivitySync(new android.content.Intent(c,MainActivity.class)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
             check(AppPrefs.pageMode(c)&&!AppPrefs.keepWav(c),"Lightweight defaults");
+            check(NewsVideoComposer.Quality.KAKAO.width==720 && NewsVideoComposer.Quality.KAKAO.height==1280 && NewsVideoComposer.Quality.KAKAO.fps==24 && NewsVideoComposer.Quality.KAKAO.videoBitrate>=800000,"Production HD quality");
             String script="경제 소식\n필리핀의 경제 소식을 전해드립니다.\n===\n사회 소식\n오늘의 사회 소식을 전해드립니다.";
             List<NewsStory> stories=NewsBroadcastSegments.build(script,"",true);
             android.net.Uri intro=fixturePhoto(c,"intro",android.graphics.Color.BLUE,360,480);

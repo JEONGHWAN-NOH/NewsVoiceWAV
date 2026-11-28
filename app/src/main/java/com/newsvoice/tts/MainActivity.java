@@ -355,21 +355,21 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         liteVideo.setChecked(AppPrefs.liteVideo(this));
         liteVideo.setOnCheckedChangeListener((button,checked)->AppPrefs.setLiteVideo(this,checked));
         body.addView(liteVideo,lp(-1,-2,4));liteVideo.setVisibility(View.GONE);
-        CheckBox pageMode=new CheckBox(this);pageMode.setText("최대 경량 · 본문 페이지 전환 (해제하면 부드러운 스크롤)");
+        CheckBox pageMode=new CheckBox(this);pageMode.setText("본문 페이지 전환 (해제하면 부드러운 스크롤)");
         pageMode.setChecked(AppPrefs.pageMode(this));pageMode.setOnCheckedChangeListener((b,on)->AppPrefs.get(this).edit().putBoolean("page_mode",on).apply());
         body.addView(pageMode,lp(-1,-2,4));
         CheckBox keepWav=new CheckBox(this);keepWav.setText("MP4와 함께 WAV 원본도 저장");
         keepWav.setChecked(AppPrefs.keepWav(this));keepWav.setOnCheckedChangeListener((b,on)->AppPrefs.get(this).edit().putBoolean("keep_wav",on).apply());
         body.addView(keepWav,lp(-1,-2,4));
-        TextView formatHelp=text("경량 MP4 360×640 · 10fps · 5분 5MB 이하 목표\nFast Start 자동 적용",14,true);
+        TextView formatHelp=text("선명한 HD MP4 720×1280 · 24fps · 5분 약 40MB\nFast Start 자동 적용",14,true);
         formatHelp.setTextColor(0xff61778e);body.addView(formatHelp,lp(-1,-2,7));
-        Button save=btn(videoCheck.isChecked()?"경량 영상 제작":"WAV 음성 자동 생성 및 다운로드 저장",0xff0756dc,Color.WHITE);
+        Button save=btn(videoCheck.isChecked()?"HD 영상 제작":"WAV 음성 자동 생성 및 다운로드 저장",0xff0756dc,Color.WHITE);
         body.addView(save,lp(-1,55,12));
         Button lastVideo=btn("최근 저장된 MP4 바로 열기",0xffe7f2f3,DARK);
         body.addView(lastVideo,lp(-1,50,9));
         lastVideo.setOnClickListener(v->openLastVideo());
         TextView distributionHeader=text("방송 배포",20,true);body.addView(distributionHeader,lp(-1,-2,18));
-        Button driveUpload=btn("경량 영상 Google Drive에 저장",0xffffd500,DARK);body.addView(driveUpload,lp(-1,52,8));
+        Button driveUpload=btn("HD 영상 Google Drive에 저장",0xffffd500,DARK);body.addView(driveUpload,lp(-1,52,8));
         driveUpload.setOnClickListener(v->shareUri("last_mp4_uri","video/mp4","Google Drive 앱에 저장"));
         body.addView(text("공유 목록에서 Drive 선택 → 업로드 → 액세스 관리에서 링크가 있는 모든 사용자(뷰어) → 링크 복사.",13,false),lp(-1,-2,5));
         Button shareVideo=btn("카카오톡에 경량 MP4 공유",0xffffd500,DARK);
@@ -383,7 +383,7 @@ public final class MainActivity extends Activity implements TextToSpeech.OnInitL
         Button shareLink=btn("카카오톡에 시청 링크 공유",0xffffd500,DARK);body.addView(shareLink,lp(-1,56,8));shareLink.setOnClickListener(v->{String value=ShareLinks.drive(AppPrefs.get(this).getString("kakao_url",""));if(value.isEmpty()){linkStatus.setText("Drive 주소를 먼저 등록하세요.");return;}Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,"오늘의 종합뉴스\n"+value);startActivity(Intent.createChooser(send,"시청 링크 공유"));});
         videoCheck.setOnCheckedChangeListener((button,isChecked)->{
             AppPrefs.get(this).edit().putBoolean("video",isChecked).apply();
-            save.setText(isChecked?"경량 영상 제작":"WAV 음성 자동 생성 및 다운로드 저장");
+            save.setText(isChecked?"HD 영상 제작":"WAV 음성 자동 생성 및 다운로드 저장");
         });
         TextView foot=text("엔진·목소리·낭독 스타일을 저장하고 WAV 자동 생성에도 동일하게 적용합니다. 여성 음성 여부와 낭독 품질은 미리 듣기로 확인하세요. 긴 원고는 자동 분할·결합합니다.",12,false);
         foot.setTextColor(0xff61778e);body.addView(foot,lp(-1,-2,16));

@@ -25,7 +25,7 @@ public final class NewsVideoComposer {
     private NewsVideoComposer() { }
     public static final int VIDEO_WIDTH=1080,VIDEO_HEIGHT=1920,FPS=30;
     enum Quality {
-        KAKAO(360,640,10,80000),
+        KAKAO(720,1280,24,1_000_000),
         ULTRA(720,1280,15,280_000),
         LITE(720,1280,24,700_000),
         FULL(VIDEO_WIDTH,VIDEO_HEIGHT,FPS,3_000_000);
@@ -240,7 +240,7 @@ public final class NewsVideoComposer {
             int outputChannels=(quality==Quality.ULTRA||quality==Quality.KAKAO)?1:channels;
             MediaFormat format=MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC,rate,outputChannels);
             format.setInteger(MediaFormat.KEY_AAC_PROFILE,MediaCodecInfo.CodecProfileLevel.AACObjectLC);
-            format.setInteger(MediaFormat.KEY_BIT_RATE,quality==Quality.KAKAO?40000:quality==Quality.ULTRA?48000:quality==Quality.LITE?64000:(channels==1?96000:128000));
+            format.setInteger(MediaFormat.KEY_BIT_RATE,quality==Quality.KAKAO?64000:quality==Quality.ULTRA?48000:quality==Quality.LITE?64000:(channels==1?96000:128000));
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE,PCM_CHUNK);
             codec.configure(format,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
             codec.start();in=new FileInputStream(pcm);
